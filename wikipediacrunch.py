@@ -23,8 +23,8 @@ def createDb( conn ):
     cur.execute( 'CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, parentTopicCount INTEGER, inverseDocumentFrequency REAL )' )
     cur.execute( 'CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termFrequency REAL, termWeight REAL )' )
     cur.execute( 'CREATE INDEX i1 ON words(name)' )
-    cur.execute( 'CREATE INDEX i2 ON wordAssociation(wordId)' )
-    cur.execute( 'CREATE INDEX i3 ON wordAssociation(wordId, topicId)' )
+    #cur.execute( 'CREATE INDEX i2 ON wordAssociation(wordId)' )
+    #cur.execute( 'CREATE INDEX i3 ON wordAssociation(wordId, topicId)' )
     cur.execute( 'CREATE INDEX i4 ON topics(title)' )
     conn.commit()
     
