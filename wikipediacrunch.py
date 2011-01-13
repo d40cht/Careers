@@ -25,6 +25,7 @@ def createDb( conn ):
     cur.execute( 'CREATE INDEX i1 ON words(name)' )
     cur.execute( 'CREATE INDEX i2 ON wordAssociation(wordId)' )
     cur.execute( 'CREATE INDEX i3 ON wordAssociation(wordId, topicId)' )
+    cur.execute( 'CREATE INDEX i4 ON topics(title)' )
     conn.commit()
     
 wordIds = {}
@@ -113,6 +114,10 @@ def run():
     if not existsAlready:
         createDb( conn )
     conn.create_function( 'log', 1, math.log )
+    
+    for wordId, word in conn.execute( 'SELECT id, name FROM words' ):
+        wordIds[wordId] = word
+    print 'Loaded %d words into dictionary' % len(wordIds)
 
     commitInterval = 1000
     if 1:
@@ -121,17 +126,23 @@ def run():
         for event, element in iterparse( fileStream ):
             if element.tag == expTag('page'):
                 title = element.find(expTag('title')).text
-                print count, title, len(wordIds)
                 
-                textElement = element.find(expTag('revision')).find(expTag('text'))
-                if textElement != None:
-                    text = textElement.text
-                    addPage( conn, title, text )
+                skip = list(conn.execute( 'SELECT * FROM topics WHERE title=?', [title] )) != []
+                
+                if not skip:
+                    print count, title, len(wordIds)
                     
-                    count += 1
-                    if (count % commitInterval) == 0:
-                        print '************* Committing changes **************'
-                        conn.commit()
+                    textElement = element.find(expTag('revision')).find(expTag('text'))
+                    if textElement != None:
+                        text = textElement.text
+                        addPage( conn, title, text )
+                        
+                        count += 1
+                        if (count % commitInterval) == 0:
+                            print '************* Committing changes **************'
+                            conn.commit()
+                else:
+                    print 'Skipping ', title
 
                 element.clear()
         
