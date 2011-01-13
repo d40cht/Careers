@@ -2,6 +2,9 @@ import os
 import math
 import sqlite3
 
+# mwlib to parse media wiki articles
+# Stem words using nltk
+
 from xml.etree.cElementTree import ElementTree, iterparse
 
 def createDb( conn ):
