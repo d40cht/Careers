@@ -23,13 +23,11 @@ def createDb( conn ):
     cur.execute( 'CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, parentTopicCount INTEGER, inverseDocumentFrequency REAL )' )
     cur.execute( 'CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termFrequency REAL, termWeight REAL )' )
     cur.execute( 'CREATE INDEX i1 ON words(name)' )
-    #cur.execute( 'CREATE INDEX i2 ON wordAssociation(wordId)' )
-    #cur.execute( 'CREATE INDEX i3 ON wordAssociation(wordId, topicId)' )
     cur.execute( 'CREATE INDEX i4 ON topics(title)' )
     conn.commit()
     
 wordIds = {}
-validWord = re.compile('[a-z][a-z0-9\+\-]+')
+validWord = re.compile('[a-z][a-z0-9\+\-\#\/]+')
 
 def getTopicsForWord( conn, word ):
     return conn.execute(
@@ -39,7 +37,7 @@ def getTopicsForWord( conn, word ):
 def mungeWords(words):
     filtered = []
     for w in words:
-        w = w.strip('"\'.();:,?@#<>/')
+        w = w.strip('"\'.();:,?@<>/')
         if w.startswith('{{') and w.endswith('}}'):
             print 'Template: ', w
         elif validWord.match( w ) == None:
@@ -175,6 +173,11 @@ def addPage( conn, title, rawtext ):
                 cur.execute( 'INSERT INTO wordAssociation VALUES(?, ?, ?, 0)', [topicId, wordId, termFrequency] )
             
 def buildWeights( conn ):
+    print 'Building indices for queries'
+    conn.execute( 'CREATE INDEX i2 ON wordAssociation(wordId)' )
+    conn.execute( 'CREATE INDEX i3 ON wordAssociation(wordId, topicId)' )
+    conn.commit()
+
     print 'Building inverse document frequencies'
     count = conn.execute( 'SELECT COUNT(*) FROM topics' ).fetchone()[0]
     res = conn.execute( 'UPDATE words SET inverseDocumentFrequency=log(? / parentTopicCount)', [count] )
