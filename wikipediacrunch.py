@@ -60,7 +60,44 @@ def parseTree(mwel):
         
     return res
     
+def allindices(string, sub):
+    listindex = []
+    offset = 0
+    i = string.find(sub, offset)
+    while i >= 0:
+        listindex.append(i)
+        i = string.find(sub, i + len(sub)) 
+    return listindex
+    
 def extractTemplates( text ):
+    allOpens = allindices(text, '{{')
+    allCloses = allindices(text, '}}')
+    if allOpens == [] or allCloses == []:
+        return text, []
+        
+    allT = sorted([(v, '{{') for v in allOpens] + [(v, '}}') for v in allCloses])
+
+    templates = []
+    transformedText = ''
+    nesting = 0
+    nestingOpen = 0
+    lastIndex = 0
+    for v, t in allT:
+        #print v, t
+        if t == '{{':
+            if nesting == 0:
+                nestingOpen = v+2
+                transformedText += text[lastIndex:v]
+            nesting += 1
+        elif t == '}}':
+            nesting -= 1
+            if nesting == 0:
+                lastIndex = v + 2
+                templates.append( text[nestingOpen:v] )
+    transformedText += text[lastIndex:]
+    return transformedText, templates
+    
+def extractTemplatesOld( text ):
     templates = []
     
     transformedText = ''
@@ -112,7 +149,11 @@ def addPage( conn, title, rawtext ):
         if ignoreTemplates( templates ):
             print 'Ignoring ', title, ' because templates suggest low quality:', templates
         else:
+            #print rawtext
+            #print text
+            #print templates
             words = parsePage( text )
+            #raw_input()
 
             cur = conn.cursor()
             cur.execute( 'INSERT INTO topics VALUES(NULL, ?, ?)', (title, len(words)) )
@@ -194,6 +235,8 @@ def run():
     buildWeights( conn )
                 
 if __name__ == '__main__':
-    #cProfile.run('run()')
-    run()
+    if 0:
+        cProfile.run('run()')
+    else:
+        run()
     
