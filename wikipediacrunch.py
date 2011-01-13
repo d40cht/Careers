@@ -1,11 +1,18 @@
 import os
+import re
+import bz2
 import math
+import mwlib
+import string
 import sqlite3
 
-# mwlib to parse media wiki articles
+
 # Stem words using nltk
 
 from xml.etree.cElementTree import ElementTree, iterparse
+from mwlib.refine import compat
+from mwlib.parser import nodes
+
 
 def createDb( conn ):
     cur = conn.cursor()
@@ -18,26 +25,46 @@ def createDb( conn ):
     conn.commit()
     
 wordIds = {}
+validWord = re.compile('[a-z][a-z0-9\+\-]+')
 
 def getTopicsForWord( conn, word ):
     return conn.execute(
         "SELECT t2.title, t1.termWeight FROM wordAssociation AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id "
         "INNER JOIN words AS t3 ON t1.wordId=t3.id WHERE t3.name='assistants' ORDER BY t1.termWeight DESC", [word] )
+
+def mungeWords(words):
+    filtered = []
+    for w in words:
+        w = w.strip('"\'.();:,?@#<>/')
+        if w.startswith('{{') and w.endswith('}}'):
+            pass
+        elif validWord.match( w ) == None:
+            pass
+        else:
+            filtered.append( w )
+    return filtered
+
+def parseTree(mwel):
+    res = []
+    if isinstance( mwel, nodes.Text ):
+        res += [v.strip().lower() for v in mwel.asText().split(' ')]
+    elif  isinstance( mwel, nodes.Article ) or isinstance( mwel, nodes.Section ) or isinstance( mwel, nodes.Item ) or isinstance( mwel, nodes.Style ) or isinstance( mwel, nodes.Node ):
+        for v in mwel:
+            res += parseTree(v)
+    else:
+        print 'Unexpected node type:', type(mwel)
+        
+    return res
+    
+def parsePage( text ):
+    words = parseTree( compat.parse_txt(text, lang=None) )
+    return mungeWords(words)
     
 def addPage( conn, title, text ):
     if not title.startswith('Category:') and not title.startswith('Portal:') and not title.startswith('User:'):
         print 'Adding page: ', title
-        words = []
-        word = ''
-        for c in text.lower():
-            if c >= 'a' and c <= 'z':
-                word += c
-            else:
-                if word != '':
-                    words.append(word)
-                    word = ''
-        if word != '':
-            words.append(word)
+        #words = simpleParsePage( text )
+        words = parsePage( text )
 
         cur = conn.cursor()
         cur.execute( 'INSERT INTO topics VALUES(NULL, ?, ?)', (title, len(words)) )
@@ -70,7 +97,7 @@ def buildWeights( conn ):
     print 'Complete'
 
 def run():
-    fileName = 'data/Wikipedia-20110112203017.xml'
+    fileName = 'data/Wikipedia-small-snapshot.xml.bz2'
     dbFileName = 'parsed.sqlite3'
 
     existsAlready = os.path.exists( dbFileName )
@@ -80,7 +107,8 @@ def run():
     conn.create_function( 'log', 1, math.log )
 
     if 1:
-        for event, element in iterparse( fileName ):
+        fileStream = bz2.BZ2File( fileName, 'r' )
+        for event, element in iterparse( fileStream ):
             if element.tag == 'page':
                 title = element.find('title').text
                 
