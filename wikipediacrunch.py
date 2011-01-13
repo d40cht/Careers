@@ -41,7 +41,7 @@ def mungeWords(words):
     for w in words:
         w = w.strip('"\'.();:,?@#<>/')
         if w.startswith('{{') and w.endswith('}}'):
-            pass
+            print 'Template: ', w
         elif validWord.match( w ) == None:
             pass
         else:
@@ -60,34 +60,78 @@ def parseTree(mwel):
         
     return res
     
+def extractTemplates( text ):
+    templates = []
+    
+    transformedText = ''
+    inTemplate = False
+    lastC = ''
+    templates = []
+    templateText = ''
+    i = 0
+    while i < len(text):
+        if i < len(text)-1:
+            pair = text[i:i+2]
+            if not inTemplate and pair == '{{':
+                templateText = ''
+                inTemplate = True
+                i += 2
+                continue
+            elif inTemplate and pair == '}}':
+                templates.append(templateText)
+                inTemplate = False
+                i += 2
+                continue
+                
+        c = text[i]
+        if inTemplate:
+            templateText += c
+        else:
+            transformedText += c
+        i += 1
+    
+    return transformedText, templates
+    
 def parsePage( text ):
     words = parseTree( compat.parse_txt(text, lang=None) )
     return mungeWords(words)
     
-def addPage( conn, title, text ):
+def ignoreTemplates(templates):
+    for t in templates:
+        if t.startswith('POV') or t.startswith('advert') or t.startswith('trivia'):
+            return True
+    return False
+    
+def addPage( conn, title, rawtext ):
     if not title.startswith('Category:') and not title.startswith('Portal:') and not title.startswith('User:'):
         #print 'Adding page: ', title
         #words = simpleParsePage( text )
-        words = parsePage( text )
+        
+        text, templates = extractTemplates(rawtext)
+        
+        if ignoreTemplates( templates ):
+            print 'Ignoring ', title, ' because templates suggest low quality:', templates
+        else:
+            words = parsePage( text )
 
-        cur = conn.cursor()
-        cur.execute( 'INSERT INTO topics VALUES(NULL, ?, ?)', (title, len(words)) )
-        topicId = cur.lastrowid
-        topicWordCount = {}
-        for word in words:
-            if word not in wordIds:
-                cur.execute( 'INSERT INTO words VALUES( NULL, ?, 0, 0 )', [word] )
-                wordIds[word] = cur.lastrowid
-            wordId = wordIds[word]
-            if word not in topicWordCount:
-                topicWordCount[wordId] = 0
-            topicWordCount[wordId] += 1
+            cur = conn.cursor()
+            cur.execute( 'INSERT INTO topics VALUES(NULL, ?, ?)', (title, len(words)) )
+            topicId = cur.lastrowid
+            topicWordCount = {}
+            for word in words:
+                if word not in wordIds:
+                    cur.execute( 'INSERT INTO words VALUES( NULL, ?, 0, 0 )', [word] )
+                    wordIds[word] = cur.lastrowid
+                wordId = wordIds[word]
+                if word not in topicWordCount:
+                    topicWordCount[wordId] = 0
+                topicWordCount[wordId] += 1
 
-        numWords = len(words)
-        for wordId, count in topicWordCount.items():
-            termFrequency = float(count) / float(numWords)
-            cur.execute( 'UPDATE words SET parentTopicCount=parentTopicCount+1 WHERE id=?', [wordId] )
-            cur.execute( 'INSERT INTO wordAssociation VALUES(?, ?, ?, 0)', [topicId, wordId, termFrequency] )
+            numWords = len(words)
+            for wordId, count in topicWordCount.items():
+                termFrequency = float(count) / float(numWords)
+                cur.execute( 'UPDATE words SET parentTopicCount=parentTopicCount+1 WHERE id=?', [wordId] )
+                cur.execute( 'INSERT INTO wordAssociation VALUES(?, ?, ?, 0)', [topicId, wordId, termFrequency] )
             
 def buildWeights( conn ):
     print 'Building inverse document frequencies'
@@ -137,12 +181,12 @@ def run():
                         text = textElement.text
                         addPage( conn, title, text )
                         
-                        count += 1
                         if (count % commitInterval) == 0:
                             print '************* Committing changes **************'
                             conn.commit()
                 else:
-                    print 'Skipping ', title
+                    print 'Skipping ', title, count
+                count += 1
 
                 element.clear()
         
