@@ -6,8 +6,11 @@ import mwlib
 import string
 import sqlite3
 
+import cProfile
 
-# Stem words using nltk
+
+# Stem words using nltk?
+# Deal with templates properly (mod mwlib?)
 
 from xml.etree.cElementTree import ElementTree, iterparse
 from mwlib.refine import compat
@@ -62,7 +65,7 @@ def parsePage( text ):
     
 def addPage( conn, title, text ):
     if not title.startswith('Category:') and not title.startswith('Portal:') and not title.startswith('User:'):
-        print 'Adding page: ', title
+        #print 'Adding page: ', title
         #words = simpleParsePage( text )
         words = parsePage( text )
 
@@ -96,8 +99,13 @@ def buildWeights( conn ):
     conn.commit()
     print 'Complete'
 
+wikipediaExportNs = 'http://www.mediawiki.org/xml/export-0.4/'
+def expTag(s):
+    return '{%s}%s' % (wikipediaExportNs, s)
+
 def run():
-    fileName = 'data/Wikipedia-small-snapshot.xml.bz2'
+    #fileName = 'data/Wikipedia-small-snapshot.xml.bz2'
+    fileName = '/home/alexw/enwiki-latest-pages-articles.xml.bz2'
     dbFileName = 'parsed.sqlite3'
 
     existsAlready = os.path.exists( dbFileName )
@@ -106,20 +114,31 @@ def run():
         createDb( conn )
     conn.create_function( 'log', 1, math.log )
 
+    commitInterval = 1000
     if 1:
+        count = 0
         fileStream = bz2.BZ2File( fileName, 'r' )
         for event, element in iterparse( fileStream ):
-            if element.tag == 'page':
-                title = element.find('title').text
+            if element.tag == expTag('page'):
+                title = element.find(expTag('title')).text
+                print count, title, len(wordIds)
                 
-                textElement = element.find('revision').find('text')
+                textElement = element.find(expTag('revision')).find(expTag('text'))
                 if textElement != None:
                     text = textElement.text
                     addPage( conn, title, text )
+                    
+                    count += 1
+                    if (count % commitInterval) == 0:
+                        print '************* Committing changes **************'
+                        conn.commit()
+
                 element.clear()
-        conn.commit()
-    
+        
+    conn.commit()
     buildWeights( conn )
                 
 if __name__ == '__main__':
+    #cProfile.run('run()')
     run()
+    
