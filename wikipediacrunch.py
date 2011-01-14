@@ -138,7 +138,7 @@ def ignoreTemplates(templates):
     return False
     
     
-disallowedTitlePrefixes = ['Category:', 'Portal:', 'User:', 'File:', 'Wikipedia:']
+disallowedTitlePrefixes = ['Category:', 'Portal:', 'User:', 'File:', 'Wikipedia:', 'Template:']
 def addPage( conn, title, rawtext ):
     if reduce( lambda x, y: x and (not title.startswith(y)), disallowedTitlePrefixes, True ):
         #print 'Adding page: ', title
