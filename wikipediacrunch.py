@@ -173,6 +173,8 @@ def addPage( conn, title, rawtext ):
                 termFrequency = float(count) / float(numWords)
                 cur.execute( 'UPDATE words SET parentTopicCount=parentTopicCount+1 WHERE id=?', [wordId] )
                 cur.execute( 'INSERT INTO wordAssociation VALUES(?, ?, ?, 0)', [topicId, wordId, termFrequency] )
+    else:
+        print '  skipping as title prefix suggests not article.'
             
 def buildWeights( conn ):
     print 'Building indices for queries'
