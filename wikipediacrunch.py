@@ -137,8 +137,10 @@ def ignoreTemplates(templates):
             return True
     return False
     
+    
+disallowedTitlePrefixes = ['Category:', 'Portal:', 'User:', 'File:', 'Wikipedia:']
 def addPage( conn, title, rawtext ):
-    if not title.startswith('Category:') and not title.startswith('Portal:') and not title.startswith('User:'):
+    if reduce( lambda x, y: x and (not title.startswith(y)), disallowedTitlePrefixes, True ):
         #print 'Adding page: ', title
         #words = simpleParsePage( text )
         
@@ -221,7 +223,7 @@ def run():
                     print count, title, len(wordIds)
                     
                     textElement = element.find(expTag('revision')).find(expTag('text'))
-                    if textElement != None:
+                    if textElement != None and textElement.text != None:
                         text = textElement.text
                         addPage( conn, title, text )
                         
