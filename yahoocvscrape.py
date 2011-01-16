@@ -11,6 +11,7 @@ def createDb( conn ):
     cur.execute( 'CREATE TABLE cvText( id INTEGER PRIMARY KEY AUTOINCREMENT, sectorQueryResultId INTEGER, contents TEXT )' )
     cur.execute( 'CREATE INDEX i1 ON sectorQueryResults (sectorId)')
     cur.execute( 'CREATE INDEX i2 ON sectorQueryResults (url)')
+    cur.execute( 'CREATE INDEX i3 ON cvText(sectorQueryResultId)')
     conn.commit()
 
 def yahooSearch( query, numResults=20 ):
@@ -32,7 +33,7 @@ for sectorId, sectorName, resCount in list(c.execute('SELECT t1.id, t1.searchQue
         print 'Sector %s has %d results' % (sectorName, resCount)
     else:
         print 'Querying yahoo for %s' % sectorName
-        res = yahooSearch( 'CV British %s filetype:pdf' % sectorName, numResults=0)['query']
+        res = yahooSearch( 'Curriculum Vitae British %s filetype:pdf' % sectorName, numResults=0)['query']
         print '  got %s results' % res['count']
         insertedCount = 0
         for row in res['results']['result']:
@@ -50,17 +51,22 @@ for sectorId, sectorName, resCount in list(c.execute('SELECT t1.id, t1.searchQue
 for urlId, url, textId in list(c.execute('SELECT t1.id, t1.url, t2.id FROM sectorQueryResults AS t1 LEFT JOIN cvText AS t2 ON t1.id=t2.sectorQueryResultId')):
     if textId == None:
         print 'Getting: %s' % url
-        urllib.urlretrieve( url, 'temp.pdf' )
-        os.system( '/usr/bin/pdftotext -nopgbrk temp.pdf' )
-        text = open( 'temp.txt', 'r' ).read()
+        try:
+            res = os.system( 'wget %s -O temp.pdf -T 30 -t 3' % url )
+            if res != 0: raise IOError('Could not get data' )
+            res = os.system( '/usr/bin/pdftotext -nopgbrk temp.pdf' )
+            if res != 0: raise IOError('Could not parse pdf' )
+            text = open( 'temp.txt', 'r' ).read()
 
-        textSimple = ''
-        for char in text:
-            if ord(char) < 128:
-                textSimple += char
+            textSimple = ''
+            for char in text:
+                if ord(char) < 128:
+                    textSimple += char
 
-        print 'Inserting text into db (%d)' % len(textSimple)
-        c.execute( 'INSERT INTO cvText VALUES(NULL, ?, ?)', [urlId, textSimple] )
-        conn.commit()
+            print 'Inserting text into db (%d)' % len(textSimple)
+            c.execute( 'INSERT INTO cvText VALUES(NULL, ?, ?)', [urlId, textSimple] )
+            conn.commit()
+        except IOError:
+            print '  IO error. Continuing'
         
 
