@@ -5,7 +5,7 @@
 
 int main( int argc, char** argv )
 {
-    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "home/alexw/AW/Careers/play.sqlite3" ) );
+    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/play.sqlite3" ) );
     
     boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM wordAssociation" ) );
     
@@ -15,7 +15,7 @@ int main( int argc, char** argv )
 		boost::tuple<int, int, double, double> t;
 		ise::sql::populateRowTuple( *rs, t );
 		
-		if ( ((++count) % 1000) == 0 )
+		if ( ((++count) % 1000000) == 0 )
 		{
 		    std::cout << count << std::endl;
 		}
