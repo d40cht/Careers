@@ -1,5 +1,7 @@
 #include "sqldb.hpp"
 
+#include <map>
+#include <vector>
 #include <iostream>
 #include <boost/scoped_ptr.hpp>
 
@@ -10,7 +12,7 @@ int main( int argc, char** argv )
     boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM wordAssociation" ) );
     
     size_t count = 0;
-    std::map<size_t, std::pair<size_t, size_t> > wordAssocs;
+    std::map<int, std::vector<std::pair<int, int> > > wordAssocs;
 	while (true)
 	{
 		boost::tuple<int, int, double, double> t;
