@@ -39,6 +39,7 @@ int main( int argc, char** argv )
 {
     boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/play.sqlite3" ) );
     
+    std::cout << "Loading topics" << std::endl;
     std::map<int, Topic> topics;
     {
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM topics" ) );
@@ -50,7 +51,9 @@ int main( int argc, char** argv )
             if ( !rs->advance() ) break;
         }
     }
+    std::cout << "  " << topics.size() << std::endl;
     
+    std::cout << "Loading words" << std::endl;
     std::map<int, Word> words;
     {
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM words" ) );
@@ -62,7 +65,9 @@ int main( int argc, char** argv )
             if ( !rs->advance() ) break;
         }
     }
+    std::cout << "  " << words.size() << std::endl;
     
+    std::cout << "Loading associations" << std::endl;
     std::map<int, std::vector<ParentTopic> > wordAssocs;
     {
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM wordAssociation" ) );
