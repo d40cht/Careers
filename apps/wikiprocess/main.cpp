@@ -1,5 +1,7 @@
 #include "sqldb.hpp"
 
+#include <map>
+#include <vector>
 #include <iostream>
 #include <boost/scoped_ptr.hpp>
 
@@ -37,7 +39,6 @@ int main( int argc, char** argv )
 {
     boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/play.sqlite3" ) );
     
-    
     std::map<int, Topic> topics;
     {
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM topics" ) );
@@ -45,7 +46,7 @@ int main( int argc, char** argv )
         {
             boost::tuple<int, std::string, int> t;
             ise::sql::populateRowTuple( *rs, t );
-            topics.insert( std::make_pair( t.get<0>(), Topic( t.get<1>(), t.get<2>() ) );
+            topics.insert( std::make_pair( t.get<0>(), Topic( t.get<1>(), t.get<2>() ) ) );
             if ( !rs->advance() ) break;
         }
     }
@@ -57,12 +58,12 @@ int main( int argc, char** argv )
         {
             boost::tuple<int, std::string, int, double> t;
             ise::sql::populateRowTuple( *rs, t );
-            topics.insert( std::make_pair( t.get<0>(), Word( t.get<1>(), t.get<2>() ) );
+            words.insert( std::make_pair( t.get<0>(), Word( t.get<1>(), t.get<2>() ) ) );
             if ( !rs->advance() ) break;
         }
     }
     
-    std::map<int, ParentTopic> wordAssocs;
+    std::map<int, std::vector<ParentTopic> > wordAssocs;
     {
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM wordAssociation" ) );
         size_t count = 0;
