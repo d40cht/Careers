@@ -7,21 +7,19 @@
 
 struct Topic
 {
-    Topic( const std::string text, int count ) : m_text(text), m_count(count)
+    Topic( int count ) : m_count(count)
     {
     }
     
-    std::string     m_text;
     int             m_count;
 };
 
 struct Word
 {
-    Word( const std::string& name, int parentTopicCount ) : m_name(name), m_parentTopicCount(parentTopicCount)
+    Word( int parentTopicCount ) : m_parentTopicCount(parentTopicCount)
     {
     }
     
-    std::string     m_name;
     int             m_parentTopicCount;
 };
 
@@ -42,12 +40,15 @@ int main( int argc, char** argv )
     std::cout << "Loading topics" << std::endl;
     std::map<int, Topic> topics;
     {
-        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM topics" ) );
+        size_t count = 0;
+        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, wordCount FROM topics" ) );
         while(true)
         {
-            boost::tuple<int, std::string, int> t;
+            boost::tuple<int, int> t;
             ise::sql::populateRowTuple( *rs, t );
-            topics.insert( std::make_pair( t.get<0>(), Topic( t.get<1>(), t.get<2>() ) ) );
+            topics.insert( std::make_pair( t.get<0>(), Topic( t.get<1>() ) ) );
+
+	    if ( ((++count) % 100000) == 0 ) std::cout << count << std::endl;
             if ( !rs->advance() ) break;
         }
     }
@@ -56,12 +57,15 @@ int main( int argc, char** argv )
     std::cout << "Loading words" << std::endl;
     std::map<int, Word> words;
     {
-        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM words" ) );
+        size_t count = 0;
+        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, parentTopicCount FROM words" ) );
         while(true)
         {
-            boost::tuple<int, std::string, int, double> t;
+            boost::tuple<int, int> t;
             ise::sql::populateRowTuple( *rs, t );
-            words.insert( std::make_pair( t.get<0>(), Word( t.get<1>(), t.get<2>() ) ) );
+            words.insert( std::make_pair( t.get<0>(), Word( t.get<1>() ) ) );
+
+	    if ( ((++count) % 100000) == 0 ) std::cout << count << std::endl;
             if ( !rs->advance() ) break;
         }
     }
@@ -80,10 +84,7 @@ int main( int argc, char** argv )
 		    // Word id to (topic id, count)
 		    wordAssocs[t.get<1>()].push_back( ParentTopic(t.get<0>(), t.get<2>()) );
 		
-		    if ( ((++count) % 1000000) == 0 )
-		    {
-		        std::cout << count << std::endl;
-		    }
+		    if ( ((++count) % 1000000) == 0 ) std::cout << count << std::endl;
 		
 		    if ( !rs->advance() )
 		    {
