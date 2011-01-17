@@ -5,14 +5,14 @@
 
 int main( int argc, char** argv )
 {
-    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alex/Devel/AW/career/cvscrape.sqlite3" ) );
+    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "home/alexw/AW/Careers/play.sqlite3" ) );
     
-    boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM cvText LIMIT 10" ) );
+    boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM wordAssociation" ) );
     
     size_t count = 0;
 	while (true)
 	{
-		boost::tuple<int, int, std::string> t;
+		boost::tuple<int, int, double, double> t;
 		ise::sql::populateRowTuple( *rs, t );
 		
 		if ( ((++count) % 1000) == 0 )
