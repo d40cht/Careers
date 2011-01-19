@@ -53,7 +53,7 @@ int main( int argc, char** argv )
             int topicId = t.get<0>();
             int wordCount = t.get<1>();
 
-            if ( wordCount > 100 )
+            if ( wordCount > 30 )
             {            
                 topics.insert( std::make_pair( topicId, Topic(wordCount) ) );
     	        if ( ((++count) % 100000) == 0 ) std::cout << count << std::endl;
@@ -76,7 +76,7 @@ int main( int argc, char** argv )
             int wordId = t.get<0>();
             int wordCount = t.get<1>();
             
-            if ( wordCount > 10 )
+            if ( wordCount > 2 )
             {
                 words.insert( std::make_pair( wordId, Word( wordCount ) ) );
 
