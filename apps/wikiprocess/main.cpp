@@ -2,8 +2,11 @@
 
 #include <map>
 #include <vector>
+#include <algorithm>
 #include <iostream>
+
 #include <boost/scoped_ptr.hpp>
+#include <boost/tuple/tuple_comparison.hpp>
 
 struct Topic
 {
@@ -72,7 +75,10 @@ int main( int argc, char** argv )
     std::cout << "  " << words.size() << std::endl;
     
     std::cout << "Loading associations" << std::endl;
-    std::map<int, std::vector<ParentTopic> > wordAssocs;
+    
+    // Word id, topic id, word frequency in topic
+    std::vector<boost::tuple<int, int, int> > wordAssocs;
+    //std::map<int, std::vector<ParentTopic> > wordAssocs;
     {
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM wordAssociation" ) );
         size_t count = 0;
@@ -82,7 +88,8 @@ int main( int argc, char** argv )
 		    ise::sql::populateRowTuple( *rs, t );
 		
 		    // Word id to (topic id, count)
-		    wordAssocs[t.get<1>()].push_back( ParentTopic(t.get<0>(), t.get<2>()) );
+		    //wordAssocs[t.get<1>()].push_back( ParentTopic(t.get<0>(), t.get<2>()) );
+		    wordAssocs.push_back( boost::make_tuple( t.get<1>(), t.get<0>(), t.get<2>() ) );
 		
 		    if ( ((++count) % 1000000) == 0 ) std::cout << count << std::endl;
 		
@@ -92,4 +99,9 @@ int main( int argc, char** argv )
             }
 	    }
     }
+    
+    std::cout << "Sorting vector(!) " << std::endl;
+    std::sort( wordAssocs.begin(), wordAssocs.end() );
+    
+    // Iterate over the word associations, calculating the weights for each term and only keeping the top N
 }
