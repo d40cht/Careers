@@ -68,7 +68,10 @@ int main( int argc, char** argv )
             ise::sql::populateRowTuple( *rs, t );
             words.insert( std::make_pair( t.get<0>(), Word( t.get<1>() ) ) );
 
-	    if ( ((++count) % 100000) == 0 ) std::cout << count << std::endl;
+	        if ( ((++count) % 100000) == 0 )
+	        {
+	            std::cout << count << " : " << t.get<1>() << std::endl;
+            }
             if ( !rs->advance() ) break;
         }
     }
