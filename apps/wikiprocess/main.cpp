@@ -51,7 +51,7 @@ int main( int argc, char** argv )
             ise::sql::populateRowTuple( *rs, t );
             topics.insert( std::make_pair( t.get<0>(), Topic( t.get<1>() ) ) );
 
-	    if ( ((++count) % 100000) == 0 ) std::cout << count << std::endl;
+	        if ( ((++count) % 100000) == 0 ) std::cout << count << std::endl;
             if ( !rs->advance() ) break;
         }
     }
@@ -66,11 +66,15 @@ int main( int argc, char** argv )
         {
             boost::tuple<int, int> t;
             ise::sql::populateRowTuple( *rs, t );
-            words.insert( std::make_pair( t.get<0>(), Word( t.get<1>() ) ) );
+            
+            int wordId = t.get<0>();
+            int wordCount = t.get<1>();
+            
+            if ( wordCount > 10 )
+            {
+                words.insert( std::make_pair( wordId, Word( wordCount ) ) );
 
-	        if ( ((++count) % 100000) == 0 )
-	        {
-	            std::cout << count << " : " << t.get<1>() << std::endl;
+	            if ( ((++count) % 100000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << std::endl;
             }
             if ( !rs->advance() ) break;
         }
