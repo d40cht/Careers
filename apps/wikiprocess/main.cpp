@@ -42,18 +42,27 @@ int main( int argc, char** argv )
 {
     boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/play.sqlite3" ) );
     
+    boost::scoped_ptr<ise::sql::DbConnection> dbout( ise::sql::newSqliteConnection( "process.sqlite3" ) );
+    dbout->execute( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT )" );
+    dbout->execute( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT )" );
+    dbout->execute( "CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termWeight REAL )" );
+    
     std::cout << "Loading topics" << std::endl;
     std::map<int, Topic> topics;
     {
+        boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO topics VALUES( ?, ? )" ) );
         size_t count = 0;
-        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, wordCount FROM topics" ) );
+        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, wordCount, title FROM topics" ) );
         while(true)
         {
-            boost::tuple<int, int> t;
+            boost::tuple<int, int, std::string> t;
             ise::sql::populateRowTuple( *rs, t );
             
             int topicId = t.get<0>();
             int wordCount = t.get<1>();
+            const std::string& text = t.get<2>();
+            
+            p->execute( boost::make_tuple( topicId, text ) );
 
             if ( wordCount > 30 )
             {            
