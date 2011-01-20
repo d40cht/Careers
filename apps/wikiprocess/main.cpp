@@ -64,11 +64,10 @@ int main( int argc, char** argv )
             int topicId = t.get<0>();
             int wordCount = t.get<1>();
             const std::string& text = t.get<2>();
-            
-            p->execute( boost::make_tuple( topicId, text ) );
 
             if ( wordCount > 30 )
-            {            
+            {
+                p->execute( boost::make_tuple( topicId, text ) );
                 topics.insert( std::make_pair( topicId, Topic(wordCount) ) );
     	        if ( ((++count) % 100000) == 0 ) std::cout << count << std::endl;
             }
@@ -82,20 +81,24 @@ int main( int argc, char** argv )
     dbout->execute( "COMMIT" );
 
     std::cout << "Loading words" << std::endl;
+    dbout->execute( "BEGIN" );
     std::map<int, Word> words;
     {
+        boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ? )" ) );
         size_t count = 0;
-        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, parentTopicCount FROM words" ) );
+        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, parentTopicCount, text FROM words" ) );
         while(true)
         {
-            boost::tuple<int, int> t;
+            boost::tuple<int, int, std::string> t;
             ise::sql::populateRowTuple( *rs, t );
             
             int wordId = t.get<0>();
             int numParentTopics = t.get<1>();
+            const std::string& text = t.get<2>();
             
             if ( numParentTopics > 2 )
             {
+                p->execute( boost::make_tuple( wordId, text ) );
                 words.insert( std::make_pair( wordId, Word( numTopics, numParentTopics ) ) );
 
 	            if ( ((++count) % 100000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << std::endl;
@@ -104,6 +107,8 @@ int main( int argc, char** argv )
         }
     }
     std::cout << "  " << words.size() << std::endl;
+    std::cout << "Comitting changes" << std::endl;
+    dbout->execute( "COMMIT" );
     
     std::cout << "Loading associations" << std::endl;
     
