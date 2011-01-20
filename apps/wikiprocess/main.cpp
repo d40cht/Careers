@@ -10,6 +10,8 @@
 #include <boost/scoped_ptr.hpp>
 #include <boost/tuple/tuple_comparison.hpp>
 
+#include "iseExceptions.hpp"
+
 struct Topic
 {
     Topic( int wordCount ) : m_wordCount(wordCount)
@@ -38,7 +40,7 @@ struct ParentTopic
     int             m_termFrequency;
 };
 
-int main( int argc, char** argv )
+void run()
 {
     boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/play.sqlite3" ) );
     
@@ -180,4 +182,18 @@ int main( int argc, char** argv )
     dbout->execute( "COMMIT" );
     std::cout << "  complete..." << std::endl;
     
+}
+
+int main( int argc, char** argv )
+{
+    try
+    {
+        run();
+    }
+    catch ( ise::exceptions::Generic& e )
+    {   
+        std::cout << e.str() << std::endl;
+    }
+    
+    return 0;
 }
