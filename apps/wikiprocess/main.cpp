@@ -156,12 +156,28 @@ int main( int argc, char** argv )
 	    }
     }
     
-    std::cout << "Counting cut down topic map" << std::endl;
+    std::cout << "Dumping cut down topic map" << std::endl;
+    
+    dbout->execute( "BEGIN" );
     int limitedCount = 0;
-    for ( std::map<int, std::multimap<float, int> >::iterator it = wordAssocs.begin(); it != wordAssocs.end(); ++it )
     {
-        limitedCount += it->second.size();
+        boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ? )" ) );
+        for ( std::map<int, std::multimap<float, int> >::iterator it = wordAssocs.begin(); it != wordAssocs.end(); ++it )
+        {
+            int wordId = it->first;
+            for ( std::multimap<float, int>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it )
+            {
+                double distance = it2->first;
+                int topicId = it2->second;
+                p->execute( boost::make_tuple( topicId, wordId, distance ) );
+            }
+            limitedCount += it->second.size();
+        }
     }
     
     std::cout << "  " << limitedCount << " topics associations" << std::endl;
+    std::cout << "Committing word associations" << std::endl;
+    dbout->execute( "COMMIT" );
+    std::cout << "  complete..." << std::endl;
+    
 }
