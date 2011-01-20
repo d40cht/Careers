@@ -43,9 +43,12 @@ int main( int argc, char** argv )
     boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/play.sqlite3" ) );
     
     boost::scoped_ptr<ise::sql::DbConnection> dbout( ise::sql::newSqliteConnection( "process.sqlite3" ) );
-    dbout->execute( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT )" );
-    dbout->execute( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT )" );
+    dbout->execute( "CREATE TABLE topics( id INTEGER, title TEXT )" );
+    dbout->execute( "CREATE TABLE words( id INTEGER, name TEXT )" );
     dbout->execute( "CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termWeight REAL )" );
+
+
+    dbout->execute( "BEGIN" );
     
     std::cout << "Loading topics" << std::endl;
     std::map<int, Topic> topics;
@@ -75,6 +78,9 @@ int main( int argc, char** argv )
     int numTopics = topics.size();
     std::cout << "  " << numTopics << std::endl;
     
+    std::cout << "Committing changes..." << std::endl;
+    dbout->execute( "COMMIT" );
+
     std::cout << "Loading words" << std::endl;
     std::map<int, Word> words;
     {
