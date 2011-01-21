@@ -94,38 +94,7 @@ def extractTemplates( text ):
                 templates.append( text[nestingOpen:v] )
     transformedText += text[lastIndex:]
     return transformedText, templates
-    
-def extractTemplatesOld( text ):
-    templates = []
-    
-    transformedText = ''
-    inTemplate = False
-    lastC = ''
-    templates = []
-    templateText = ''
-    i = 0
-    while i < len(text):
-        if i < len(text)-1:
-            pair = text[i:i+2]
-            if not inTemplate and pair == '{{':
-                templateText = ''
-                inTemplate = True
-                i += 2
-                continue
-            elif inTemplate and pair == '}}':
-                templates.append(templateText)
-                inTemplate = False
-                i += 2
-                continue
-                
-        c = text[i]
-        if inTemplate:
-            templateText += c
-        else:
-            transformedText += c
-        i += 1
-    
-    return transformedText, templates
+ 
     
 def parsePage( text ):
     words = parseTree( compat.parse_txt(text, lang=None) )
@@ -242,7 +211,7 @@ def run():
     buildWeights( conn )
                 
 if __name__ == '__main__':
-    if 0:
+    if 1:
         cProfile.run('run()')
     else:
         run()
