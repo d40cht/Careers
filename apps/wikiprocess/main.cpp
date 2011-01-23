@@ -248,15 +248,15 @@ void run2()
         boost::scoped_ptr<ise::sql::PreparedStatement> p( db->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ?, ? )" ) );   
         
 
-            int c = 0;
+        int c = 0;
 	    boost::tuple<int, int, int> topicWordAssoc( 0, 0, 0 );
 	    for ( std::vector<boost::tuple<int, int, int> >::iterator it = data.begin(); it != data.end(); ++it )
 	    {
-	        if ( topicWordAssoc.get<0>() != it->get<0>() && topicWordAssoc.get<1>() != it->get<1>() )
+	        if ( topicWordAssoc.get<0>() != it->get<0>() || topicWordAssoc.get<1>() != it->get<1>() )
 	        {
 	            // Push out here
 	            p->execute( boost::make_tuple( topicWordAssoc.get<0>(), topicWordAssoc.get<1>(), topicWordAssoc.get<2>(), 0.0 ) );
-	            if ( (c++ % 1000000) == 0 ) std::cout << "  count: " << c << std::endl;  
+	            if ( (++c % 1000000) == 0 ) std::cout << "  count: " << c << std::endl;  
 	            topicWordAssoc = *it;
 	        }
 	        else
