@@ -139,12 +139,15 @@ void run()
 		    //wordAssocs[t.get<1>()].push_back( ParentTopic(t.get<0>(), t.get<2>()) );
 		    int wordId = t.get<1>();
 		    int topicId = t.get<0>();
-		    float wordImportanceInTopic = t.get<2>();
+		    int wordCountInTopic = t.get<2>();
+		    //float wordImportanceInTopic = t.get<2>();
 
             if ( words.find(wordId) != words.end() && topics.find(topicId) != topics.end() )
             {		    
 		        float wordInverseDocFrequency = words.find(wordId)->second.m_inverseDocFrequency;
 		        int wordsInTopic = topics.find(topicId)->second.m_wordCount;
+		        
+		        float wordImportanceInTopic = ((float) wordCountInTopic) / ((float) wordsInTopic);
 		        
 		        float tfIdf = wordImportanceInTopic * wordInverseDocFrequency;
 		        
