@@ -50,6 +50,7 @@ void run()
     dbout->execute( "CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termWeight REAL )" );
 
 
+
     dbout->execute( "BEGIN" );
     
     std::cout << "Loading topics" << std::endl;
@@ -84,6 +85,7 @@ void run()
 
     std::cout << "Loading words" << std::endl;
     dbout->execute( "BEGIN" );
+    
     std::map<int, Word> words;
     {
         boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ? )" ) );
@@ -98,12 +100,19 @@ void run()
             int numParentTopics = t.get<1>();
             const std::string& text = t.get<2>();
             
-            if ( numParentTopics > 2 )
+            if ( numParentTopics >= 2 )
             {
-                p->execute( boost::make_tuple( wordId, text ) );
-                words.insert( std::make_pair( wordId, Word( numTopics, numParentTopics ) ) );
+                if ( numParentTopics < 400000 )
+                {
+                    p->execute( boost::make_tuple( wordId, text ) );
+                    words.insert( std::make_pair( wordId, Word( numTopics, numParentTopics ) ) );
 
-	            if ( ((++count) % 100000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << std::endl;
+	                if ( ((++count) % 100000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << std::endl;
+                }
+                else
+                {
+                    std::cout << numParentTopics << ": " << text << std::endl;
+                }
             }
             if ( !rs->advance() ) break;
         }
@@ -130,24 +139,28 @@ void run()
 		    //wordAssocs[t.get<1>()].push_back( ParentTopic(t.get<0>(), t.get<2>()) );
 		    int wordId = t.get<1>();
 		    int topicId = t.get<0>();
-		    int wordCountInTopic = t.get<2>();
-		    
-		    float wordInverseDocFrequency = words.find(wordId)->second.m_inverseDocFrequency;
-		    int wordsInTopic = topics.find(topicId)->second.m_wordCount;
-		    
-		    float wordImportanceInTopic = (float) wordCountInTopic / (float) wordsInTopic;
-		    float tfIdf = wordImportanceInTopic * wordInverseDocFrequency;
-		    
-		    //wordAssocs.push_back( boost::make_tuple( t.get<1>(), t.get<0>(), tfIdf ) );
-		    std::multimap<float, int>& wordMap = wordAssocs[wordId];
-		    
-		    wordMap.insert( std::make_pair( tfIdf, topicId ) );
-		    
-		    // Keep only the highest importance topics per word
-		    if ( wordMap.size() > 200 )
-		    {
-		        wordMap.erase( wordMap.begin() );
-		    }
+		    float wordImportanceInTopic = t.get<2>();
+
+            if ( words.find(wordId) != words.end() && topics.find(topicId) != topics.end() )
+            {		    
+		        float wordInverseDocFrequency = words.find(wordId)->second.m_inverseDocFrequency;
+		        int wordsInTopic = topics.find(topicId)->second.m_wordCount;
+		        
+		        float tfIdf = wordImportanceInTopic * wordInverseDocFrequency;
+		        
+		        //std::cout << "** " << wordInverseDocFrequency << " " << tfIdf << std::endl;
+		        
+		        //wordAssocs.push_back( boost::make_tuple( t.get<1>(), t.get<0>(), tfIdf ) );
+		        std::multimap<float, int>& wordMap = wordAssocs[wordId];
+		        
+		        wordMap.insert( std::make_pair( tfIdf, topicId ) );
+		        
+		        // Keep only the highest importance topics per word
+		        if ( wordMap.size() > 200 )
+		        {
+		            wordMap.erase( wordMap.begin() );
+		        }
+            }
 		
 		    if ( ((++count) % 1000000) == 0 ) std::cout << count << std::endl;
 		
@@ -182,6 +195,12 @@ void run()
     dbout->execute( "COMMIT" );
     std::cout << "  complete..." << std::endl;
     
+    std::cout << "Building indices" << std::endl;
+
+    dbout->execute("CREATE INDEX i1 ON topics(id)");
+    dbout->execute("CREATE INDEX i2 ON words(id)");
+    dbout->execute("CREATE INDEX i3 ON words(name)");
+    dbout->execute("CREATE INDEX i4 ON wordAssociation(wordId)");
 }
 
 void run2()
