@@ -245,8 +245,10 @@ void run2()
         std::cout << "Reloading data back into wordAssociation table" << std::endl;
 	    db->execute( "BEGIN" );
 	    
-        boost::scoped_ptr<ise::sql::PreparedStatement> p( db->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ? )" ) );   
+        boost::scoped_ptr<ise::sql::PreparedStatement> p( db->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ?, ? )" ) );   
         
+
+            int c = 0;
 	    boost::tuple<int, int, int> topicWordAssoc( 0, 0, 0 );
 	    for ( std::vector<boost::tuple<int, int, int> >::iterator it = data.begin(); it != data.end(); ++it )
 	    {
@@ -254,7 +256,7 @@ void run2()
 	        {
 	            // Push out here
 	            p->execute( boost::make_tuple( topicWordAssoc.get<0>(), topicWordAssoc.get<1>(), topicWordAssoc.get<2>(), 0.0 ) );
-	            
+	            if ( (c++ % 1000000) == 0 ) std::cout << "  count: " << c << std::endl;  
 	            topicWordAssoc = *it;
 	        }
 	        else
