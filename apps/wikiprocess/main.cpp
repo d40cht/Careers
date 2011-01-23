@@ -88,7 +88,7 @@ void run()
     {
         boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ? )" ) );
         size_t count = 0;
-        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, parentTopicCount, text FROM words" ) );
+        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, parentTopicCount, name FROM words" ) );
         while(true)
         {
             boost::tuple<int, int, std::string> t;
@@ -167,7 +167,7 @@ void run()
         for ( std::map<int, std::multimap<float, int> >::iterator it = wordAssocs.begin(); it != wordAssocs.end(); ++it )
         {
             int wordId = it->first;
-            for ( std::multimap<float, int>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it )
+            for ( std::multimap<float, int>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2 )
             {
                 double distance = it2->first;
                 int topicId = it2->second;
@@ -184,11 +184,72 @@ void run()
     
 }
 
+void run2()
+{
+    //CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, wordInTopicCount INTEGER, termWeight REAL );
+    
+    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/new.sqlite3" ) );
+    
+    //boost::scoped_ptr<ise::sql::DbConnection> dbout( ise::sql::newSqliteConnection( "process.sqlite3" ) );
+    
+    boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM wordAssociation2" ) );
+    
+    std::vector<boost::tuple<int, int, int> > data;
+    {
+        std::cout << "Loading data" << std::endl;
+        size_t count = 0;
+        
+        
+	    while (true)
+	    {
+		    boost::tuple<int, int, double, double> t;
+		    ise::sql::populateRowTuple( *rs, t );
+		    
+		    data.push_back( boost::make_tuple( t.get<0>(), t.get<1>(), t.get<2>() ) );
+    
+            if ( ((++count) % 1000000) == 0 ) std::cout << count << std::endl;
+		
+		    if ( !rs->advance() )
+		    {
+		        break;
+            }
+	    }
+    }
+	    
+    std::cout << "Sorting data" << std::endl;
+    std::sort( data.begin(), data.end() );
+	 
+    {
+        std::cout << "Reloading data back into wordAssociation table" << std::endl;
+	    db->execute( "BEGIN" );
+	    
+        boost::scoped_ptr<ise::sql::PreparedStatement> p( db->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ? )" ) );   
+        
+	    boost::tuple<int, int, int> topicWordAssoc( 0, 0, 0 );
+	    for ( std::vector<boost::tuple<int, int, int> >::iterator it = data.begin(); it != data.end(); ++it )
+	    {
+	        if ( topicWordAssoc.get<0>() != it->get<0>() && topicWordAssoc.get<1>() != it->get<1>() )
+	        {
+	            // Push out here
+	            p->execute( boost::make_tuple( topicWordAssoc.get<0>(), topicWordAssoc.get<1>(), topicWordAssoc.get<2>(), 0.0 ) );
+	            
+	            topicWordAssoc = *it;
+	        }
+	        else
+	        {
+	            topicWordAssoc.get<2>() += it->get<2>();
+	        }
+	    }
+	    db->execute( "COMMIT" );
+    }
+    
+}
+
 int main( int argc, char** argv )
 {
     try
     {
-        run();
+        run2();
     }
     catch ( ise::exceptions::Generic& e )
     {   

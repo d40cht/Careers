@@ -180,6 +180,11 @@ SqlitePreparedStatement::SqlitePreparedStatement( sqlite3* conn, const std::stri
 	}
 }
 
+SqlitePreparedStatement::~SqlitePreparedStatement()
+{
+    sqlite3_finalize( m_stmt );
+}
+
 void SqlitePreparedStatement::_reset()
 {
     sqlite3_reset( m_stmt );
