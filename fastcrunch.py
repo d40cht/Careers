@@ -130,8 +130,8 @@ def run2():
         c += 1
         if ((c % 1000) == 0):
             now = datetime.datetime.now()
-            hoursDiff = ((float) (now-start).seconds) / (3600.0)
-            print ':: %dk articles (%dk per hour)' % ((c/1000), ((float) c) / (1000.0 * hoursDiff)) 
+            hoursDiff = float( (now-start).seconds) / (3600.0)
+            print ':: %dk articles (%dk per hour)' % ((c/1000), (float(c) / (1000.0 * hoursDiff)))
 
         if ((c % 10000) == 0):
             print 'Committing'
