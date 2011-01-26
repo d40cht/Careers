@@ -17,22 +17,20 @@ from mwlib.refine import compat
 from mwlib.parser import nodes
 
 
+#def createDb( conn ):
+#    cur = conn.cursor()
+#    cur.execute( 'CREATE TABLE topics( id INTEGER, title TEXT, wordCount INTEGER )' )
+#    cur.execute( 'CREATE TABLE words( id INTEGER PRIMARY KEY, name TEXT, parentTopicCount INTEGER, inverseDocumentFrequency REAL )' )
+#    cur.execute( 'CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termFrequency REAL, termWeight REAL )' )
+#    cur.execute( 'CREATE INDEX i1 ON words(name)' )
+#    cur.execute( 'CREATE INDEX i4 ON topics(title)' )
+#    conn.commit()
+
 def createDb( conn ):
-    cur = conn.cursor()
-    cur.execute( 'CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, wordCount INTEGER )' )
-    cur.execute( 'CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, parentTopicCount INTEGER, inverseDocumentFrequency REAL )' )
-    cur.execute( 'CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termFrequency REAL, termWeight REAL )' )
-    cur.execute( 'CREATE INDEX i1 ON words(name)' )
-    cur.execute( 'CREATE INDEX i4 ON topics(title)' )
-    conn.commit()
+    conn.execute( 'CREATE TABLE rawTopics( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, raw TEXT )' )
     
 wordIds = {}
 validWord = re.compile('[a-z][a-z0-9\+\-\#\/]+')
-
-def getTopicsForWord( conn, word ):
-    return conn.execute(
-        "SELECT t2.title, t1.termWeight FROM wordAssociation AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id "
-        "INNER JOIN words AS t3 ON t1.wordId=t3.id WHERE t3.name='assistants' ORDER BY t1.termWeight DESC", [word] )
 
 def mungeWords(words):
     filtered = []
@@ -110,88 +108,57 @@ def ignoreTemplates(templates):
 disallowedTitlePrefixes = ['Category:', 'Portal:', 'User:', 'File:', 'Wikipedia:', 'Template:']
 def addPage( conn, title, rawtext ):
     if reduce( lambda x, y: x and (not title.startswith(y)), disallowedTitlePrefixes, True ):
-        #print 'Adding page: ', title
-        #words = simpleParsePage( text )
         
         text, templates = extractTemplates(rawtext)
         
         if ignoreTemplates( templates ):
-            print 'Ignoring ', title, ' because templates suggest low quality:', templates
+            print 'Ignoring ', title, ' because templates suggest low quality.'
         else:
-            #print rawtext
-            #print text
-            #print templates
-            words = parsePage( text )
-            #raw_input()
-
-            cur = conn.cursor()
-            cur.execute( 'INSERT INTO topics VALUES(NULL, ?, ?)', (title, len(words)) )
-            topicId = cur.lastrowid
-            topicWordCount = {}
-            for word in words:
-                if word not in wordIds:
-                    cur.execute( 'INSERT INTO words VALUES( NULL, ?, 0, 0 )', [word] )
-                    wordIds[word] = cur.lastrowid
-                wordId = wordIds[word]
-                if word not in topicWordCount:
-                    topicWordCount[wordId] = 0
-                topicWordCount[wordId] += 1
-
-            numWords = len(words)
-            for wordId, count in topicWordCount.items():
-                termFrequency = float(count) / float(numWords)
-                cur.execute( 'UPDATE words SET parentTopicCount=parentTopicCount+1 WHERE id=?', [wordId] )
-                cur.execute( 'INSERT INTO wordAssociation VALUES(?, ?, ?, 0)', [topicId, wordId, termFrequency] )
+            #words = parsePage( text )
+            #conn.execute( 'INSERT INTO topics VALUES(NULL, ?, ?, ?)', (title, rawtext) )
+            conn.execute( 'INSERT INTO rawTopics VALUES(NULL, ?, ?)', (title, rawtext) )
     else:
         print '  skipping as title prefix suggests not article.'
             
-def buildWeights( conn ):
-    print 'Building indices for queries'
-    conn.execute( 'CREATE INDEX i2 ON wordAssociation(wordId)' )
-    conn.execute( 'CREATE INDEX i3 ON wordAssociation(wordId, topicId)' )
-    conn.commit()
 
-    print 'Building inverse document frequencies'
-    count = conn.execute( 'SELECT COUNT(*) FROM topics' ).fetchone()[0]
-    res = conn.execute( 'UPDATE words SET inverseDocumentFrequency=log(? / parentTopicCount)', [count] )
-    conn.commit()
 
-    print 'Building word weightings'
-    res = conn.execute( 'UPDATE wordAssociation SET termWeight=(termFrequency * (SELECT inverseDocumentFrequency FROM words WHERE id=wordId))' )
-    conn.commit()
-    print 'Complete'
+def run2():
+    dbFileName = 'rawData.sqlite3'
+    conn = sqlite3.connect( dbFileName, detect_types=sqlite3.PARSE_DECLTYPES )
+    
+    r = conn.execute( 'SELECT id, title, raw FROM rawTopics' )
+    c = 0
+    for rowid, title, rawText in r:
+        text, templates = extractTemplates(rawText)
+        words = parsePage( text )
+        c += 1
+        if (c % 10 == 0): print ':: ', c
+
 
 wikipediaExportNs = 'http://www.mediawiki.org/xml/export-0.4/'
 def expTag(s):
     return '{%s}%s' % (wikipediaExportNs, s)
 
 def run():
-    #fileName = 'data/Wikipedia-small-snapshot.xml.bz2'
     fileName = '/home/alexw/enwiki-latest-pages-articles.xml.bz2'
-    dbFileName = 'parsed.sqlite3'
+    dbFileName = 'rawData.sqlite3'
 
     existsAlready = os.path.exists( dbFileName )
     conn = sqlite3.connect( dbFileName, detect_types=sqlite3.PARSE_DECLTYPES )
     if not existsAlready:
         createDb( conn )
-    conn.create_function( 'log', 1, math.log )
-    
-    for wordId, word in conn.execute( 'SELECT id, name FROM words' ):
-        wordIds[wordId] = word
-    print 'Loaded %d words into dictionary' % len(wordIds)
 
-    commitInterval = 1000
+    titles = set( [v[0] for v in conn.execute('SELECT title FROM rawTopics')] )
+    commitInterval = 10000
     if 1:
         count = 0
         fileStream = bz2.BZ2File( fileName, 'r' )
         for event, element in iterparse( fileStream ):
             if element.tag == expTag('page'):
                 title = element.find(expTag('title')).text
-                
-                skip = list(conn.execute( 'SELECT * FROM topics WHERE title=?', [title] )) != []
-                
-                if not skip:
-                    print count, title, len(wordIds)
+
+                if not title in titles:
+                    print count, title
                     
                     textElement = element.find(expTag('revision')).find(expTag('text'))
                     if textElement != None and textElement.text != None:
@@ -208,11 +175,8 @@ def run():
                 element.clear()
         
     conn.commit()
-    buildWeights( conn )
                 
 if __name__ == '__main__':
-    if 1:
-        cProfile.run('run()')
-    else:
-        run()
+    run()
+    #run2()
     

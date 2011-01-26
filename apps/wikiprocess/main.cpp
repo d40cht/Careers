@@ -42,11 +42,11 @@ struct ParentTopic
 
 void run()
 {
-    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/play.sqlite3" ) );
+    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "new.sqlite3" ) );
     
     boost::scoped_ptr<ise::sql::DbConnection> dbout( ise::sql::newSqliteConnection( "process.sqlite3" ) );
-    dbout->execute( "CREATE TABLE topics( id INTEGER, title TEXT )" );
-    dbout->execute( "CREATE TABLE words( id INTEGER, name TEXT )" );
+    dbout->execute( "CREATE TABLE topics( id INTEGER, title TEXT, wordCount INTEGER )" );
+    dbout->execute( "CREATE TABLE words( id INTEGER, name TEXT, parentTopicCount INTEGER )" );
     dbout->execute( "CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termWeight REAL )" );
 
 
@@ -56,7 +56,7 @@ void run()
     std::cout << "Loading topics" << std::endl;
     std::map<int, Topic> topics;
     {
-        boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO topics VALUES( ?, ? )" ) );
+        boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO topics VALUES( ?, ?, ? )" ) );
         size_t count = 0;
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, wordCount, title FROM topics" ) );
         while(true)
@@ -70,7 +70,7 @@ void run()
 
             if ( wordCount > 30 )
             {
-                p->execute( boost::make_tuple( topicId, text ) );
+                p->execute( boost::make_tuple( topicId, text, wordCount ) );
                 topics.insert( std::make_pair( topicId, Topic(wordCount) ) );
     	        if ( ((++count) % 100000) == 0 ) std::cout << count << std::endl;
             }
@@ -88,7 +88,7 @@ void run()
     
     std::map<int, Word> words;
     {
-        boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ? )" ) );
+        boost::scoped_ptr<ise::sql::PreparedStatement> p( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ?, ? )" ) );
         size_t count = 0;
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, parentTopicCount, name FROM words" ) );
         while(true)
@@ -104,7 +104,7 @@ void run()
             {
                 if ( numParentTopics < 400000 )
                 {
-                    p->execute( boost::make_tuple( wordId, text ) );
+                    p->execute( boost::make_tuple( wordId, text, numParentTopics ) );
                     words.insert( std::make_pair( wordId, Word( numTopics, numParentTopics ) ) );
 
 	                if ( ((++count) % 100000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << std::endl;
@@ -208,11 +208,8 @@ void run()
 
 void run2()
 {
-    //CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, wordInTopicCount INTEGER, termWeight REAL );
     
-    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "/home/alexw/AW/Careers/new.sqlite3" ) );
-    
-    //boost::scoped_ptr<ise::sql::DbConnection> dbout( ise::sql::newSqliteConnection( "process.sqlite3" ) );
+    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "./new.sqlite3" ) );
     
     boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT * FROM wordAssociation2" ) );
     
@@ -273,7 +270,8 @@ int main( int argc, char** argv )
 {
     try
     {
-        run2();
+        //run2();
+        run();
     }
     catch ( ise::exceptions::Generic& e )
     {   
