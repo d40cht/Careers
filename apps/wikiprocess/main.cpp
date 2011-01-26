@@ -12,6 +12,21 @@
 
 #include "iseExceptions.hpp"
 
+
+#if 0
+
+CREATE TABLE words2( id INTEGER, name TEXT, parentTopicCount INTEGER, inverseDocumentFrequency REAL );
+INSERT INTO words2 SELECT MIN(id), name, SUM(parentTopicCount), 0 from words WHERE parentTopicCount>10 GROUP BY name;
+
+
+CREATE TABLE idtrans( idFrom INTEGER, idTo INTEGER );
+INSERT INTO idtrans SELECT t1.id, t2.id FROM words AS t1 INNER JOIN words2 AS t2 ON t1.name=t2.name;
+
+INSERT INTO wordAssociation2 select t1.topicId, t2.idTo, t1.termFrequency*t3.wordCount, 0.0 from wordAssociation AS t1 INNER JOIN idtrans AS t2 on t1.wordId=t2.idFrom INNER JOIN topics AS t3 ON t1.topicId=t3.id;
+
+
+#endif
+
 struct Topic
 {
     Topic( int wordCount ) : m_wordCount(wordCount)
