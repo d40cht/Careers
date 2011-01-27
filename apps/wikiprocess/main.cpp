@@ -173,6 +173,7 @@ void run()
             if ( !rs->advance() ) break;
         }
     }
+    std::cout << "  Committing" << std::endl;
     dbout->execute( "COMMIT" );
     
     dbout->execute( "BEGIN" );
@@ -187,6 +188,7 @@ void run()
             addWord->execute( boost::make_tuple( wordId, word, numTopicsWordSeenIn ) );
         }
     }
+    std::cout << "  Committing" << std::endl;
     dbout->execute( "COMMIT" );
 
 #if 0
