@@ -130,6 +130,7 @@ void run()
         
         int nextWordId = 0;
         size_t count = 0;
+        size_t skipped = 0;
         boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, title, body FROM topics" ) );
         while(true)
         {
@@ -155,9 +156,13 @@ void run()
                         wordDetails.insert( std::make_pair( it->first, boost::make_tuple( nextWordId++, 0 ) ) );
                     }
                     wordDetails[it->first].get<1>() += 1;
-                    wordsInTopic++;
+                    wordsInTopic += it->second;
                 }
-                if ( wordsInTopic < 200 ) continue;
+                if ( wordsInTopic < 200 )
+                {
+                    skipped++;
+                    continue;
+                }
                 
                 for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
                 {
@@ -170,7 +175,7 @@ void run()
             
             addTopic->execute( boost::make_tuple( topicId, title, wordsInTopic ) );
 
-            if ( ((++count) % 1000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << ", " << wordDetails.size() << std::endl;
+            if ( ((++count) % 1000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << ", " << wordDetails.size() << ", skipped: " << skipped << std::endl;
             if ( !rs->advance() ) break;
         }
     }
