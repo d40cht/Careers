@@ -157,6 +157,7 @@ void run()
                     wordDetails[it->first].get<1>() += 1;
                     wordsInTopic++;
                 }
+                if ( wordsInTopic < 200 ) continue;
                 
                 for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
                 {
