@@ -158,7 +158,7 @@ void run()
                 wordDetails[it->first].get<1>() += 1;
                 wordsInTopic += it->second;
             }
-            if ( wordsInTopic < 200 )
+            if ( wordsInTopic < 100 )
             {
                 skipped++;
             }
