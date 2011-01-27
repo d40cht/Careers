@@ -145,25 +145,25 @@ void run()
             //std::cout << title << std::endl;
             
             int wordsInTopic = 0;
+
+            std::map<std::string, int> wordCount;
+            extractWords( body, wordCount );
+            
+            for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
             {
-                std::map<std::string, int> wordCount;
-                extractWords( body, wordCount );
-                
-                for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
+                if ( wordDetails.find( it->first ) == wordDetails.end() )
                 {
-                    if ( wordDetails.find( it->first ) == wordDetails.end() )
-                    {
-                        wordDetails.insert( std::make_pair( it->first, boost::make_tuple( nextWordId++, 0 ) ) );
-                    }
-                    wordDetails[it->first].get<1>() += 1;
-                    wordsInTopic += it->second;
+                    wordDetails.insert( std::make_pair( it->first, boost::make_tuple( nextWordId++, 0 ) ) );
                 }
-                if ( wordsInTopic < 200 )
-                {
-                    skipped++;
-                    continue;
-                }
-                
+                wordDetails[it->first].get<1>() += 1;
+                wordsInTopic += it->second;
+            }
+            if ( wordsInTopic < 200 )
+            {
+                skipped++;
+            }
+            else
+            {
                 for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
                 {
                     
@@ -171,9 +171,9 @@ void run()
                     int wordCount = it->second;
                     addWordAssoc->execute( boost::make_tuple( wordId, topicId, static_cast<float>( wordCount ) / static_cast<float>( wordsInTopic ) ) );
                 }
+                
+                addTopic->execute( boost::make_tuple( topicId, title, wordsInTopic ) );
             }
-            
-            addTopic->execute( boost::make_tuple( topicId, title, wordsInTopic ) );
 
             if ( ((++count) % 1000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << ", " << wordDetails.size() << ", skipped: " << skipped << std::endl;
             if ( !rs->advance() ) break;
