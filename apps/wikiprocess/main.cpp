@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 #include <cmath>
 
@@ -55,18 +56,138 @@ struct ParentTopic
     int             m_termFrequency;
 };
 
+char tolower( char c )
+{
+    if ( c >= 'A' && c <= 'Z' )
+    {
+        return 'a' + (c-'A');
+    }
+    else
+    {
+        return c;
+    }
+}
+
+void extractWords( const std::string& text, std::map<std::string, int>& wordCount )
+{
+    char buf[8192];
+    int bufIndex = 0;
+    bool inWord = false;
+    std::stringstream w;
+    for ( size_t i = 0; i < text.size(); ++i )
+    {
+        char c = text[i];
+        if ( inWord )
+        {
+            if ( c == ' ' )
+            {
+                buf[bufIndex] = '\0';
+                wordCount[buf] += 1;
+                bufIndex = 0;
+                inWord = false;
+            }
+            else
+            {
+                buf[bufIndex++] = tolower(c);
+            }
+        }
+        else
+        {
+            if ( c != ' ' )
+            {
+                inWord = true;
+                buf[bufIndex++] = tolower(c);
+            }
+        }
+    }
+  
+    if ( bufIndex > 0 )
+    {
+        buf[bufIndex] = '\0';
+        wordCount[buf] += 1;
+    }
+}
+
 void run()
 {
-    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "new.sqlite3" ) );
+    boost::scoped_ptr<ise::sql::DbConnection> db( ise::sql::newSqliteConnection( "../../data/WikipediaRawText.sqlite3" ) );
     
     boost::scoped_ptr<ise::sql::DbConnection> dbout( ise::sql::newSqliteConnection( "process.sqlite3" ) );
     dbout->execute( "CREATE TABLE topics( id INTEGER, title TEXT, wordCount INTEGER )" );
     dbout->execute( "CREATE TABLE words( id INTEGER, name TEXT, parentTopicCount INTEGER )" );
-    dbout->execute( "CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termWeight REAL )" );
+    dbout->execute( "CREATE TABLE wordAssociation( wordId INTEGER, topicId INTEGER, wordWeight REAL, tfidf REAL )" );
+    
+    //std::map<std::string, int> wordInTopicCount;
+    //std::map<std::string, int> numTopicsWordSeenIn;
+    // String to wordId, numTopicsWordSeenIn
+    
+    
+    std::map<std::string, boost::tuple<int, int> > wordDetails;
+    
+    {
+        boost::scoped_ptr<ise::sql::PreparedStatement> addTopic( dbout->preparedStatement( "INSERT INTO topics VALUES( ?, ?, ? )" ) );
+        boost::scoped_ptr<ise::sql::PreparedStatement> addWordAssoc( dbout->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ?, 0.0 )" ) );
+        
+        int nextWordId = 0;
+        size_t count = 0;
+        boost::scoped_ptr<ise::sql::DbResultSet> rs( db->select( "SELECT id, title, body FROM topics" ) );
+        while(true)
+        {
+            int topicId = count;
+            boost::tuple<int, std::string, std::string> t;
+            ise::sql::populateRowTuple( *rs, t );
+            
+            int id = t.get<0>();
+            std::string& title = t.get<1>();
+            std::string& body = t.get<2>();
+            
+            int wordsInTopic = 0;
+            {
+                std::map<std::string, int> wordCount;
+                extractWords( body, wordCount );
+                
+                for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
+                {
+                    if ( wordDetails.find( it->first ) == wordDetails.end() )
+                    {
+                        wordDetails[it->first] = boost::make_tuple( nextWordId++, 0 );
+                    }
+                    wordDetails[it->first].get<1>() += 1;
+                    wordsInTopic++;
+                }
+                
+                for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
+                {
+                    int wordId = wordDetails[it->first].get<0>();
+                    int wordCount = it->second;
+                    addWordAssoc->execute( boost::make_tuple( wordId, topicId, static_cast<float>( wordCount ) / static_cast<float>( wordsInTopic ) ) );
+                }
+            }
+            addTopic->execute( boost::make_tuple( topicId, title, wordsInTopic ) );
 
+            
+            if ( ((++count) % 1000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << ", " << wordDetails.size() << std::endl;
+            
+            if ( !rs->advance() ) break;
+        }
+    }
+    
+    {
+        std::map<std::string, boost::tuple<int, int> >::iterator it;
+        boost::scoped_ptr<ise::sql::PreparedStatement> addWord( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ?, ? )" ) );
+        for ( it = wordDetails.begin(); it != wordDetails.end(); ++it )
+        {
+            const std::string& word = it->first;
+            int wordId = it->second.get<0>();
+            int numTopicsWordSeenIn = it->second.get<1>();
+            addWord->execute( boost::make_tuple( wordId, word, numTopicsWordSeenIn ) );
+        }
+    }
 
-
+#if 0
     dbout->execute( "BEGIN" );
+    
+    
     
     std::cout << "Loading topics" << std::endl;
     std::map<int, Topic> topics;
@@ -219,6 +340,7 @@ void run()
     dbout->execute("CREATE INDEX i2 ON words(id)");
     dbout->execute("CREATE INDEX i3 ON words(name)");
     dbout->execute("CREATE INDEX i4 ON wordAssociation(wordId)");
+#endif
 }
 
 void run2()
