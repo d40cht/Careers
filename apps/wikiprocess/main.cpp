@@ -122,8 +122,8 @@ void run()
     // String to wordId, numTopicsWordSeenIn
     
     
+    dbout->execute( "BEGIN" );
     std::map<std::string, boost::tuple<int, int> > wordDetails;
-    
     {
         boost::scoped_ptr<ise::sql::PreparedStatement> addTopic( dbout->preparedStatement( "INSERT INTO topics VALUES( ?, ?, ? )" ) );
         boost::scoped_ptr<ise::sql::PreparedStatement> addWordAssoc( dbout->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ?, 0.0 )" ) );
@@ -141,6 +141,8 @@ void run()
             std::string& title = t.get<1>();
             std::string& body = t.get<2>();
             
+            //std::cout << title << std::endl;
+            
             int wordsInTopic = 0;
             {
                 std::map<std::string, int> wordCount;
@@ -150,7 +152,7 @@ void run()
                 {
                     if ( wordDetails.find( it->first ) == wordDetails.end() )
                     {
-                        wordDetails[it->first] = boost::make_tuple( nextWordId++, 0 );
+                        wordDetails.insert( std::make_pair( it->first, boost::make_tuple( nextWordId++, 0 ) ) );
                     }
                     wordDetails[it->first].get<1>() += 1;
                     wordsInTopic++;
@@ -158,20 +160,22 @@ void run()
                 
                 for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
                 {
+                    
                     int wordId = wordDetails[it->first].get<0>();
                     int wordCount = it->second;
                     addWordAssoc->execute( boost::make_tuple( wordId, topicId, static_cast<float>( wordCount ) / static_cast<float>( wordsInTopic ) ) );
                 }
             }
+            
             addTopic->execute( boost::make_tuple( topicId, title, wordsInTopic ) );
 
-            
             if ( ((++count) % 1000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << ", " << wordDetails.size() << std::endl;
-            
             if ( !rs->advance() ) break;
         }
     }
+    dbout->execute( "COMMIT" );
     
+    dbout->execute( "BEGIN" );
     {
         std::map<std::string, boost::tuple<int, int> >::iterator it;
         boost::scoped_ptr<ise::sql::PreparedStatement> addWord( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ?, ? )" ) );
@@ -183,6 +187,7 @@ void run()
             addWord->execute( boost::make_tuple( wordId, word, numTopicsWordSeenIn ) );
         }
     }
+    dbout->execute( "COMMIT" );
 
 #if 0
     dbout->execute( "BEGIN" );
