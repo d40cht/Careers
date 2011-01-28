@@ -70,12 +70,17 @@ char tolower( char c )
 
 void extractWords( const std::string& text, std::map<std::string, int>& wordCount )
 {
-    char buf[8192];
+    static const size_t bufSize=8192;
+    char buf[bufSize];
     int bufIndex = 0;
     bool inWord = false;
     std::stringstream w;
     for ( size_t i = 0; i < text.size(); ++i )
     {
+        if ( bufIndex >= bufSize )
+        {
+            throw ise::exceptions::Generic( "Buffer overflow. Massive word!" );
+        }
         char c = text[i];
         if ( inWord )
         {
@@ -147,7 +152,15 @@ void run()
             int wordsInTopic = 0;
 
             std::map<std::string, int> wordCount;
-            extractWords( body, wordCount );
+            try
+            {
+                extractWords( body, wordCount );
+            }
+            catch ( ise::exceptions::Generic& e )
+            {
+                std::cout << "Overlong word in: " << title << std::endl;
+            }
+
             
             for ( std::map<std::string, int>::iterator it = wordCount.begin(); it != wordCount.end(); ++it )
             {
