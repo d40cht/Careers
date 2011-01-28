@@ -120,18 +120,21 @@ void run()
     boost::scoped_ptr<ise::sql::DbConnection> dbout( ise::sql::newSqliteConnection( "process.sqlite3" ) );
     dbout->execute( "CREATE TABLE topics( id INTEGER, title TEXT, wordCount INTEGER )" );
     dbout->execute( "CREATE TABLE words( id INTEGER, name TEXT, parentTopicCount INTEGER )" );
-    dbout->execute( "CREATE TABLE wordAssociation( wordId INTEGER, topicId INTEGER, wordWeight REAL, tfidf REAL )" );
+    dbout->execute( "CREATE TABLE tempWordAssociation( wordId INTEGER, topicId INTEGER, wordWeight REAL )" );
+    dbout->execute( "CREATE TABLE wordAssociation( wordId INTEGER, topicId INTEGER, tfidf REAL )" );
     
     //std::map<std::string, int> wordInTopicCount;
     //std::map<std::string, int> numTopicsWordSeenIn;
     // String to wordId, numTopicsWordSeenIn
-    
-    
-    dbout->execute( "BEGIN" );
-    std::map<std::string, boost::tuple<int, int> > wordDetails;
+
+
+    int totalNumTopics = 0;
+    std::map<int, int> numTopicsWordSeenInMap;
     {
+        dbout->execute( "BEGIN" );
+        std::map<std::string, boost::tuple<int, int> > wordDetails;
         boost::scoped_ptr<ise::sql::PreparedStatement> addTopic( dbout->preparedStatement( "INSERT INTO topics VALUES( ?, ?, ? )" ) );
-        boost::scoped_ptr<ise::sql::PreparedStatement> addWordAssoc( dbout->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ?, 0.0 )" ) );
+        boost::scoped_ptr<ise::sql::PreparedStatement> addWordAssoc( dbout->preparedStatement( "INSERT INTO tempWordAssociation VALUES( ?, ?, ? )" ) );
         
         int nextWordId = 0;
         size_t count = 0;
@@ -189,26 +192,90 @@ void run()
             }
 
             if ( ((++count) % 1000) == 0 ) std::cout << count << " : " << t.get<0>() << ", " << t.get<1>() << ", " << wordDetails.size() << ", skipped: " << skipped << std::endl;
+            totalNumTopics++;
+            
+            //if ( count > 2000 ) break;
+            
             if ( !rs->advance() ) break;
         }
-    }
-    std::cout << "  Committing" << std::endl;
-    dbout->execute( "COMMIT" );
     
-    dbout->execute( "BEGIN" );
-    {
-        std::map<std::string, boost::tuple<int, int> >::iterator it;
-        boost::scoped_ptr<ise::sql::PreparedStatement> addWord( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ?, ? )" ) );
-        for ( it = wordDetails.begin(); it != wordDetails.end(); ++it )
+        std::cout << "  Committing" << std::endl;
+        dbout->execute( "COMMIT" );
+        
+        dbout->execute( "BEGIN" );
         {
-            const std::string& word = it->first;
-            int wordId = it->second.get<0>();
-            int numTopicsWordSeenIn = it->second.get<1>();
-            addWord->execute( boost::make_tuple( wordId, word, numTopicsWordSeenIn ) );
+            std::map<std::string, boost::tuple<int, int> >::iterator it;
+            boost::scoped_ptr<ise::sql::PreparedStatement> addWord( dbout->preparedStatement( "INSERT INTO words VALUES( ?, ?, ? )" ) );
+            for ( it = wordDetails.begin(); it != wordDetails.end(); ++it )
+            {
+                const std::string& word = it->first;
+                int wordId = it->second.get<0>();
+                int numTopicsWordSeenIn = it->second.get<1>();
+                if ( numTopicsWordSeenIn > 2 && numTopicsWordSeenIn < 100000 )
+                {
+                    addWord->execute( boost::make_tuple( wordId, word, numTopicsWordSeenIn ) );
+                    numTopicsWordSeenInMap[wordId] = numTopicsWordSeenIn;
+                }
+            }
         }
+        std::cout << "  Committing" << std::endl;
+        dbout->execute( "COMMIT" );
     }
-    std::cout << "  Committing" << std::endl;
-    dbout->execute( "COMMIT" );
+
+
+	std::cout << "Running in-memory prune of word associations" << std::endl;
+	std::map<int, std::multimap<double, int> > wordIdToTopicWeightMap;
+    {
+        boost::scoped_ptr<ise::sql::DbResultSet> rs( dbout->select( "SELECT wordId, topicId, wordWeight FROM tempWordAssociation" ) );
+        
+        while (true)
+        {
+            boost::tuple<int, int, double> t;
+            ise::sql::populateRowTuple( *rs, t );
+            int wordId = t.get<0>();
+            int topicId = t.get<1>();
+            double wordInTopicWeight = t.get<2>();
+
+            std::map<int, int>::iterator wordFindIt = numTopicsWordSeenInMap.find( wordId );
+            if ( wordFindIt != numTopicsWordSeenInMap.end() )
+            {
+                double inverseDocumentFrequency = std::log( totalNumTopics / wordFindIt->second );
+                double tfidf = inverseDocumentFrequency * wordInTopicWeight;
+
+                std::multimap<double, int>& topicWeightMap = wordIdToTopicWeightMap[wordId];
+                topicWeightMap.insert( std::make_pair( tfidf, topicId ) );
+                if ( topicWeightMap.size() > 100 )
+                {
+                    topicWeightMap.erase( topicWeightMap.begin() );
+                }
+            }
+
+            if ( !rs->advance() ) break;
+        }
+	}
+	std::cout << "  complete..." << std::endl;
+     
+     
+	std::cout << "Writing pruned associations back to database" << std::endl;
+	{   
+        dbout->execute( "BEGIN" );
+        boost::scoped_ptr<ise::sql::PreparedStatement> addCompleteWordAssoc( dbout->preparedStatement( "INSERT INTO wordAssociation VALUES( ?, ?, ? )" ) );
+        std::map<int, std::multimap<double, int> >::iterator it1;
+        for ( it1 = wordIdToTopicWeightMap.begin(); it1 != wordIdToTopicWeightMap.end(); ++it1 )
+        {
+            int wordId = it1->first;
+            std::multimap<double, int>::iterator it2;
+            for ( it2 = it1->second.begin(); it2 != it1->second.end(); it2++ )
+            {
+                float assocWeight = it2->first;
+                int topicId = it2->second;
+                addCompleteWordAssoc->execute( boost::make_tuple( wordId, topicId, assocWeight ) );
+            }
+        }
+        dbout->execute( "COMMIT" );
+    }
+    std::cout << "  complete..." << std::endl;
+
 
 #if 0
     dbout->execute( "BEGIN" );
