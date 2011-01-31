@@ -2,9 +2,10 @@ import os
 import re
 import bz2
 import math
-import mwlib
 import string
+import extract
 import sqlite3
+import datetime
 
 import cProfile
 
@@ -13,48 +14,12 @@ import cProfile
 # Deal with templates properly (mod mwlib?)
 
 from xml.etree.cElementTree import ElementTree, iterparse
-from mwlib.refine import compat
-from mwlib.parser import nodes
 
-
-#def createDb( conn ):
-#    cur = conn.cursor()
-#    cur.execute( 'CREATE TABLE topics( id INTEGER, title TEXT, wordCount INTEGER )' )
-#    cur.execute( 'CREATE TABLE words( id INTEGER PRIMARY KEY, name TEXT, parentTopicCount INTEGER, inverseDocumentFrequency REAL )' )
-#    cur.execute( 'CREATE TABLE wordAssociation( topicId INTEGER, wordId INTEGER, termFrequency REAL, termWeight REAL )' )
-#    cur.execute( 'CREATE INDEX i1 ON words(name)' )
-#    cur.execute( 'CREATE INDEX i4 ON topics(title)' )
-#    conn.commit()
 
 def createDb( conn ):
     conn.execute( 'CREATE TABLE rawTopics( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, raw TEXT )' )
-    
-wordIds = {}
-validWord = re.compile('[a-z][a-z0-9\+\-\#\/]+')
-
-def mungeWords(words):
-    filtered = []
-    for w in words:
-        w = w.strip('"\'.();:,?@<>/')
-        if w.startswith('{{') and w.endswith('}}'):
-            print 'Template: ', w
-        elif validWord.match( w ) == None:
-            pass
-        else:
-            filtered.append( w )
-    return filtered
-
-def parseTree(mwel):
-    res = []
-    if isinstance( mwel, nodes.Text ):
-        res += [v.strip().lower() for v in mwel.asText().split(' ')]
-    elif  isinstance( mwel, nodes.Article ) or isinstance( mwel, nodes.Section ) or isinstance( mwel, nodes.Item ) or isinstance( mwel, nodes.Style ) or isinstance( mwel, nodes.Node ):
-        for v in mwel:
-            res += parseTree(v)
-    else:
-        print 'Unexpected node type:', type(mwel)
-        
-    return res
+    conn.execute( 'CREATE TABLE processedTopics( id, title TEXT, text TEXT )' )
+    conn.execute( 'CREATE TABLE links( fromId INTEGER, toId INTEGER, linkText TEXT )' )
     
 def allindices(string, sub):
     listindex = []
@@ -92,11 +57,6 @@ def extractTemplates( text ):
                 templates.append( text[nestingOpen:v] )
     transformedText += text[lastIndex:]
     return transformedText, templates
- 
-    
-def parsePage( text ):
-    words = parseTree( compat.parse_txt(text, lang=None) )
-    return mungeWords(words)
     
 def ignoreTemplates(templates):
     for t in templates:
@@ -104,51 +64,24 @@ def ignoreTemplates(templates):
             return True
     return False
     
-    
-disallowedTitlePrefixes = ['Category:', 'Portal:', 'User:', 'File:', 'Wikipedia:', 'Template:']
-def addPage( conn, title, rawtext ):
+disallowedTitlePrefixes = ['Portal:', 'User:', 'File:', 'Wikipedia:', 'Template:']
+def addPage( conn, titleIdDict, title, rawtext ):
     if reduce( lambda x, y: x and (not title.startswith(y)), disallowedTitlePrefixes, True ):
-        
         text, templates = extractTemplates(rawtext)
         
         if ignoreTemplates( templates ):
             print 'Ignoring ', title, ' because templates suggest low quality.'
         else:
-            #words = parsePage( text )
-            #conn.execute( 'INSERT INTO topics VALUES(NULL, ?, ?, ?)', (title, rawtext) )
-            conn.execute( 'INSERT INTO rawTopics VALUES(NULL, ?, ?)', (title, rawtext) )
+            rowId = conn.execute( 'INSERT INTO rawTopics VALUES(NULL, ?, ?)', (title, rawtext) ).lastrowid
+            titleIdDict[title] = rowId
     else:
         print '  skipping as title prefix suggests not article.'
-            
-
-
-def run2():
-    dbFileName = 'rawData.sqlite3'
-    conn = sqlite3.connect( dbFileName, detect_types=sqlite3.PARSE_DECLTYPES )
-    
-    r = conn.execute( 'SELECT id, title, raw FROM rawTopics' )
-    c = 0
-    for rowid, title, rawText in r:
-        text, templates = extractTemplates(rawText)
-        words = parsePage( text )
-        c += 1
-        if (c % 10 == 0): print ':: ', c
-
 
 wikipediaExportNs = 'http://www.mediawiki.org/xml/export-0.4/'
 def expTag(s):
     return '{%s}%s' % (wikipediaExportNs, s)
 
-def run():
-    fileName = '/home/alexw/enwiki-latest-pages-articles.xml.bz2'
-    dbFileName = 'rawData.sqlite3'
-
-    existsAlready = os.path.exists( dbFileName )
-    conn = sqlite3.connect( dbFileName, detect_types=sqlite3.PARSE_DECLTYPES )
-    if not existsAlready:
-        createDb( conn )
-
-    titles = set( [v[0] for v in conn.execute('SELECT title FROM rawTopics')] )
+def extractRawData(fileName, dbconn, titleIdDict):
     commitInterval = 10000
     if 1:
         count = 0
@@ -157,26 +90,66 @@ def run():
             if element.tag == expTag('page'):
                 title = element.find(expTag('title')).text
 
-                if not title in titles:
-                    print count, title
+                print count, title
+                
+                textElement = element.find(expTag('revision')).find(expTag('text'))
+                if textElement != None and textElement.text != None:
+                    text = textElement.text.strip()
+                    addPage( conn, titleIdDict, title, text )
                     
-                    textElement = element.find(expTag('revision')).find(expTag('text'))
-                    if textElement != None and textElement.text != None:
-                        text = textElement.text
-                        addPage( conn, title, text )
-                        
-                        if (count % commitInterval) == 0:
-                            print '************* Committing changes **************'
-                            conn.commit()
-                else:
-                    print 'Skipping ', title, count
+                    if (count % commitInterval) == 0:
+                        print '************* Committing changes **************'
+                        if count > 0:
+                            return
+                        conn.commit()
+
                 count += 1
 
                 element.clear()
         
     conn.commit()
+
+
+def processLinks( conn, titleIdDict, fromId, links ):
+    for link in links:
+        pass
+
+def processRawData( conn, titleIdDict ):
+    print 'Building index on rawTopics'
+    conn.execute( 'CREATE INDEX i1 ON rawTopics(title)' )
+    conn.commit()
+        
+    print 'Processing wikimarkup to generate plain text and wiki links'
+    start = datetime.datetime.now()
+    r = conn.execute( 'SELECT id, title, raw FROM rawTopics' )
+    c = 0
+    for rowId, title, rawText in r:
+        links, text = extract.wikiStrip( rawText )
+        print links
+        conn.execute( 'INSERT INTO processedTopics VALUES(?, ?, ?)', (rowId, title, text) )
+        processLinks( conn, titleIdDict, rowId, links )
+        c += 1
+        if ((c % 1000) == 0):
+            now = datetime.datetime.now()
+            hoursDiff = float( (now-start).seconds) / (3600.0)
+            print ':: %dk articles (%dk per hour)' % ((c/1000), (float(c) / (1000.0 * hoursDiff)))
+
+        if ((c % 10000) == 0):
+            print 'Committing'
+            connOut.commit()
+
                 
 if __name__ == '__main__':
-    run()
-    #run2()
+    fileName = '/home/alexw/enwiki-latest-pages-articles.xml.bz2'
+    dbFileName = 'rawData.sqlite3'
+
+    existsAlready = os.path.exists( dbFileName )
+    conn = sqlite3.connect( dbFileName, detect_types=sqlite3.PARSE_DECLTYPES )
+    if not existsAlready:
+        createDb( conn )
+
+    titleIdDict = {}        
+    extractRawData(fileName, conn, titleIdDict)
+    print len(titleIdDict.items())
+    processRawData(conn, titleIdDict)
     

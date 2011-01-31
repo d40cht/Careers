@@ -9,6 +9,7 @@ templateParamRe = re.compile('{{{[^}]+}}}')
 templateRe = re.compile('{{[^}]+}}')
 externalLinkRe = re.compile('\[[^\]]+\]')
 
+linkRe = re.compile( '\[\[([^\]]+)\]\]' )
 
 def wikiStrip( wikiText ):
     newd = ''
@@ -25,6 +26,7 @@ def wikiStrip( wikiText ):
             newd += l
 
     else:
+        links = re.findall( linkRe, wikiText )
         l = wikiText
         l = l.replace('[[', ' ')
         l = l.replace(']]', ' ' )
@@ -48,7 +50,7 @@ def wikiStrip( wikiText ):
 
     words = filter( lambda x: x != '', [v.strip() for v in newd.split(' ')] )
 
-    return ' '.join(words)
+    return links, ' '.join(words)
  
 def go():
     data = open( 'test.wmu', 'r' ).read()
