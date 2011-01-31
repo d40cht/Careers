@@ -82,7 +82,7 @@ def expTag(s):
     return '{%s}%s' % (wikipediaExportNs, s)
 
 def extractRawData(fileName, dbconn, titleIdDict):
-    commitInterval = 10000
+    commitInterval = 1000
     if 1:
         count = 0
         fileStream = bz2.BZ2File( fileName, 'r' )
@@ -111,8 +111,28 @@ def extractRawData(fileName, dbconn, titleIdDict):
 
 
 def processLinks( conn, titleIdDict, fromId, links ):
+    linksProcessed = []
     for link in links:
-        pass
+        if link.find('[') == -1 and link.find(']') == -1:
+            fields = link.split('|')
+            if len(fields) == 1:
+                linkTitle = fields[0].strip()
+                linkText = ''
+            elif len(fields) == 2:
+                linkTitle = fields[0].strip()
+                linkText = fields[1].strip()
+            else:
+                print 'Malformed link', link
+                continue
+            if linkTitle in titleIdDict:
+                toId = titleIdDict[linkTitle]
+                linksProcessed.append( (fromId, toId, linkText) )
+            else:
+                print 'Missing link: %s ^ %s' % (linkTitle, linkText)
+                
+    return linksProcessed
+                
+            
 
 def processRawData( conn, titleIdDict ):
     print 'Building index on rawTopics'
@@ -140,7 +160,7 @@ def processRawData( conn, titleIdDict ):
 
                 
 if __name__ == '__main__':
-    fileName = '/home/alexw/enwiki-latest-pages-articles.xml.bz2'
+    fileName = './data/enwiki-latest-pages-articles.xml.bz2'
     dbFileName = 'rawData.sqlite3'
 
     existsAlready = os.path.exists( dbFileName )
