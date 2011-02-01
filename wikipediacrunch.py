@@ -82,7 +82,7 @@ def expTag(s):
     return '{%s}%s' % (wikipediaExportNs, s)
 
 def extractRawData(fileName, dbconn, titleIdDict):
-    commitInterval = 1000
+    commitInterval = 10000
     if 1:
         count = 0
         fileStream = bz2.BZ2File( fileName, 'r' )
@@ -99,8 +99,6 @@ def extractRawData(fileName, dbconn, titleIdDict):
                     
                     if (count % commitInterval) == 0:
                         print '************* Committing changes **************'
-                        if count > 0:
-                            return
                         conn.commit()
 
                 count += 1
@@ -171,5 +169,5 @@ if __name__ == '__main__':
     titleIdDict = {}        
     extractRawData(fileName, conn, titleIdDict)
     print len(titleIdDict.items())
-    processRawData(conn, titleIdDict)
+    #processRawData(conn, titleIdDict)
     
