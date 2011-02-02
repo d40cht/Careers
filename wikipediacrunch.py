@@ -65,7 +65,7 @@ def ignoreTemplates(templates):
     return False
     
 disallowedTitlePrefixes = ['Portal:', 'User:', 'File:', 'Wikipedia:', 'Template:']
-def addPage( conn, titleIdDict, title, rawtext ):
+def addPage( conn, title, rawtext ):
     if reduce( lambda x, y: x and (not title.startswith(y)), disallowedTitlePrefixes, True ):
         text, templates = extractTemplates(rawtext)
         
@@ -73,7 +73,6 @@ def addPage( conn, titleIdDict, title, rawtext ):
             print 'Ignoring ', title, ' because templates suggest low quality.'
         else:
             rowId = conn.execute( 'INSERT INTO rawTopics VALUES(NULL, ?, ?)', (title, rawtext) ).lastrowid
-            titleIdDict[title] = rowId
     else:
         print '  skipping as title prefix suggests not article.'
 
@@ -81,7 +80,7 @@ wikipediaExportNs = 'http://www.mediawiki.org/xml/export-0.4/'
 def expTag(s):
     return '{%s}%s' % (wikipediaExportNs, s)
 
-def extractRawData(fileName, dbconn, titleIdDict):
+def extractRawData(fileName, dbconn):
     commitInterval = 10000
     if 1:
         count = 0
@@ -95,7 +94,7 @@ def extractRawData(fileName, dbconn, titleIdDict):
                 textElement = element.find(expTag('revision')).find(expTag('text'))
                 if textElement != None and textElement.text != None:
                     text = textElement.text.strip()
-                    addPage( conn, titleIdDict, title, text )
+                    addPage( conn, title, text )
                     
                     if (count % commitInterval) == 0:
                         print '************* Committing changes **************'
@@ -132,7 +131,7 @@ def processLinks( conn, titleIdDict, fromId, links ):
                 
             
 
-def processRawData( conn, titleIdDict ):
+def buildRawTextArticles( conn, titleIdDict ):
     print 'Building index on rawTopics'
     conn.execute( 'CREATE INDEX i1 ON rawTopics(title)' )
     conn.commit()
@@ -145,7 +144,7 @@ def processRawData( conn, titleIdDict ):
         links, text = extract.wikiStrip( rawText )
         print links
         conn.execute( 'INSERT INTO processedTopics VALUES(?, ?, ?)', (rowId, title, text) )
-        processLinks( conn, titleIdDict, rowId, links )
+        #processLinks( conn, titleIdDict, rowId, links )
         c += 1
         if ((c % 1000) == 0):
             now = datetime.datetime.now()
@@ -155,6 +154,11 @@ def processRawData( conn, titleIdDict ):
         if ((c % 10000) == 0):
             print 'Committing'
             connOut.commit()
+            
+#select count(title) from rawTopics where title like '%disambiguation%' limit 10; (158,191)
+#select count(raw) from rawTopics where raw like '#redirect %'; (4,273,222)
+#select count(title) from rawTopics where title like 'table of%' or title like 'list of%'; (122,800)
+
 
                 
 if __name__ == '__main__':
@@ -166,8 +170,6 @@ if __name__ == '__main__':
     if not existsAlready:
         createDb( conn )
 
-    titleIdDict = {}        
-    extractRawData(fileName, conn, titleIdDict)
-    print len(titleIdDict.items())
+    extractRawData(fileName, conn)
     #processRawData(conn, titleIdDict)
     
