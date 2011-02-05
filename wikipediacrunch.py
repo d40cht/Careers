@@ -21,6 +21,19 @@ def createDb( conn ):
     conn.execute( 'CREATE TABLE processedTopics( id, title TEXT, text TEXT )' )
     conn.execute( 'CREATE TABLE links( fromId INTEGER, toId INTEGER, linkText TEXT )' )
     
+def createProcessedDb( conn ):
+    conn.execute( 'CREATE TABLE topics( id INTEGER, title TEXT, text TEXT )' )
+    
+    # Categories include categories and 'list of' and 'table of' page links
+    conn.execute( 'CREATE TABLE categories( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT )' )
+    conn.execute( 'CREATE TABLE categoryMembership( categoryId INTEGER, topicId INTEGER )' )
+    
+    # Alternate names (surface forms) based on redirect pages and on link text
+    conn.execute( 'CREATE TABLE alternateNames( name TEXT, topicId INTEGER )' )
+    
+    # Links from article to article
+    conn.execute( 'CREATE TABLE topicLinks( fromTopicid INTEGER, topTopicId INTEGER )' )
+    
 def allindices(string, sub):
     listindex = []
     offset = 0
@@ -160,16 +173,44 @@ def buildRawTextArticles( conn, titleIdDict ):
 #select count(title) from rawTopics where title like 'table of%' or title like 'list of%'; (122,800)
 
 
+
+def process1( rawConn, processedConn ):
+    res = rawConn.execute( 'SELECT id, title, raw from rawTopics' )
+    disambigPages = 0
+    listPages = 0
+    redirectPages = 0
+    count = 0
+    for topicId, title, rawText in res:
+        if rawText.lower().startswith('#redirect'):
+            redirectPages += 1
+        else:
+            links, text = extract.wikiStrip( rawText )
+            if title.lower().find( 'disambiguation' ) != -1:
+                disambigPages += 1
+            elif title.lower().find( 'table of' ) != -1 or title.lower().find( 'list of' ) != -1:
+                listPages += 1
+            
+        count+=1
+        if ((count % 1000)==0):
+            print count, disambigPages, listPages, redirectPages
+    print 'Final: ', disambigPages, listPages, redirectPages
                 
 if __name__ == '__main__':
     fileName = './data/enwiki-latest-pages-articles.xml.bz2'
-    dbFileName = 'rawData.sqlite3'
+    rawDbFileName = './processed/rawData.sqlite3'
 
-    existsAlready = os.path.exists( dbFileName )
-    conn = sqlite3.connect( dbFileName, detect_types=sqlite3.PARSE_DECLTYPES )
+    existsAlready = os.path.exists( rawDbFileName )
+    rawConn = sqlite3.connect( rawDbFileName, detect_types=sqlite3.PARSE_DECLTYPES )
     if not existsAlready:
-        createDb( conn )
+        createDb( rawConn )
 
-    extractRawData(fileName, conn)
+    processedDbFileName = './processed/processedData.sqlite3'
+    existsAlready = os.path.exists( processedDbFileName )
+    processedConn = sqlite3.connect( processedDbFileName, detect_types=sqlite3.PARSE_DECLTYPES )
+    if not existsAlready:
+        createProcessedDb( processedConn )
+
+    #extractRawData(fileName, rawConn)
     #processRawData(conn, titleIdDict)
+    process1(rawConn, processedConn)
     
