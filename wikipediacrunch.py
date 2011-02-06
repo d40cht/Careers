@@ -3,7 +3,6 @@ import re
 import bz2
 import math
 import string
-import extract
 import sqlite3
 import datetime
 
@@ -15,6 +14,8 @@ import cProfile
 
 from xml.etree.cElementTree import ElementTree, iterparse
 
+import extract
+import processpages
 
 def createDb( conn ):
     conn.execute( 'CREATE TABLE rawTopics( id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, raw TEXT )' )
@@ -175,7 +176,6 @@ def buildRawTextArticles( conn, titleIdDict ):
 uninterestingReasons = set(['r from camelcase', 'r from other capitalisation'])
 
 
-redirectRE = re.compile('\#redirect[ ]*%s([ ]*\{\{([^\}]+)\}\})?' % linkREtxt)
 
 def getTitleIdDict( rawConn ):
     titleDict = {}
@@ -183,50 +183,27 @@ def getTitleIdDict( rawConn ):
     for topicId, title in res:
         titleDict[title] = topicId
     return titleDict
+    
+# From links:
+#   A link to a category page (by id) implies category membership
+#   A link from a disambiguation page implies alternate surface form (from disambig page title)
+#   A link from a list of/table of page implies list-of (alternate category) membership
+
 
 def process1( titleDict, rawConn, processedConn ):
     res = rawConn.execute( 'SELECT id, title, raw FROM rawTopics' )
     disambigPages = 0
     listPages = 0
     redirectPages = 0
-    links = 0
     count = 0
     for topicId, title, rawText in res:
         title = title.lower()
         rawText = rawText.lower()
         if rawText.startswith('#redirect'):
-            rawText = rawText.replace( '\n', ' ' )
-            m = redirectRE.match( rawText )
-            if m:
-                redirectFrom = title
-                redirectTo = m.group(3)
-                redirectReason = m.group(7)
-                if redirectReason == None or redirectReason not in uninterestingReasons:
-                    redirectPages += 1
-                    if redirectTo in titleDict:
-                        toId = titleDict[redirectTo]
-                        processedConn.execute( 'INSERT INTO alternateNames VALUES( ?, ? )', [redirectFrom, toId] )
+            processpages.processRedirect( titleDict, title, rawText, processedConn )
         else:
             links, text = extract.wikiStrip( rawText )
-            for linkTxt in links:
-                print linkTxt
-                m = linkMatch(linkTxt)
-                if m:
-                    print '@@@ ', m[1], m[3]
-            if title.lower().find( 'disambiguation' ) != -1:
-                disambigPages += 1
-            elif title.lower().find( 'table of' ) != -1 or title.lower().find( 'list of' ) != -1:
-                listPages += 1
-            if title in titleDict:
-                fromId = titleDict[title]
-                for linkTxt in links:
-                    m = linkREtxt.match( linkTxt )
-                    if m:
-                        linkTarget = m.group(1)
-                        if linkTarget in titleDict:
-                            toId = titleDict[linkTarget]
-                            processedConn.execute( 'INSERT INTO topicLinks VALUES( ?, ? )', [fromId, toId] )
-                            links += 1
+            processpages.processLinks( titleDict, topicId, links, processedConn )                
             
         count+=1
         if ((count % 1000)==0):
@@ -252,8 +229,7 @@ if __name__ == '__main__':
     #extractRawData(fileName, rawConn)
     #processRawData(conn, titleIdDict)
     print 'Building id dict'
-    #idDict = getTitleIdDict( rawConn )
-    idDict = {}
+    idDict = getTitleIdDict( rawConn )
     print 'Processing...'
     process1(idDict, rawConn, processedConn)
     
