@@ -9,7 +9,7 @@ templateParamRe = re.compile('{{{[^}]+}}}')
 templateRe = re.compile('{{[^}]+}}')
 externalLinkRe = re.compile('\[[^\]]+\]')
 
-linkRe = re.compile( '\[\[([^\]]+)\]\]' )
+linkRe = re.compile( '(\[\[[^\]]+\]\])' )
 
 def wikiStrip( wikiText ):
     newd = ''

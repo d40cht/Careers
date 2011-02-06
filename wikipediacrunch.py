@@ -172,28 +172,67 @@ def buildRawTextArticles( conn, titleIdDict ):
 #select count(raw) from rawTopics where raw like '#redirect %'; (4,273,222)
 #select count(title) from rawTopics where title like 'table of%' or title like 'list of%'; (122,800)
 
+uninterestingReasons = set(['r from camelcase', 'r from other capitalisation'])
 
 
-def process1( rawConn, processedConn ):
-    res = rawConn.execute( 'SELECT id, title, raw from rawTopics' )
+redirectRE = re.compile('\#redirect[ ]*%s([ ]*\{\{([^\}]+)\}\})?' % linkREtxt)
+
+def getTitleIdDict( rawConn ):
+    titleDict = {}
+    res = rawConn.execute( 'SELECT id, title FROM rawTopics' )
+    for topicId, title in res:
+        titleDict[title] = topicId
+    return titleDict
+
+def process1( titleDict, rawConn, processedConn ):
+    res = rawConn.execute( 'SELECT id, title, raw FROM rawTopics' )
     disambigPages = 0
     listPages = 0
     redirectPages = 0
+    links = 0
     count = 0
     for topicId, title, rawText in res:
-        if rawText.lower().startswith('#redirect'):
-            redirectPages += 1
+        title = title.lower()
+        rawText = rawText.lower()
+        if rawText.startswith('#redirect'):
+            rawText = rawText.replace( '\n', ' ' )
+            m = redirectRE.match( rawText )
+            if m:
+                redirectFrom = title
+                redirectTo = m.group(3)
+                redirectReason = m.group(7)
+                if redirectReason == None or redirectReason not in uninterestingReasons:
+                    redirectPages += 1
+                    if redirectTo in titleDict:
+                        toId = titleDict[redirectTo]
+                        processedConn.execute( 'INSERT INTO alternateNames VALUES( ?, ? )', [redirectFrom, toId] )
         else:
             links, text = extract.wikiStrip( rawText )
+            for linkTxt in links:
+                print linkTxt
+                m = linkMatch(linkTxt)
+                if m:
+                    print '@@@ ', m[1], m[3]
             if title.lower().find( 'disambiguation' ) != -1:
                 disambigPages += 1
             elif title.lower().find( 'table of' ) != -1 or title.lower().find( 'list of' ) != -1:
                 listPages += 1
+            if title in titleDict:
+                fromId = titleDict[title]
+                for linkTxt in links:
+                    m = linkREtxt.match( linkTxt )
+                    if m:
+                        linkTarget = m.group(1)
+                        if linkTarget in titleDict:
+                            toId = titleDict[linkTarget]
+                            processedConn.execute( 'INSERT INTO topicLinks VALUES( ?, ? )', [fromId, toId] )
+                            links += 1
             
         count+=1
         if ((count % 1000)==0):
-            print count, disambigPages, listPages, redirectPages
-    print 'Final: ', disambigPages, listPages, redirectPages
+            print count, disambigPages, listPages, redirectPages, links
+            processedConn.commit()
+    print 'Final: ', disambigPages, listPages, redirectPages, links
                 
 if __name__ == '__main__':
     fileName = './data/enwiki-latest-pages-articles.xml.bz2'
@@ -212,5 +251,9 @@ if __name__ == '__main__':
 
     #extractRawData(fileName, rawConn)
     #processRawData(conn, titleIdDict)
-    process1(rawConn, processedConn)
+    print 'Building id dict'
+    #idDict = getTitleIdDict( rawConn )
+    idDict = {}
+    print 'Processing...'
+    process1(idDict, rawConn, processedConn)
     
