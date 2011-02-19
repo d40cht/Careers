@@ -49,6 +49,7 @@ def processRedirect( titleDict, pageTitle, pageText, processedConn ):
             if redirectTo in titleDict:
                 toId = titleDict[redirectTo]
                 processedConn.execute( 'INSERT INTO alternateNames VALUES( ?, ? )', [redirectFrom, toId] )
+                print 'Adding redirect alternate name', redirectFrom, toId
 
 # Process links for alternate surface forms, for topic connectivity and for category membership
 def processLinks( titleDict, pageId, links, processedConn ):
@@ -61,12 +62,15 @@ def processLinks( titleDict, pageId, links, processedConn ):
                     fullLink = linkPage
                 else:
                     fullLink = '%s:%s' % (namespace, linkPage)
-                linkToId = titleDict[fullLink]
-                # Surface form
-                if namespace == None and alternateText != None:
-                    processedConn.execute( 'INSERT INTO alternateNames VALUES( ?, ? )', [alternateText, linkToId] )
+                if linkToId in titleDict:
+                    linkToId = titleDict[fullLink]
+                    # Surface form
+                    if namespace == None and alternateText != None:
+                        processedConn.execute( 'INSERT INTO alternateNames VALUES( ?, ? )', [alternateText, linkToId] )
+                        print 'Adding link alternate name', alternateText, linkToId
 
-                # Topic connectivity
-                processedConn.execute( 'INSERT INTO topicLinks VALUES( ?, ? )', [pageId, linkToId] )
+                    # Topic connectivity
+                    processedConn.execute( 'INSERT INTO topicLinks VALUES( ?, ? )', [pageId, linkToId] )
+                    print 'Adding link from ', pageId, linkToId
                 
 
