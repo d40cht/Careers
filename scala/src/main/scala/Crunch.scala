@@ -53,7 +53,7 @@ object Crunch
 
     private def getText( parser : XMLEventReader, inTag : String ) : String =
     {
-        var fullText = ""
+        var fullText = new StringBuffer()
         var done = false
         while ( parser.hasNext && !done )
         {
@@ -66,12 +66,12 @@ object Crunch
                 }
                 case EvText( text ) =>
                 {
-                    fullText += text
+                    fullText.append( text )
                 }
                 case _ =>
             }
         }
-        return fullText
+        return fullText.toString()
     }
     def main( args : Array[String] )
     {
