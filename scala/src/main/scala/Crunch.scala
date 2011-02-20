@@ -80,10 +80,12 @@ object Crunch
         val in = new BufferedInputStream(fin)
         val decompressor = new BZip2CompressorInputStream(in)
         
+        val runtime = Runtime.getRuntime
+        
         val conf = new Configuration()
         val fs = FileSystem.get(conf)        
-        //val writer = new BlockCompressWriter( fs, conf, new Path(args(2)), Text.class, Text.class )
-        val writer = createWriter( fs, conf, new Path(args(1)), new Text().getClass(), new Text().getClass(), BLOCK )
+
+        //val writer = createWriter( fs, conf, new Path(args(1)), new Text().getClass(), new Text().getClass(), BLOCK )
         
         var count = 0
         try
@@ -99,12 +101,14 @@ object Crunch
                     {
                         val (title, id, revision, text) = parsePage( parser )
                         
-                        writer.append( new Text(title), new Text(text) )
+                        //writer.append( new Text(title), new Text(text) )
                         
                         count = count + 1
                         if ( count % 100 == 0 )
                         {
-                            println( title + " " + count )
+                            printf("%s %d (%dMb mem, %dMb free)\n", title, count,
+                                (runtime.totalMemory/1024/1024).toInt,
+                                (runtime.freeMemory/1024/1024).toInt )
                         }
                     }
                     case _ =>
