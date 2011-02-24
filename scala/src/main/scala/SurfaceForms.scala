@@ -41,7 +41,11 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                             {
                                 context.write( new Text(surfaceForm), new Text(destinationTopic) )
                             }
-                            case _ => throw new ClassCastException()
+                            case _ =>
+                            {
+                                // Do nothing for now
+                                //throw new ClassCastException()
+                            }
                         }
                     }
                 }
