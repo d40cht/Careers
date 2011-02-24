@@ -6,6 +6,7 @@ import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.Mapper
 import org.apache.hadoop.mapreduce.Reducer
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
+import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
 import org.apache.hadoop.util.GenericOptionsParser
 import scala.collection.JavaConversions._
@@ -84,7 +85,6 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
         {
             val parsed = markupParser( page )
             extractLinks( parsed.children, context )
-            //context.write( surfaceForm, topic )
         }
         catch
         {
@@ -100,7 +100,10 @@ class SurfaceFormsReducer extends Reducer[Text, Text, Text, Text]
 {
     override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context) = 
     {
-        // context.write( key, value )
+        for ( value <- values )
+        {
+            context.write( key, value )
+        }
     }
 }
 
@@ -124,8 +127,12 @@ object SurfaceForms
         job.setMapperClass(classOf[SurfaceFormsMapper])
         job.setCombinerClass(classOf[SurfaceFormsReducer])
         job.setReducerClass(classOf[SurfaceFormsReducer])
+
         job.setOutputKeyClass(classOf[Text])
         job.setOutputValueClass(classOf[Text])
+        
+        job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
+                
         FileInputFormat.addInputPath(job, new Path(args(0)))
         FileOutputFormat.setOutputPath(job, new Path(args(1)))
         
