@@ -84,9 +84,9 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
         val topicTitle = key
         val topicText = value
         
-        val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
         try
         {
+            val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
             val parsed = markupParser( page )
             extractLinks( parsed.children, context )
         }
