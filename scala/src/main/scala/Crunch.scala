@@ -5,6 +5,9 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.io.SequenceFile.CompressionType.BLOCK
+import org.apache.commons.logging.Log
+import org.apache.commons.logging.LogFactory
+
 
 import scala.io.Source
 import scala.xml.pull.{XMLEventReader, EvElemStart, EvElemEnd, EvText}
@@ -75,6 +78,9 @@ object Crunch
     }
     def main( args : Array[String] )
     {
+        //val log = LogFactory.getLog("")
+        //LogFactory.getFactory().setAttribute("org.apache.commons.logging.Log", "org.apache.commons.logging.impl.SimpleLog")
+        
         require( args.length == 2 )
         val fin = new FileInputStream( args(0) )
         val in = new BufferedInputStream(fin)
@@ -85,7 +91,7 @@ object Crunch
         val conf = new Configuration()
         val fs = FileSystem.get(conf)        
 
-        //val writer = createWriter( fs, conf, new Path(args(1)), new Text().getClass(), new Text().getClass(), BLOCK )
+        val writer = createWriter( fs, conf, new Path(args(1)), new Text().getClass(), new Text().getClass(), BLOCK )
         
         var count = 0
         try
@@ -101,7 +107,7 @@ object Crunch
                     {
                         val (title, id, revision, text) = parsePage( parser )
                         
-                        //writer.append( new Text(title), new Text(text) )
+                        writer.append( new Text(title), new Text(text) )
                         
                         count = count + 1
                         if ( count % 100 == 0 )
