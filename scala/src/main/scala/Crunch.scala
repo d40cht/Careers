@@ -4,7 +4,7 @@ import org.apache.hadoop.io.SequenceFile.{createWriter}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.Text
-import org.apache.hadoop.io.SequenceFile.CompressionType.BLOCK
+import org.apache.hadoop.io.SequenceFile.CompressionType.{BLOCK, RECORD}
 import org.apache.commons.logging.Log
 import org.apache.commons.logging.LogFactory
 
@@ -91,7 +91,7 @@ object Crunch
         val conf = new Configuration()
         val fs = FileSystem.get(conf)        
 
-        val writer = createWriter( fs, conf, new Path(args(1)), new Text().getClass(), new Text().getClass(), BLOCK )
+        val writer = createWriter( fs, conf, new Path(args(1)), new Text().getClass(), new Text().getClass(), RECORD )
         
         var count = 0
         try

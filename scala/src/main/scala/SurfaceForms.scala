@@ -122,6 +122,10 @@ object SurfaceForms
         if ( otherArgs.length != 2 )
         {
             println( "Usage: surfaceforms <in> <out>")
+            for ( arg <- otherArgs )
+            {
+                println( "  " + arg )
+            }
             return 2
         }
         

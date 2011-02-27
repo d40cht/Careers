@@ -2,12 +2,14 @@ import sbt._
 
 class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with ProguardProject
 {
-    override def mainClass = Some("Crunch")
+    val entryClass = "Crunch"
+    //val entryClass = "SurfaceForms"
+
+    override def mainClass = Some(entryClass)
     
     override def proguardOptions = List(
-        //proguardKeepMain( "SurfaceForms" )
         proguardKeepAllScala,
-        proguardKeepMain( "Crunch" ),
+        proguardKeepMain( entryClass ),
         "-dontskipnonpubliclibraryclasses",
         "-dontskipnonpubliclibraryclassmembers",
         "-keep class * { public protected *; }",
