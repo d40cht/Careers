@@ -1,6 +1,6 @@
 import java.io.{FileInputStream, BufferedInputStream}
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
-import org.apache.hadoop.io.SequenceFile.{createWriter}
+import org.apache.hadoop.io.SequenceFile.{createWriter, Reader}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.Text
@@ -126,7 +126,17 @@ object Crunch
         {
             decompressor.close()
             fin.close()
+            writer.close()
         }
+        
+        /*val reader = new Reader( fs, new Path(args(1)), conf )
+        
+        var key = new Text()
+        var value = new Text()
+        while ( reader.next( key, value ) )
+        {
+            println( key )
+        }*/
 
         println( "Finished decompression.")
     }
