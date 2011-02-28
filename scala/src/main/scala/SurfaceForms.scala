@@ -15,6 +15,8 @@ import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.{Node}
 
+import scala.collection.mutable.HashSet
+
 
 class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 {
@@ -104,9 +106,13 @@ class SurfaceFormsReducer extends Reducer[Text, Text, Text, Text]
 {
     override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context) = 
     {
+        val seen = HashSet()
         for ( value <- values )
         {
-            context.write( key, value )
+            if ( !seen.contains(value) )
+            {
+                context.write( key, value )
+            }
         }
     }
 }
