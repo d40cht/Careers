@@ -33,7 +33,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                     // Interested in 'Main' or 'Category' largely
                     //println( "    " + destination.namespace + ", "  + destination.decoded)
                     
-                    if ( children.length != 0 )
+                    if ( children.length != 0 && (destination.namespace == "Main" || destination.namespace =="Category"))
                     {
                         val destinationTopic = destination.decoded
                         
@@ -106,12 +106,13 @@ class SurfaceFormsReducer extends Reducer[Text, Text, Text, Text]
 {
     override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context) = 
     {
-        val seen = HashSet()
+        val seen = new HashSet[Text]
         for ( value <- values )
         {
             if ( !seen.contains(value) )
             {
                 context.write( key, value )
+                seen += value
             }
         }
     }
