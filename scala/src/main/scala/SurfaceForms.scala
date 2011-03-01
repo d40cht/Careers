@@ -153,7 +153,7 @@ object SurfaceForms
         job.setNumReduceTasks(10)
 
         job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[Text])
+        job.setOutputValueClass(classOf[JSONObjectWritable])
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
                 
