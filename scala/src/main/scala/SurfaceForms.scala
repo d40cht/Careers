@@ -107,7 +107,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 
 class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
 {
-    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, JSONObjectWritable]#Context) = 
+    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context) = 
     {
         val seen = new HashSet[Text]
         val outValues = new JSONObjectWritable()
