@@ -17,6 +17,9 @@ import org.dbpedia.extraction.wikiparser.{Node}
 
 import scala.collection.mutable.HashSet
 
+import org.json.JSONArray
+import edu.umd.cloud9.io.JSONObjectWritable
+
 
 class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 {
@@ -102,19 +105,24 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
     }
 }
 
-class SurfaceFormsReducer extends Reducer[Text, Text, Text, Text]
+class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
 {
-    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context) = 
+    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, JSONObjectWritable]#Context) = 
     {
         val seen = new HashSet[Text]
+        val outValues = new JSONObjectWritable()
+        var count = 0
         for ( value <- values )
         {
             if ( !seen.contains(value) )
             {
-                context.write( key, value )
+                //context.write( key, value )
+                outValues.put( count.toString(), value.toString() )
                 seen += value
+                count += 1
             }
         }
+        context.write( key, outValues )
     }
 }
 
@@ -155,6 +163,5 @@ object SurfaceForms
         if ( job.waitForCompletion(true) ) 0 else 1
     }
 }
-
 
 
