@@ -33,7 +33,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                     // Interested in 'Main' or 'Category' largely
                     //println( "    " + destination.namespace + ", "  + destination.decoded)
                     
-                    if ( children.length != 0 && (destination.namespace == "Main" || destination.namespace =="Category"))
+                    if ( children.length != 0 )// && (destination.namespace == "Main" || destination.namespace =="Category"))
                     {
                         val destinationTopic = destination.decoded
                         
@@ -142,6 +142,7 @@ object SurfaceForms
         job.setMapperClass(classOf[SurfaceFormsMapper])
         job.setCombinerClass(classOf[SurfaceFormsReducer])
         job.setReducerClass(classOf[SurfaceFormsReducer])
+        job.setNumReduceTasks(10)
 
         job.setOutputKeyClass(classOf[Text])
         job.setOutputValueClass(classOf[Text])

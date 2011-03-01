@@ -2,8 +2,8 @@ import sbt._
 
 class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with ProguardProject
 {
-    val entryClass = "Crunch"
-    //val entryClass = "SurfaceForms"
+    //val entryClass = "Crunch"
+    val entryClass = "SurfaceForms"
 
     override def mainClass = Some(entryClass)
     
