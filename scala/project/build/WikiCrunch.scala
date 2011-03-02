@@ -5,7 +5,7 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
     //val entryClass = "Crunch"
     val entryClass = "SurfaceForms"
 
-    override def mainClass = Some(entryClass)
+    //override def mainClass = Some(entryClass)
     
     override def proguardOptions = List(
         proguardKeepAllScala,
