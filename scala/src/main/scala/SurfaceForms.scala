@@ -20,6 +20,11 @@ import scala.collection.mutable.HashSet
 import org.json.JSONArray
 import edu.umd.cloud9.io.JSONObjectWritable
 
+// TODO:
+// Lower case
+// Remove category links
+// At the map stage remove any which have too many links (>1000)
+
 
 class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 {
@@ -44,7 +49,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                         {
                             case TextNode( surfaceForm, line ) =>
                             {
-                                context.write( new Text(surfaceForm), new Text(destinationTopic) )
+                                context.write( new Text(surfaceForm.toLowerCase()), new Text(destinationTopic) )
                             }
                             case _ =>
                             {
@@ -107,7 +112,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 
 class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
 {
-    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, JSONObjectWritable]#Context) = 
+    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, JSONObjectWritable]#Context)
     {
         val seen = new HashSet[Text]
         val outValues = new JSONObjectWritable()
@@ -120,6 +125,11 @@ class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
                 outValues.put( count.toString(), value.toString() )
                 seen += value
                 count += 1
+            }
+            
+            if ( count > 1000 )
+            {
+                return Unit
             }
         }
         context.write( key, outValues )
