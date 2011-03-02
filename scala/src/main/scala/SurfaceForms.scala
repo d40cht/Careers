@@ -156,7 +156,7 @@ object SurfaceForms
         job.setMapOutputValueClass(classOf[Text])
         
         job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[Text])
+        job.setOutputValueClass(classOf[JSONObjectWritable])
         
         
                 
