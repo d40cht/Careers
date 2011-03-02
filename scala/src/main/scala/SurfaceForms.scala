@@ -152,6 +152,7 @@ object SurfaceForms
         job.setReducerClass(classOf[SurfaceFormsReducer])
         job.setNumReduceTasks(10)
         
+        job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
         job.setMapOutputKeyClass(classOf[Text])
         job.setMapOutputValueClass(classOf[Text])
         
