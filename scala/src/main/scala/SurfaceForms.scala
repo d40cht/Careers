@@ -107,7 +107,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 
 class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
 {
-    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context) = 
+    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, JSONObjectWritable]#Context) = 
     {
         val seen = new HashSet[Text]
         val outValues = new JSONObjectWritable()
@@ -151,11 +151,14 @@ object SurfaceForms
         job.setCombinerClass(classOf[SurfaceFormsReducer])
         job.setReducerClass(classOf[SurfaceFormsReducer])
         job.setNumReduceTasks(10)
-
-        job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[JSONObjectWritable])
         
-        job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
+        job.setMapOutputKeyClass(classOf[Text])
+        job.setMapOutputValueClass(classOf[Text])
+        
+        job.setOutputKeyClass(classOf[Text])
+        job.setOutputValueClass(classOf[Text])
+        
+        
                 
         FileInputFormat.addInputPath(job, new Path(args(0)))
         FileOutputFormat.setOutputPath(job, new Path(args(1)))
