@@ -66,7 +66,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                     // Interested in 'Main' or 'Category' largely
                     //println( "    " + destination.namespace + ", "  + destination.decoded)
                     
-                    if ( children.length != 0 && destination.namespace == "Main" )
+                    if ( children.length != 0 )//&& destination.namespace == "Main" )
                     {
                         val destinationTopic = destination.decoded
                         
@@ -76,7 +76,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                             case TextNode( surfaceForm, line ) =>
                             {
                                 //context.write( new Text(extractRawText(first).toLowerCase()), new Text(destination.namespace + " :: " + destination.decoded) )
-                                context.write( new Text(surfaceForm.toLowerCase()), new Text(destination.namespace + " :: " + destination.decoded) )
+                                context.write( new Text(surfaceForm.toLowerCase()), new Text("'"+destination.namespace + "' :: " + destination.decoded) )
                             }
                             case _ =>
                             {
