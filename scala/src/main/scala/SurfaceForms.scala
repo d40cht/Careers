@@ -184,9 +184,9 @@ object SurfaceForms
         
         job.setJarByClass(classOf[SurfaceFormsMapper])
         job.setMapperClass(classOf[SurfaceFormsMapper])
-        job.setCombinerClass(classOf[SurfaceFormsReducer])
+        //job.setCombinerClass(classOf[SurfaceFormsReducer])
         job.setReducerClass(classOf[SurfaceFormsReducer])
-        job.setNumReduceTasks(10)
+        job.setNumReduceTasks(50)
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
         job.setMapOutputKeyClass(classOf[Text])
