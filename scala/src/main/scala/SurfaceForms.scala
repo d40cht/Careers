@@ -75,7 +75,8 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                         {
                             case TextNode( surfaceForm, line ) =>
                             {
-                                context.write( new Text(extractRawText(first).toLowerCase()), new Text(destination.namespace + " :: " + destination.decoded) )
+                                //context.write( new Text(extractRawText(first).toLowerCase()), new Text(destination.namespace + " :: " + destination.decoded) )
+                                context.write( new Text(surfaceForm.toLowerCase()), new Text(destination.namespace + " :: " + destination.decoded) )
                             }
                             case _ =>
                             {
