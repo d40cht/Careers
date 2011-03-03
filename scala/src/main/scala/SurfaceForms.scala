@@ -66,7 +66,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                     // Interested in 'Main' or 'Category' largely
                     //println( "    " + destination.namespace + ", "  + destination.decoded)
                     
-                    if ( children.length != 0 )// && (destination.namespace == "Main" || destination.namespace =="Category"))
+                    if ( children.length != 0 && destination.namespace == "Main" )
                     {
                         val destinationTopic = destination.decoded
                         
