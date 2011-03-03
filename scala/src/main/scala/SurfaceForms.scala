@@ -24,11 +24,36 @@ import edu.umd.cloud9.io.JSONObjectWritable
 // Lower case
 // Remove category links
 // At the map stage remove any which have too many links (>1000)
+// No picture links
+// Sanity check text to remove junk
 
 
 class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 {
     val markupParser = WikiParser()
+    
+    def extractRawText( node : Node )
+    {
+        val text = new StringBuffer()
+        for ( el <- node.children )
+        {
+            el match
+            {
+                case TextNode( node, line ) =>
+                {
+                    text += node.text
+                }
+                
+                case _ =>
+            }
+            for ( child <- el.children )
+            {
+                text += extractRawText( child )
+            }
+        }
+        
+        return text
+    }
     
     def extractLinks( elements : Seq[Node], context : Mapper[Text, Text, Text, Text]#Context )
     {
@@ -49,7 +74,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                         {
                             case TextNode( surfaceForm, line ) =>
                             {
-                                context.write( new Text(surfaceForm.toLowerCase()), new Text(destinationTopic) )
+                                context.write( new Text(extractRawText(surfaceForm).toLowerCase()), new Text(destinationTopic) )
                             }
                             case _ =>
                             {
