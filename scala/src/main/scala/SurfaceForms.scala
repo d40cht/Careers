@@ -75,7 +75,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                         {
                             case TextNode( surfaceForm, line ) =>
                             {
-                                context.write( new Text(extractRawText(first).toLowerCase()), new Text(destinationTopic) )
+                                context.write( new Text(extractRawText(first).toLowerCase()), new Text(destination.namespace + " :: " + destination.decoded) )
                             }
                             case _ =>
                             {
@@ -170,9 +170,9 @@ object SurfaceForms
         val conf = new Configuration()
         val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
         
-        if ( otherArgs.length != 2 )
+        if ( otherArgs.length != 3 )
         {
-            println( "Usage: surfaceforms <in> <out>")
+            println( "Usage: surfaceforms <in> <out> <num reduces>")
             for ( arg <- otherArgs )
             {
                 println( "  " + arg )
@@ -186,7 +186,7 @@ object SurfaceForms
         job.setMapperClass(classOf[SurfaceFormsMapper])
         //job.setCombinerClass(classOf[SurfaceFormsReducer])
         job.setReducerClass(classOf[SurfaceFormsReducer])
-        job.setNumReduceTasks(50)
+        job.setNumReduceTasks( args(2).toInt )
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
         job.setMapOutputKeyClass(classOf[Text])
