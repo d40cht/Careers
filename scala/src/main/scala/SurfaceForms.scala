@@ -32,27 +32,27 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 {
     val markupParser = WikiParser()
     
-    def extractRawText( node : Node )
+    def extractRawText( node : Node ) : String =
     {
         val text = new StringBuffer()
         for ( el <- node.children )
         {
             el match
             {
-                case TextNode( node, line ) =>
+                case TextNode( theText, line ) =>
                 {
-                    text += node.text
+                    text.append(theText)
                 }
                 
                 case _ =>
             }
             for ( child <- el.children )
             {
-                text += extractRawText( child )
+                text.append(extractRawText( child ))
             }
         }
         
-        return text
+        return text.toString()
     }
     
     def extractLinks( elements : Seq[Node], context : Mapper[Text, Text, Text, Text]#Context )
@@ -70,11 +70,12 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                     {
                         val destinationTopic = destination.decoded
                         
-                        children(0) match
+                        val first = children(0)
+                        first match
                         {
                             case TextNode( surfaceForm, line ) =>
                             {
-                                context.write( new Text(extractRawText(surfaceForm).toLowerCase()), new Text(destinationTopic) )
+                                context.write( new Text(extractRawText(first).toLowerCase()), new Text(destinationTopic) )
                             }
                             case _ =>
                             {
