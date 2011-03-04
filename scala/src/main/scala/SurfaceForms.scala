@@ -21,10 +21,6 @@ import org.json.JSONArray
 import edu.umd.cloud9.io.JSONObjectWritable
 
 // TODO:
-// Lower case
-// Remove category links
-// At the map stage remove any which have too many links (>1000)
-// No picture links
 // Sanity check text to remove junk
 
 
@@ -39,9 +35,13 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
         {
             el match
             {
-                case TextNode( theText, line ) =>
+                case TextNode( _, _ ) =>
                 {
-                    text.append(theText)
+                    el.retrieveText match
+                    {
+                        case Some( theText ) => text.append( theText )
+                        case None =>
+                    }
                 }
                 
                 case _ =>
@@ -66,6 +66,13 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                     // Interested in 'Main' or 'Category' largely
                     //println( "    " + destination.namespace + ", "  + destination.decoded)
                     
+                    if ( destination.namespace.toString() == "Main" )
+                    {
+                        val rawText = extractRawText(child)
+                        context.write( new Text( rawText.toLowerCase() ), new Text( destination.decoded ) );
+                    }
+                    
+                    /*
                     if ( children.length != 0 && destination.namespace.toString() == "Main" )
                     {
                         val destinationTopic = destination.decoded
@@ -84,7 +91,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                                 //throw new ClassCastException()
                             }
                         }
-                    }
+                    }*/
                 }
 
                 case SectionNode(name, level, children, line ) =>
