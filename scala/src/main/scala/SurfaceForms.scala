@@ -28,7 +28,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 {
     val markupParser = WikiParser()
     
-    def extractRawText( node : Node ) : String =
+    private def extractRawText( node : Node ) : String =
     {
         val text = new StringBuffer()
         for ( el <- node.children )

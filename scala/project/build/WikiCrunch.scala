@@ -2,6 +2,8 @@ import sbt._
 
 class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with ProguardProject
 {
+    val scalatest = "org.scalatest" % "scalatest" % "1.3"
+    
     //val entryClass = "Crunch"
     val entryClass = "SurfaceForms"
 
