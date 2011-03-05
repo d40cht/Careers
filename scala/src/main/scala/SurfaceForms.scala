@@ -28,31 +28,9 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 {
     val markupParser = WikiParser()
     
-    private def extractRawText( node : Node ) : String =
+    private def normalize( raw : String ) : String =
     {
-        val text = new StringBuffer()
-        for ( el <- node.children )
-        {
-            el match
-            {
-                case TextNode( _, _ ) =>
-                {
-                    el.retrieveText match
-                    {
-                        case Some( theText ) => text.append( theText )
-                        case None =>
-                    }
-                }
-                
-                case _ =>
-            }
-            for ( child <- el.children )
-            {
-                text.append(extractRawText( child ))
-            }
-        }
-        
-        return text.toString()
+        return raw.toLowerCase().filter(_ != '\'' )
     }
     
     def extractLinks( elements : Seq[Node], context : Mapper[Text, Text, Text, Text]#Context )
@@ -63,16 +41,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
             {
                 case InternalLinkNode(destination, children, line) =>
                 {
-                    // Interested in 'Main' or 'Category' largely
-                    //println( "    " + destination.namespace + ", "  + destination.decoded)
-                    
-                    if ( destination.namespace.toString() == "Main" )
-                    {
-                        val rawText = extractRawText(child)
-                        context.write( new Text( rawText.toLowerCase() ), new Text( destination.decoded ) );
-                    }
-                    
-                    /*
+
                     if ( children.length != 0 && destination.namespace.toString() == "Main" )
                     {
                         val destinationTopic = destination.decoded
@@ -82,16 +51,14 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                         {
                             case TextNode( surfaceForm, line ) =>
                             {
-                                //context.write( new Text(extractRawText(first).toLowerCase()), new Text(destination.namespace + " :: " + destination.decoded) )
-                                context.write( new Text(surfaceForm.toLowerCase()), new Text("'"+destination.namespace + "' :: " + destination.decoded) )
+                                val normalizedText = normalize( surfaceForm )
+                                context.write( new Text(normalizedText), new Text("'"+destination.namespace + "' :: " + destination.decoded) )
                             }
                             case _ =>
                             {
-                                // Do nothing for now
-                                //throw new ClassCastException()
                             }
                         }
-                    }*/
+                    }
                 }
 
                 case SectionNode(name, level, children, line ) =>
