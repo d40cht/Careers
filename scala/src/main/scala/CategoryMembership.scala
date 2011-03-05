@@ -24,12 +24,12 @@ import edu.umd.cloud9.io.JSONObjectWritable
 // Sanity check text to remove junk
 
 
-class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
+class CategoryMembershipMapper extends Mapper[Text, Text, Text, Text]
 {
     val markupParser = WikiParser()
    
     
-    def extractCategories( Text: parentTopic, elements : Seq[Node], context : Mapper[Text, Text, Text, Text]#Context )
+    def extractCategories( parentTopic : Text, elements : Seq[Node], context : Mapper[Text, Text, Text, Text]#Context )
     {
         for ( child <- elements )
         {
@@ -50,7 +50,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
                     extractCategories( parentTopic, children, context )
                 }
 
-                case extractCategories( title, children, line ) =>
+                case TemplateNode( title, children, line ) =>
                 {
                     // Namespace is 'Template'. Don't want POV, advert, trivia
                     //println( "  " + title.namespace + ", " + title.decoded )
@@ -94,12 +94,13 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
     }
 }
 
-class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
+class CategoryMembershipReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
 {
     override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, JSONObjectWritable]#Context)
     {
         val seen = new HashSet[Text]
         val outValues = new JSONObjectWritable()
+        var count = 0
         for ( value <- values )
         {
             if ( !seen.contains(value) )
@@ -107,6 +108,7 @@ class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
                 //context.write( key, value )
                 outValues.put( count.toString(), value.toString() )
                 seen += value
+                count += 1
             }
         }
         context.write( key, outValues )
@@ -114,7 +116,7 @@ class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
 }
 
 
-object SurfaceForms
+object CategoryMembership
 {
     def main(args:Array[String]) : Unit =
     {
@@ -133,10 +135,10 @@ object SurfaceForms
         
         val job = new Job(conf, "Surface forms")
         
-        job.setJarByClass(classOf[SurfaceFormsMapper])
-        job.setMapperClass(classOf[SurfaceFormsMapper])
+        job.setJarByClass(classOf[CategoryMembershipMapper])
+        job.setMapperClass(classOf[CategoryMembershipMapper])
         //job.setCombinerClass(classOf[SurfaceFormsReducer])
-        job.setReducerClass(classOf[SurfaceFormsReducer])
+        job.setReducerClass(classOf[CategoryMembershipReducer])
         job.setNumReduceTasks( args(2).toInt )
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
