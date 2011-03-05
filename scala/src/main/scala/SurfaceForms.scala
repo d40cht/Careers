@@ -30,6 +30,7 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
     
     private def normalize( raw : String ) : String =
     {
+        // Deal with: double/triple spaces, embedded xml tags
         return raw.toLowerCase().filter(_ != '\'' )
     }
     
