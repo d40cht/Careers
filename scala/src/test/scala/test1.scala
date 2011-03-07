@@ -43,4 +43,14 @@ class TestSuite extends FunSuite
         
         println( parsed.toString() )
     }
+    
+    test("A simple phrasemap test")
+    {
+        val pm = new PhraseMap()
+        
+        pm.addPhrase( "Hello" )
+        pm.addPhrase( "Hello world" )
+        pm.addPhrase( "Hell" )
+        pm.addPhrase( "Hello world, la de la" )
+    }
 }
