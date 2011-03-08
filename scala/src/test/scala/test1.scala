@@ -5,6 +5,9 @@ import scala.collection.immutable.HashSet
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.{Node}
+
+import java.io.File
+import com.almworks.sqlite4java._
  
 class TestSuite extends FunSuite
 {
@@ -93,5 +96,16 @@ class TestSuite extends FunSuite
             pw.update( c )
             lastChar = c
         }
+    }
+    
+    test("Simple sqlite test")
+    {
+        //val db = new SQLiteConnection( new File( "test.sqlite3" ) )
+        val db = new SQLiteConnection()
+        db.open()
+        
+        db.exec( "CREATE TABLE surfaceForms( form TEXT, topic TEXT )" )
+        db.exec( """INSERT INTO surfaceForms VALUES( "hello", "world" )""" )
+        //val st = db.prepare( "CREATE TABLE  
     }
 }

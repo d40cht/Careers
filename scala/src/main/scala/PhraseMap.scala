@@ -192,27 +192,15 @@ object PhraseMap
         
         val pm = new PhraseMap[String]()
         
-        val path0 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00000")
-        val path1 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00001")
-        val path2 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00002")
-        val path3 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00003")
-        val path4 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00004")
-        val path5 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00005")
-        val path6 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00006")
-        val path7 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00007")
-        val path8 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00008")
+        val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
         
         
-        
-        parseFile( pm, fs, path0 )
-        parseFile( pm, fs, path1 )
-        parseFile( pm, fs, path2 )
-        parseFile( pm, fs, path3 )
-        parseFile( pm, fs, path4 )
-        //parseFile( pm, fs, path5 )
-        //parseFile( pm, fs, path6 )
-        //parseFile( pm, fs, path7 )
-        //parseFile( pm, fs, path8 )
+        for ( fileStatus <- fileList )
+        {
+            val filePath = fileStatus.getPath
+            println( filePath )
+            parseFile( pm, fs, filePath )
+        }
         
         println( "*** Parse complete ***" )
         
