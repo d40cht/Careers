@@ -3,7 +3,8 @@ import java.io.{BufferedReader, InputStreamReader}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 
-import scala.collection.immutable.TreeMap
+//import scala.collection.immutable.TreeMap
+import java.util.TreeMap
 
 import edu.umd.cloud9.io.JSONObjectWritable
 import org.json.JSONException
@@ -11,7 +12,7 @@ import org.json.JSONException
 class PhraseNode[TargetType]
 {
     type SelfType = PhraseNode[TargetType]
-    var children = new TreeMap[Char, SelfType]()
+    val children = new TreeMap[Char, SelfType]()
     var terminalData : List[TargetType] = Nil
     
     def add( phrase : Seq[Char], endpoint : TargetType )
@@ -20,12 +21,12 @@ class PhraseNode[TargetType]
         {
             case Seq( head, tail @ _* ) =>
             {
-                if ( !children.contains(head) )
+                if ( !children.containsKey(head) )
                 {
-                    children += (head -> new SelfType())
+                    children.put(head, new SelfType())
                 }
                 
-                children(head).add(tail, endpoint)
+                children.get(head).add(tail, endpoint)
             }
             case Seq() =>
             {
@@ -36,9 +37,9 @@ class PhraseNode[TargetType]
     
     def walk( el : Char ) : Option[SelfType] =
     {
-        if ( children.contains( el ) )
+        if ( children.containsKey( el ) )
         {
-            return Some( children(el) )
+            return Some( children.get(el) )
         }
         else
         {
