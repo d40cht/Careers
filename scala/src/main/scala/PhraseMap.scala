@@ -6,6 +6,9 @@ import org.apache.hadoop.conf.Configuration
 import java.util.{TreeMap, HashMap}
 import butter4s.json.Parser
 
+import java.io.File
+import com.almworks.sqlite4java._
+
 class PhraseNode[TargetType]
 {
     type SelfType = PhraseNode[TargetType]
@@ -130,7 +133,8 @@ object PhraseMap
     }
     
     
-    private def parseFile( pm : PhraseMap[String], fs : FileSystem, path : Path )
+    //private def parseFile( pm : PhraseMap[String], fs : FileSystem, path : Path )
+    private def parseFile( consumeFn : (String, String) => Unit, fs : FileSystem, path : Path )
     {
         assert( fs.exists(path) )
         val reader = new BufferedReader( new InputStreamReader( fs.open( path ) ) )
@@ -152,7 +156,8 @@ object PhraseMap
                     {
                         for ( (index, value) <- elMap )
                         {
-                            pm.addPhrase( surfaceForm, value )
+                            //pm.addPhrase( surfaceForm, value )
+                            consumeFn( surfaceForm, value )
                         }
                         
                         count += 1
@@ -181,6 +186,41 @@ object PhraseMap
         }
         reader.close()
     }
+    
+    class SQLiteWriter( fileName : String )
+    {
+        val db = new SQLiteConnection( new File(fileName) )
+        val addStmt = db.prepare( "INSERT INTO surfaceForms VALUES( ?, ? )" )
+        var count = 0
+        
+        db.open()
+        db.exec( "CREATE TABLE surfaceForms( form TEXT, topic TEXT )" )
+        
+        def addPhrase( surfaceForm : String, topic : String )
+        {
+            if ( count == 0 )
+            {
+                db.exec( "BEGIN" )
+            }
+            addStmt.bind(1, surfaceForm)
+            addStmt.bind(2, topic)
+            addStmt.step()
+            
+            if ( count == 0 )
+            {
+                db.exec( "COMMIT" )
+            }
+            
+            if ( count < 10000 )
+            {
+                count += 1
+            }
+            else
+            {
+                count = 0
+            }
+        }
+    }
 
     def main( args : Array[String] )
     {
@@ -191,6 +231,7 @@ object PhraseMap
         
         
         val pm = new PhraseMap[String]()
+        val sql = new SQLiteWriter( "test.sqlite3" )
         
         val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
         
@@ -199,7 +240,8 @@ object PhraseMap
         {
             val filePath = fileStatus.getPath
             println( filePath )
-            parseFile( pm, fs, filePath )
+            parseFile( sql.addPhrase, fs, filePath )
+            //parseFile( pm.addPhrase, fs, filePath )
         }
         
         println( "*** Parse complete ***" )
