@@ -3,17 +3,15 @@ import java.io.{BufferedReader, InputStreamReader}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 
-//import scala.collection.immutable.TreeMap
 import java.util.TreeMap
-
-import edu.umd.cloud9.io.JSONObjectWritable
-import org.json.JSONException
+import butter4s.json.Parser
 
 class PhraseNode[TargetType]
 {
     type SelfType = PhraseNode[TargetType]
     val children = new TreeMap[Char, SelfType]()
     var terminalData : List[TargetType] = Nil
+    var terminalCount = 0
     
     def add( phrase : Seq[Char], endpoint : TargetType )
     {
@@ -31,6 +29,11 @@ class PhraseNode[TargetType]
             case Seq() =>
             {
                 terminalData = endpoint::terminalData
+                terminalCount += 1
+                if ( terminalCount > 1000 )
+                {
+                   println( terminalCount )
+                }
             }
         }
     }
@@ -109,20 +112,8 @@ class PhraseWalker[TargetType]( val phraseMap : PhraseMap[TargetType], val phras
     }
 }
 
-// Helper to allow iterating over java util iterators
-class IteratorWrapper[A](iter:java.util.Iterator[A])
-{
-    def foreach(f: A => Unit): Unit = {
-        while(iter.hasNext){
-          f(iter.next)
-        }
-    }
-}
-
 object PhraseMap
 {
-    implicit def iteratorToWrapper[T](iter:java.util.Iterator[T]):IteratorWrapper[T] = new IteratorWrapper[T](iter)
-     
     def isNonWordChar( el : Char ) : Boolean =
     {
         el match
@@ -154,20 +145,27 @@ object PhraseMap
             
             try
             {
-                val parsed = new JSONObjectWritable( references )
-                
-                var kk = 0
-                for ( key <- parsed.keys() )
+                val parsed = Parser.parse( references )
+                parsed match
                 {
-                    pm.addPhrase( surfaceForm, parsed.getString(key) )
-                    kk += 1
+                    case elMap : Map[Int, String] =>
+                    {
+                        for ( (index, value) <- elMap )
+                        {
+                            pm.addPhrase( surfaceForm, value )
+                        }
+                        
+                        count += 1
+                        
+                        if ( count % 100000 == 0 )
+                        {
+                            println( count + " " + surfaceForm + " -> " + elMap.toString() )
+                        }
+                    }
+                    case _ =>
                 }
                 
-                if ( kk > 40 )
-                {
-                    //println( count + " == " + line )
-                }
-                count += 1
+                
             }
             catch
             {
@@ -206,6 +204,11 @@ object PhraseMap
         parseFile( pm, fs, path2 )
         parseFile( pm, fs, path3 )
         parseFile( pm, fs, path4 )
+        
+        println( "*** Parse complete ***" )
+        
+        val r = Runtime.getRuntime()
+        r.gc()
         
         def printRes( m : String, terminals : List[String] )
         {
