@@ -197,6 +197,11 @@ object PhraseMap
         val path2 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00002")
         val path3 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00003")
         val path4 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00004")
+        val path5 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00005")
+        val path6 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00006")
+        val path7 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00007")
+        val path8 = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres/part-r-00008")
+        
         
         
         parseFile( pm, fs, path0 )
@@ -204,6 +209,10 @@ object PhraseMap
         parseFile( pm, fs, path2 )
         parseFile( pm, fs, path3 )
         parseFile( pm, fs, path4 )
+        parseFile( pm, fs, path5 )
+        parseFile( pm, fs, path6 )
+        parseFile( pm, fs, path7 )
+        parseFile( pm, fs, path8 )
         
         println( "*** Parse complete ***" )
         
