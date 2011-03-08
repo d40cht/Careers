@@ -140,8 +140,8 @@ object PhraseMap
         while ( {line = reader.readLine(); line != null} )
         {
             val firstTabIndex = line.indexOf( '\t' )
-            val surfaceForm = line.substring(0,firstTabIndex)
-            val references = line.substring(firstTabIndex+1)
+            val surfaceForm = new String(line.substring(0,firstTabIndex))
+            val references = new String(line.substring(firstTabIndex+1))
             
             try
             {
@@ -209,10 +209,10 @@ object PhraseMap
         parseFile( pm, fs, path2 )
         parseFile( pm, fs, path3 )
         parseFile( pm, fs, path4 )
-        parseFile( pm, fs, path5 )
-        parseFile( pm, fs, path6 )
-        parseFile( pm, fs, path7 )
-        parseFile( pm, fs, path8 )
+        //parseFile( pm, fs, path5 )
+        //parseFile( pm, fs, path6 )
+        //parseFile( pm, fs, path7 )
+        //parseFile( pm, fs, path8 )
         
         println( "*** Parse complete ***" )
         
