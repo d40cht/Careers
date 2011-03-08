@@ -19,7 +19,6 @@ class TestSuite extends FunSuite
 
     test("A first test")
     {
-        println( "Running a test" )
         assert( 3 === 5-2 )
         assert( "a" === "a" )
         
@@ -35,38 +34,52 @@ class TestSuite extends FunSuite
         val topicTitle = "Hello_World"
         val topicText = "[[Blah|'''blah blah''']] ''An italicised '''bit''' of text'' <b>Some markup</b>"
         
-        println( topicText.filter(_ != '\'' ) )
+        //println( topicText.filter(_ != '\'' ) )
 
         val markupParser = WikiParser()
         val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
         val parsed = markupParser( page )
         
-        println( parsed.toString() )
+        //println( parsed.toString() )
     }
     
     
     
     test("A simple phrasemap test")
     {
-        class ResChecker( var expectedResults : List[String] )
+        class ResChecker( var expectedResults : List[(String, List[Int])] )
         {
-            def check( m : String )
+            def check( m : String, terminals : List[Int] )
             {
                 assert( expectedResults != Nil )
-                assert( m === expectedResults.head )
+                val (expectedPhrase, expectedTerminals) = expectedResults.head
+                assert( m === expectedPhrase )
+                assert( terminals.sortWith( _ < _ ) === expectedTerminals.sortWith( _ < _ ) )
                 expectedResults = expectedResults.tail
             }
         }
         
-        val pm = new PhraseMap()
+        val pm = new PhraseMap[Int]()
         
-        pm.addPhrase( "hell" )
-        pm.addPhrase( "hello world, la de la" )
-        pm.addPhrase( "hello" )
-        pm.addPhrase( "hello world" )        
+        pm.addPhrase( "hell", 1 )
+        pm.addPhrase( "hello world, la de la", 2 )
+        pm.addPhrase( "hello", 3 )
+        pm.addPhrase( "hello", 4 )
+        pm.addPhrase( "hello world", 5 )
+        pm.addPhrase( "hello world, la de la", 6 )
+        pm.addPhrase( "hello world, la de la", 7 )
         
         val testPhrase = "hello birds, hello sky, hello world. it's a hell of a day to be saying hello. hello world, la de la de la."  
-        val rc = new ResChecker( List( "hello", "hello", "hello", "hello world", "hell", "hello", "hello", "hello world", "hello world, la de la" ) )
+        val rc = new ResChecker( List(
+            ("hello", List(3, 4)),
+            ("hello", List(3, 4)),
+            ("hello", List(3, 4)),
+            ("hello world", List(5)),
+            ("hell", List(1)),
+            ("hello", List(3,4)),
+            ("hello", List(3,4)),
+            ("hello world", List(5)),
+            ("hello world, la de la", List(2,6,7) ) ) )
       
         var lastChar = ' '
         val pw = new PhraseWalker( pm, rc.check )

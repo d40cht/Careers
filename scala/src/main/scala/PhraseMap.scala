@@ -3,12 +3,13 @@ import org.apache.hadoop.conf.Configuration
 
 import scala.collection.immutable.TreeMap
 
-class PhraseNode()
+class PhraseNode[TargetType]
 {
-    var children = new TreeMap[Char, PhraseNode]()
-    var isTerminal = false
+    type SelfType = PhraseNode[TargetType]
+    var children = new TreeMap[Char, SelfType]()
+    var terminalData : List[TargetType] = Nil
     
-    def add( phrase : Seq[Char] )
+    def add( phrase : Seq[Char], endpoint : TargetType )
     {
         phrase match
         {
@@ -16,19 +17,19 @@ class PhraseNode()
             {
                 if ( !children.contains(head) )
                 {
-                    children += (head -> new PhraseNode())
+                    children += (head -> new SelfType())
                 }
                 
-                children(head).add(tail)
+                children(head).add(tail, endpoint)
             }
             case Seq() =>
             {
-                isTerminal = true
+                terminalData = endpoint::terminalData
             }
         }
     }
     
-    def walk( el : Char ) : Option[PhraseNode] =
+    def walk( el : Char ) : Option[SelfType] =
     {
         if ( children.contains( el ) )
         {
@@ -41,20 +42,20 @@ class PhraseNode()
     }
 }
 
-class PhraseMap
+class PhraseMap[TargetType]
 {
-    val root = new PhraseNode()
+    val root = new PhraseNode[TargetType]()
    
     
-    def addPhrase( phrase : String )
+    def addPhrase( phrase : String, endpoint : TargetType )
     {
-        root.add( phrase )
+        root.add( phrase, endpoint )
     }
 }
 
-class PhraseWalker( val phraseMap : PhraseMap, val phraseRegFn : String => Unit )
+class PhraseWalker[TargetType]( val phraseMap : PhraseMap[TargetType], val phraseRegFn : (String, List[TargetType]) => Unit )
 {
-    type PhraseListType = List[(List[Char], PhraseNode)]
+    type PhraseListType = List[(List[Char], PhraseNode[TargetType])]
     
     var activePhrases : PhraseListType = Nil
 
@@ -69,11 +70,11 @@ class PhraseWalker( val phraseMap : PhraseMap, val phraseRegFn : String => Unit 
         {
             case (headChars, headPhraseNode)::tail =>
             {
-                if ( headPhraseNode.isTerminal )
+                if ( headPhraseNode.terminalData != Nil )
                 {
                     if ( PhraseMap.isNonWordChar( el ) )
                     {
-                        phraseRegFn( headChars.reverse.mkString("") )
+                        phraseRegFn( headChars.reverse.mkString(""), headPhraseNode.terminalData )
                     }
                 }
                 
