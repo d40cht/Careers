@@ -9,8 +9,7 @@ import butter4s.json.Parser
 class PhraseNode[TargetType]
 {
     type SelfType = PhraseNode[TargetType]
-    //val children = new TreeMap[Char, SelfType]()
-    val children = new HashMap[Char, SelfType]()
+    val children = new TreeMap[Char, SelfType]()
     var terminalData : List[TargetType] = Nil
     var terminalCount = 0
     
