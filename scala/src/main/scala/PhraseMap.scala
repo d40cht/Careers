@@ -3,34 +3,47 @@ import org.apache.hadoop.conf.Configuration
 
 import scala.collection.immutable.TreeMap
 
-abstract class PhraseTreeElement
-
-case class Node() extends PhraseTreeElement
+class PhraseNode()
 {
-    var children = new TreeMap[String, PhraseTreeElement]()
+    var children = new TreeMap[Char, PhraseNode]()
+    var isTerminal = false
     
-    def addPhrase( phrase : Seq[Char] )
+    def add( phrase : Seq[Char] )
     {
-        match phrase
+        phrase match
         {
-            case head::tail =>
+            case Seq( head, tail @ _* ) =>
             {
-                var children = children.add( addPhrase( tail ) )
+                if ( !children.contains(head) )
+                {
+                    children += (head -> new PhraseNode())
+                }
+                
+                children(head).add(tail)
             }
-            case Nil =>
+            case Seq() =>
+            {
+                isTerminal = true
+            }
         }
     }
-   
-    def walk( el : Char )
+    
+    def walk( el : Char ) : Option[PhraseNode] =
     {
+        if ( children.contains( el ) )
+        {
+            return Some( children(el) )
+        }
+        else
+        {
+            return None
+        }
     }
 }
-case class Leaf() extends PhraseTreeElement
-
 
 class PhraseMap
 {
-    val root = new Node()
+    val root = new PhraseNode()
    
     
     def addPhrase( phrase : String )
@@ -39,6 +52,7 @@ class PhraseMap
         root.add( phrase )
     }
 }
+
 
 object PhraseMap
 {
