@@ -49,63 +49,27 @@ class TestSuite extends FunSuite
     {
         val pm = new PhraseMap()
         
-        pm.addPhrase( "hello" )
-        pm.addPhrase( "hello world" )
         pm.addPhrase( "hell" )
         pm.addPhrase( "hello world, la de la" )
+        pm.addPhrase( "hello" )
+        pm.addPhrase( "hello world" )
+        
+        
         
         val testPhrase = "hello birds, hello sky, hello world. it's a hell of a day to be saying hello. hello world, la de la de la."
         
-        type PhraseListType = List[(List[Char], PhraseNode)]
-    
-        def phrasesUpdate( el : Char, activeList : PhraseListType, phraseRegFn : String => Unit ) : PhraseListType =
-        {
-            activeList match
-            {
-                case (headChars, headPhraseNode)::tail =>
-                {
-                    if ( headPhraseNode.isTerminal )
-                    {
-                        phraseRegFn( "Phrase: " + headChars.reverse.mkString("") )
-                    }
-                    
-                    headPhraseNode.walk(el) match
-                    {
-                        case Some( rest ) =>
-                        {
-                            return (el::headChars, rest)::phrasesUpdate( el, tail, phraseRegFn )
-                        }
-                        case None =>
-                        {
-                            return phrasesUpdate( el, tail, phraseRegFn )
-                        }
-                    }
-                }
-                case Nil =>
-                {
-                    return Nil
-                }
-            }
-        }
+        
         
         var lastChar = ' '
-        var activePhrases : PhraseListType = Nil
+        val pw = new PhraseWalker( pm, println )
         for (c <- testPhrase )
         {
-            c match
+            if ( lastChar == ' ' )
             {
-                case ' ' =>
-                {
-                }
-                case other @ _ =>
-                {
-                    if ( lastChar == ' ' )
-                    {
-                        activePhrases = (List[Char](), pm.root)::activePhrases
-                    }
-                    activePhrases = phrasesUpdate( c, activePhrases, println )
-                }
+                pw.startNew()
+                
             }
+            pw.update( c )
             lastChar = c
         }
     }

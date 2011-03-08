@@ -48,8 +48,54 @@ class PhraseMap
     
     def addPhrase( phrase : String )
     {
-        val z : Seq[Char] = phrase
         root.add( phrase )
+    }
+}
+
+class PhraseWalker( val phraseMap : PhraseMap, val phraseRegFn : String => Unit )
+{
+    type PhraseListType = List[(List[Char], PhraseNode)]
+    
+    var activePhrases : PhraseListType = Nil
+
+    def startNew()
+    {
+        activePhrases = (List[Char](), phraseMap.root)::activePhrases
+    }
+
+    private def phrasesUpdateImpl( el : Char, activeList : PhraseListType ) : PhraseListType =
+    {
+        activeList match
+        {
+            case (headChars, headPhraseNode)::tail =>
+            {
+                if ( headPhraseNode.isTerminal )
+                {
+                    phraseRegFn( "Phrase: " + headChars.reverse.mkString("") )
+                }
+                
+                headPhraseNode.walk(el) match
+                {
+                    case Some( rest ) =>
+                    {
+                        return (el::headChars, rest)::phrasesUpdateImpl( el, tail )
+                    }
+                    case None =>
+                    {
+                        return phrasesUpdateImpl( el, tail )
+                    }
+                }
+            }
+            case Nil =>
+            {
+                return Nil
+            }
+        }
+    }
+    
+    def update( el : Char )
+    {
+        activePhrases = phrasesUpdateImpl( el, activePhrases )
     }
 }
 
