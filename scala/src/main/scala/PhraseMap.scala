@@ -3,13 +3,14 @@ import java.io.{BufferedReader, InputStreamReader}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 
-import java.util.TreeMap
+import java.util.{TreeMap, HashMap}
 import butter4s.json.Parser
 
 class PhraseNode[TargetType]
 {
     type SelfType = PhraseNode[TargetType]
-    val children = new TreeMap[Char, SelfType]()
+    //val children = new TreeMap[Char, SelfType]()
+    val children = new HashMap[Char, SelfType]()
     var terminalData : List[TargetType] = Nil
     var terminalCount = 0
     
