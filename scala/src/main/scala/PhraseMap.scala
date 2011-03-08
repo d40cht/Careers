@@ -71,7 +71,10 @@ class PhraseWalker( val phraseMap : PhraseMap, val phraseRegFn : String => Unit 
             {
                 if ( headPhraseNode.isTerminal )
                 {
-                    phraseRegFn( "Phrase: " + headChars.reverse.mkString("") )
+                    if ( PhraseMap.isNonWordChar( el ) )
+                    {
+                        phraseRegFn( headChars.reverse.mkString("") )
+                    }
                 }
                 
                 headPhraseNode.walk(el) match
@@ -102,13 +105,26 @@ class PhraseWalker( val phraseMap : PhraseMap, val phraseRegFn : String => Unit 
 
 object PhraseMap
 {
+    def isNonWordChar( el : Char ) : Boolean =
+    {
+        el match
+        {
+            case ' ' => return true
+            case ',' => return true
+            case ';' => return true
+            case '.' => return true
+            case ':' => return true
+            case '!' => return true
+            case '?' => return true
+            case _ => return false
+        }
+    }
+
     def main( args : Array[String] )
     {
         val path = new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres")
         val conf = new Configuration()
         val fs = FileSystem.get(conf)
-        
-        
     }
 }
 

@@ -45,26 +45,34 @@ class TestSuite extends FunSuite
     }
     
     
+    
     test("A simple phrasemap test")
     {
+        class ResChecker( var expectedResults : List[String] )
+        {
+            def check( m : String )
+            {
+                assert( expectedResults != Nil )
+                assert( m === expectedResults.head )
+                expectedResults = expectedResults.tail
+            }
+        }
+        
         val pm = new PhraseMap()
         
         pm.addPhrase( "hell" )
         pm.addPhrase( "hello world, la de la" )
         pm.addPhrase( "hello" )
-        pm.addPhrase( "hello world" )
+        pm.addPhrase( "hello world" )        
         
-        
-        
-        val testPhrase = "hello birds, hello sky, hello world. it's a hell of a day to be saying hello. hello world, la de la de la."
-        
-        
-        
+        val testPhrase = "hello birds, hello sky, hello world. it's a hell of a day to be saying hello. hello world, la de la de la."  
+        val rc = new ResChecker( List( "hello", "hello", "hello", "hello world", "hell", "hello", "hello", "hello world", "hello world, la de la" ) )
+      
         var lastChar = ' '
-        val pw = new PhraseWalker( pm, println )
+        val pw = new PhraseWalker( pm, rc.check )
         for (c <- testPhrase )
         {
-            if ( lastChar == ' ' )
+            if ( PhraseMap.isNonWordChar(lastChar) )
             {
                 pw.startNew()
                 
