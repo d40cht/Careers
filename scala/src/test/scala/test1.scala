@@ -9,7 +9,7 @@ import org.dbpedia.extraction.wikiparser.{Node}
 import java.io.File
 import com.almworks.sqlite4java._
  
-class TestSuite extends FunSuite
+class BasicTestSuite1 extends FunSuite
 {
 
     private def parseSurfaceForm( raw : String ) : String =
