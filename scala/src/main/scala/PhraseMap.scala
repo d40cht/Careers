@@ -3,7 +3,7 @@ import java.io.{BufferedReader, InputStreamReader}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 
-import java.util.{TreeMap, HashMap}
+import java.util.{TreeMap, HashMap, HashSet}
 import butter4s.json.Parser
 
 import java.io.File
@@ -133,7 +133,6 @@ object PhraseMap
     }
     
     
-    //private def parseFile( pm : PhraseMap[String], fs : FileSystem, path : Path )
     private def parseFile( consumeFn : (String, String) => Unit, fs : FileSystem, path : Path )
     {
         assert( fs.exists(path) )
@@ -156,15 +155,14 @@ object PhraseMap
                     {
                         for ( (index, value) <- elMap )
                         {
-                            //pm.addPhrase( surfaceForm, value )
                             consumeFn( surfaceForm, value )
                         }
                         
                         count += 1
                         
-                        if ( count % 100000 == 0 )
+                        if ( count % 10000 == 0 )
                         {
-                            println( count + " " + surfaceForm + " -> " + elMap.toString() )
+                            println( "    " + count + " " + surfaceForm )
                         }
                     }
                     case _ =>
@@ -190,35 +188,97 @@ object PhraseMap
     class SQLiteWriter( fileName : String )
     {
         val db = new SQLiteConnection( new File(fileName) )
-        val addStmt = db.prepare( "INSERT INTO surfaceForms VALUES( ?, ? )" )
-        var count = 0
+        
+        val topics = new HashSet[String]
         
         db.open()
-        db.exec( "CREATE TABLE surfaceForms( form TEXT, topic TEXT )" )
+        db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
+        db.exec( "CREATE TABLE categories( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
+        db.exec( "CREATE TABLE surfaceForms( name TEXT, topicId INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id) )" )
+        db.exec( "CREATE TABLE categoryMembership( topicId INTEGER, categoryId INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id), FOREIGN KEY(categoryId) REFERENCES topics(id) )" )
+        
+        val addTopic = db.prepare( "INSERT INTO topics VALUES( NULL, ? )" )
+        val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
+        val addCategory = db.prepare( "INSERT INTO categories VALUES( NULL, ? )" )
+        val addCategoryMembership = db.prepare( "INSERT INTO categoryMembership VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM categories WHERE name=?) )" )
+        
+        var count = 0
+        
+        db.exec( "BEGIN" )
+        
+        def exec( stmt : String )
+        {
+            db.exec( stmt )
+        }
+        
+        private def manageTransactions()
+        {
+            count += 1
+            if ( (count % 10000) == 0 )
+            {
+                db.exec( "COMMIT" )
+                db.exec( "BEGIN" )
+            }
+        }
+        
+        def clearTopicMap()
+        {
+            topics.clear()
+        }
+        
+        def addTopic( surfaceForm : String, topic : String )
+        {
+            val trimmedTopic = topic.split("::")(1).trim()
+            if ( !topics.contains( topic ) )
+            {
+                addTopic.bind(1, trimmedTopic )
+                addTopic.step()
+                addTopic.reset()
+                
+                topics.add( topic )
+                
+                manageTransactions()
+            }
+        }
         
         def addPhrase( surfaceForm : String, topic : String )
         {
-            if ( count == 0 )
-            {
-                db.exec( "BEGIN" )
-            }
-            addStmt.bind(1, surfaceForm)
-            addStmt.bind(2, topic)
-            addStmt.step()
+            val trimmedTopic = topic.split("::")(1).trim()
+            addSurfaceForm.bind(1, surfaceForm)
+            addSurfaceForm.bind(2, trimmedTopic)
+            addSurfaceForm.step()
+            addSurfaceForm.reset()
             
-            if ( count == 0 )
+            manageTransactions()
+        }
+                
+        def addCategory( topicName : String, categoryName : String )
+        {
+            if ( !topics.contains(categoryName) )
             {
-                db.exec( "COMMIT" )
+                addCategory.bind(1, categoryName)
+                addCategory.step()
+                addCategory.reset()
+                
+                topics.add( categoryName )
+                
+                manageTransactions()
             }
+        }
+        
+        def addCategoryMapping( topicName : String, categoryName : String )
+        {
+            addCategoryMembership.bind(1, topicName)
+            addCategoryMembership.bind(2, categoryName)
+            addCategoryMembership.step()
+            addCategoryMembership.reset()
             
-            if ( count < 10000 )
-            {
-                count += 1
-            }
-            else
-            {
-                count = 0
-            }
+            manageTransactions()
+        }
+        
+        def close()
+        {
+            db.exec( "COMMIT" )
         }
     }
 
@@ -233,23 +293,68 @@ object PhraseMap
         val pm = new PhraseMap[String]()
         val sql = new SQLiteWriter( "test.sqlite3" )
         
-        val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
-        
-        
-        for ( fileStatus <- fileList )
         {
-            val filePath = fileStatus.getPath
-            println( filePath )
-            parseFile( sql.addPhrase, fs, filePath )
-            //parseFile( pm.addPhrase, fs, filePath )
+            println( "Adding topics..." )
+            val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
+            
+            
+            for ( fileStatus <- fileList )
+            {
+                val filePath = fileStatus.getPath
+                println( filePath )
+                parseFile( sql.addTopic, fs, filePath )
+            }
+            
+            sql.clearTopicMap()
+            
+            println( "Creating topic index..." )
+            sql.exec( "CREATE INDEX topicNameIndex ON topics(name)" )
+            
+            println( "Adding surface forms..." )
+            for ( fileStatus <- fileList )
+            {
+                val filePath = fileStatus.getPath
+                println( filePath )
+                parseFile( sql.addPhrase, fs, filePath )
+            }
+            
+            println( "Creating surface forms index..." )
+            sql.exec( "CREATE INDEX surfaceFormsIndex on surfaceForms(name)" )
         }
         
+        
+        {
+            val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )
+            
+            println( "Adding categories..." )
+            for ( fileStatus <- fileList )
+            {
+                val filePath = fileStatus.getPath
+                println( filePath )
+                parseFile( sql.addCategory, fs, filePath )
+            }
+            
+            sql.clearTopicMap()
+            
+            println( "Building category index..." )
+            sql.exec( "CREATE INDEX categoryIndex ON categories(name)" )
+            
+            println( "Adding category mappings..." )
+            for ( fileStatus <- fileList )
+            {
+                val filePath = fileStatus.getPath
+                println( filePath )
+                parseFile( sql.addCategoryMapping, fs, filePath )
+            }
+            
+            println( "Building category membership index..." )
+            sql.exec( "CREATE INDEX categoryMembershipIndex ON categoryMembership(topicId)" )
+        }
+        
+        sql.close()
         println( "*** Parse complete ***" )
-        
-        val r = Runtime.getRuntime()
-        r.gc()
-        
-        def printRes( m : String, terminals : List[String] )
+
+        /*def printRes( m : String, terminals : List[String] )
         {
             println( "Found: " + m + ", " + terminals.toString() )
         }
@@ -270,7 +375,7 @@ object PhraseMap
                 lastChar = c
             }
             pw.update( ' ' )
-        }
+        }*/
     }
 }
 
