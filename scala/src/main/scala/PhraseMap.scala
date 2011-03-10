@@ -295,7 +295,6 @@ object PhraseMap
                 var treeNodeId = 0L
                 getExistingTreeNode.bind( 1, parentId )
                 getExistingTreeNode.bind( 2, word )
-                getExistingTreeNode.step()
                 if ( getExistingTreeNode.step() )
                 {
                     treeNodeId = getExistingTreeNode.columnInt(0)
