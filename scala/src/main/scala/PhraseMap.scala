@@ -3,11 +3,17 @@ import java.io.{BufferedReader, InputStreamReader}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 
+import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 import java.util.{TreeMap, HashMap, HashSet}
 import butter4s.json.Parser
 
 import java.io.File
 import com.almworks.sqlite4java._
+
+import org.apache.lucene.util.Version.LUCENE_30
+import org.apache.lucene.analysis.Token
+import org.apache.lucene.analysis.tokenattributes.TermAttribute
+import org.apache.lucene.analysis.standard.StandardTokenizer
 
 /*class PhraseNode[TargetType]
 {
@@ -197,7 +203,7 @@ object PhraseMap
         db.exec( "PRAGMA journal_mode=off" )
         db.exec( "PRAGMA synchronous=off" )
         db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
-        db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
+        db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
         db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id)" )
         db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id)" )
         db.exec( "CREATE TABLE categories( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
@@ -205,6 +211,12 @@ object PhraseMap
         
         val addTopic = db.prepare( "INSERT INTO topics VALUES( NULL, ? )" )
         val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
+        val addWord = db.prepare( "INSERT OR IGNORE INTO words VALUES(NULL, ?)" )
+        
+        val getExistingTreeNode = db.prepare( "SELECT id FROM testTree WHERE parentId=? AND value=(SELECT id FROM words WHERE name=?)" )
+        val addTreeNode = db.prepare( "INSERT INTO testTree VALUES( NULL, ?, (SELECT id FROM words WHERE name=?) )" )
+        
+        val addPhraseTopic = db.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topics WHERE topics.name=?) ) )" )
         val addCategory = db.prepare( "INSERT INTO categories VALUES( NULL, ? )" )
         val addCategoryMembership = db.prepare( "INSERT INTO categoryMembership VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM categories WHERE name=?) )" )
         
@@ -247,17 +259,65 @@ object PhraseMap
             }
         }
         
+        def getWords( textSource : Reader ) : List[String] =
+        {
+            val tokenizer = new StandardTokenizer( LUCENE_30, textSource )
+        
+            var run = true
+            var wordList : List[String] = Nil
+            while ( run )
+            {
+                wordList = tokenizer.getAttribute(classOf[TermAttribute]).term() :: wordList
+                run = tokenizer.incrementToken()
+            }
+            tokenizer.close()
+            
+            return wordList
+        }
+        
+        def addWords( surfaceForm : String, topic : String )
+        {
+            val words = getWords( new StringReader( surfaceForm ) )
+            for ( word <- words )
+            {
+                addWord.bind(1, word)
+                addWord.step()
+                addWord.reset()
+            }   
+        }
+        
         def addPhrase( surfaceForm : String, topic : String )
         {
-            val trimmedTopic = topic.split("::")(1).trim()
-            addSurfaceForm.bind(1, surfaceForm)
-            addSurfaceForm.bind(2, trimmedTopic)
-            addSurfaceForm.step()
-            addSurfaceForm.reset()
+            val words = getWords( new StringReader( surfaceForm ) )
+            var parentId = -1L
+            for ( word <- words )
+            {
+                var treeNodeId = 0L
+                getExistingTreeNode.bind( 1, parentId )
+                getExistingTreeNode.bind( 2, word )
+                getExistingTreeNode.step()
+                if ( getExistingTreeNode.step() )
+                {
+                    treeNodeId = getExistingTreeNode.columnInt(0)
+                }
+                else
+                {
+                    addTreeNode.bind(1, parentId)
+                    addTreeNode.bind(2, word)
+                    addTreeNode.step()
+                    treeNodeId = db.getLastInsertId()
+                    addTreeNode.reset()
+                }
+                getExistingTreeNode.reset()
+                parentId = treeNodeId
+            }
             
-            manageTransactions()
+            addPhraseTopic.bind(1, parentId)
+            addPhraseTopic.bind(2, topic)
+            addPhraseTopic.step()
+            addPhraseTopic.reset()
         }
-                
+
         def addCategory( topicName : String, categoryName : String )
         {
             if ( !topics.contains(categoryName) )
@@ -296,12 +356,13 @@ object PhraseMap
         val fs = FileSystem.get(conf)   
         
         
-        val pm = new PhraseMap[String]()
+        //val pm = new PhraseMap[String]()
         val sql = new SQLiteWriter( "test.sqlite3" )
         
         {
             println( "Adding topics..." )
-            val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
+            val fileListTemp = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
+            val fileList = List(fileListTemp(0))
             
             
             for ( fileStatus <- fileList )
