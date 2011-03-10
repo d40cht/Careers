@@ -232,8 +232,9 @@ object PhraseMap
         private def manageTransactions()
         {
             count += 1
-            if ( (count % 10000) == 0 )
+            if ( (count % 100000) == 0 )
             {
+                println( "Committing " + count )
                 db.exec( "COMMIT" )
                 db.exec( "BEGIN" )
             }
@@ -283,7 +284,9 @@ object PhraseMap
                 addWord.bind(1, word)
                 addWord.step()
                 addWord.reset()
-            }   
+            }  
+            
+            manageTransactions() 
         }
         
         def addPhrase( surfaceForm : String, topic : String )
@@ -315,6 +318,8 @@ object PhraseMap
             addPhraseTopic.bind(2, topic)
             addPhraseTopic.step()
             addPhraseTopic.reset()
+            
+            manageTransactions()
         }
 
         def addCategory( topicName : String, categoryName : String )
@@ -375,6 +380,14 @@ object PhraseMap
             
             println( "Creating topic index..." )
             sql.exec( "CREATE INDEX topicNameIndex ON topics(name)" )
+            
+            println( "Adding words..." )
+            for ( fileStatus <- fileList )
+            {
+                val filePath = fileStatus.getPath
+                println( filePath )
+                parseFile( sql.addWords, fs, filePath )
+            }
             
             println( "Adding surface forms..." )
             for ( fileStatus <- fileList )
