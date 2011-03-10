@@ -210,7 +210,7 @@ object PhraseMap
         db.exec( "CREATE TABLE categoryMembership( topicId INTEGER, categoryId INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id), FOREIGN KEY(categoryId) REFERENCES topics(id) )" )
         
         val addTopic = db.prepare( "INSERT INTO topics VALUES( NULL, ? )" )
-        val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
+        //val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
         val addWord = db.prepare( "INSERT OR IGNORE INTO words VALUES(NULL, ?)" )
         
         val getExistingTreeNode = db.prepare( "SELECT id FROM testTree WHERE parentId=? AND value=(SELECT id FROM words WHERE name=?)" )
@@ -361,8 +361,8 @@ object PhraseMap
         
         {
             println( "Adding topics..." )
-            val fileListTemp = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
-            val fileList = List(fileListTemp(0))
+            //val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
+            val fileList = List(fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )(0))
             
             
             for ( fileStatus <- fileList )
@@ -391,7 +391,8 @@ object PhraseMap
         
         
         {
-            val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )
+            //val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )
+            val fileList = List(fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )(0) )
             
             println( "Adding categories..." )
             for ( fileStatus <- fileList )
