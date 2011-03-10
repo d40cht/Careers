@@ -361,8 +361,8 @@ object PhraseMap
         
         {
             println( "Adding topics..." )
-            val fileListTemp = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
-            val fileList = List(fileListTemp(0))
+            //val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
+            val fileList = List(fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )(0))
             
             
             for ( fileStatus <- fileList )
@@ -391,7 +391,8 @@ object PhraseMap
         
         
         {
-            val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )
+            //val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )
+            val fileList = List(fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )(0) )
             
             println( "Adding categories..." )
             for ( fileStatus <- fileList )
