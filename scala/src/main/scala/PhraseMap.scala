@@ -9,7 +9,7 @@ import butter4s.json.Parser
 import java.io.File
 import com.almworks.sqlite4java._
 
-class PhraseNode[TargetType]
+/*class PhraseNode[TargetType]
 {
     type SelfType = PhraseNode[TargetType]
     val children = new TreeMap[Char, SelfType]()
@@ -113,7 +113,7 @@ class PhraseWalker[TargetType]( val phraseMap : PhraseMap[TargetType], val phras
     {
         activePhrases = phrasesUpdateImpl( el, activePhrases )
     }
-}
+}*/
 
 object PhraseMap
 {
