@@ -192,8 +192,10 @@ object PhraseMap
         val topics = new HashSet[String]
         
         db.open()
-        // 200Mb page cache
-        db.exec( "PRAGMA cache_size=51200" )
+        // Various options, inc. 2Gb page cache and no journal to massively speed up creation of this db
+        db.exec( "PRAGMA cache_size=512000" )
+        db.exec( "PRAGMA journal_mode=off" )
+        db.exec( "PRAGMA synchronous=off" )
         db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
         db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
         db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id)" )
