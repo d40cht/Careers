@@ -25,7 +25,7 @@ class DisambiguatorTest extends FunSuite
         }
         tokenizer.close()
         
-        println( wordList.reverse.toString )
+        //println( wordList.reverse.toString )
         
         /*val dbFileName = 
         val db = new SQLiteConnection( new File(dbFileName) )

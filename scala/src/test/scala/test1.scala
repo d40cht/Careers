@@ -1,6 +1,8 @@
 import org.scalatest.FunSuite
 import scala.collection.mutable.Stack
 import scala.collection.immutable.HashSet
+import scala.util.Random
+import compat.Platform.currentTime
 
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
@@ -100,12 +102,82 @@ class BasicTestSuite1 extends FunSuite
     
     test("Simple sqlite test")
     {
-        //val db = new SQLiteConnection( new File( "test.sqlite3" ) )
-        val db = new SQLiteConnection()
+        val db = new SQLiteConnection( new File( "test.sqlite3" ) )
+        //val db = new SQLiteConnection()
         db.open()
         
         db.exec( "CREATE TABLE surfaceForms( form TEXT, topic TEXT )" )
         db.exec( """INSERT INTO surfaceForms VALUES( "hello", "world" )""" )
         //val st = db.prepare( "CREATE TABLE  
     }
+    
+    class TestTreeClass( fileName : String )
+    {
+        val db = new SQLiteConnection( new File( fileName ) )
+        //val db = new SQLiteConnection()
+        db.open()
+        // 200Mb page cache
+        db.exec( "PRAGMA cache_size=512000" )
+        db.exec( "PRAGMA journal_mode=off" )
+        db.exec( "PRAGMA synchronous=off" )
+        db.exec( "CREATE TABLE testTree( id INTEGER PRIMARY KEY AUTOINCREMENT, parentId INTEGER, value INTEGER, FOREIGN KEY(parentId) REFERENCES testTree(id), UNIQUE(parentId, value) )" )
+        db.exec( "BEGIN" )
+        
+        val addTreeNode = db.prepare( "INSERT INTO testTree VALUES( NULL, ?, ? )" )
+        val getExistingTreeNode = db.prepare( "SELECT id FROM testTree WHERE parentId=? AND value=?" )
+        var count = 0
+        var checkTime = currentTime
+        
+        def addLink( parentId : Long, value : Int ) : Long =
+        {
+            //println( "++ " + parentId + " " + value )
+            var treeNodeId = 0L
+            
+            getExistingTreeNode.reset()
+            getExistingTreeNode.bind(1, parentId)
+            getExistingTreeNode.bind(2, value)
+            if ( getExistingTreeNode.step() )
+            {
+                treeNodeId = getExistingTreeNode.columnInt(0)
+            }
+            else
+            {
+                addTreeNode.reset()
+                addTreeNode.bind(1, parentId)
+                addTreeNode.bind(2, value)
+                addTreeNode.step()
+                treeNodeId = db.getLastInsertId()
+            }
+            getExistingTreeNode.reset()
+
+            
+            count += 1
+            if ( (count % 100000) == 0 )
+            {
+                println( "Check " + count + ": " + (currentTime-checkTime) )
+                checkTime = currentTime
+                db.exec( "COMMIT" )
+                db.exec( "BEGIN" )
+            }
+            
+            return treeNodeId
+        }
+    }
+    
+    test("SQLite performance test")
+    {
+        val randSource = new Random()
+        val testTree = new TestTreeClass( "testTree.sqlite3" )
+        
+        for ( i <- 0 until 16000000 )
+        {
+            var lastInsertId : Long = -1
+            while ( randSource.nextDouble() < 0.8 )
+            {
+                var nodeValue = randSource.nextInt( 1000000 )
+                lastInsertId = testTree.addLink( lastInsertId, nodeValue )
+            }
+        }
+    }
 }
+
