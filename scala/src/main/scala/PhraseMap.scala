@@ -210,13 +210,13 @@ object PhraseMap
         db.exec( "CREATE TABLE categoryMembership( topicId INTEGER, categoryId INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id), FOREIGN KEY(categoryId) REFERENCES topics(id) )" )
         
         val addTopic = db.prepare( "INSERT INTO topics VALUES( NULL, ? )" )
-        val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
+        //val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
         val addWord = db.prepare( "INSERT OR IGNORE INTO words VALUES(NULL, ?)" )
         
-        val getExistingTreeNode = db.prepare( "SELECT id FROM testTree WHERE parentId=? AND value=(SELECT id FROM words WHERE name=?)" )
-        val addTreeNode = db.prepare( "INSERT INTO testTree VALUES( NULL, ?, (SELECT id FROM words WHERE name=?) )" )
+        val getExistingTreeNode = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=(SELECT id FROM words WHERE name=?)" )
+        val addTreeNode = db.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, (SELECT id FROM words WHERE name=?) )" )
         
-        val addPhraseTopic = db.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topics WHERE topics.name=?) ) )" )
+        val addPhraseTopic = db.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topics WHERE topics.name=?) )" )
         val addCategory = db.prepare( "INSERT INTO categories VALUES( NULL, ? )" )
         val addCategoryMembership = db.prepare( "INSERT INTO categoryMembership VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM categories WHERE name=?) )" )
         
@@ -386,7 +386,7 @@ object PhraseMap
             }
             
             println( "Creating surface forms index..." )
-            sql.exec( "CREATE INDEX surfaceFormsIndex on surfaceForms(name)" )
+            //sql.exec( "CREATE INDEX surfaceFormsIndex on surfaceForms(name)" )
         }
         
         
