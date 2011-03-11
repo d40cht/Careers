@@ -50,7 +50,7 @@ class BasicTestSuite1 extends FunSuite
     
     
     
-    test("A simple phrasemap test")
+    /*test("A simple phrasemap test")
     {
         class ResChecker( var expectedResults : List[(String, List[Int])] )
         {
@@ -98,12 +98,12 @@ class BasicTestSuite1 extends FunSuite
             pw.update( c )
             lastChar = c
         }
-    }
+    }*/
     
     test("Simple sqlite test")
     {
-        val db = new SQLiteConnection( new File( "test.sqlite3" ) )
-        //val db = new SQLiteConnection()
+        //val db = new SQLiteConnection( new File( "test.sqlite3" ) )
+        val db = new SQLiteConnection()
         db.open()
         
         db.exec( "CREATE TABLE surfaceForms( form TEXT, topic TEXT )" )
@@ -164,12 +164,12 @@ class BasicTestSuite1 extends FunSuite
         }
     }
     
-    test("SQLite performance test")
+    /*test("SQLite performance test")
     {
         val randSource = new Random()
         val testTree = new TestTreeClass( "testTree.sqlite3" )
         
-        for ( i <- 0 until 16000000 )
+        for ( i <- 0 until 160000 )
         {
             var lastInsertId : Long = -1
             while ( randSource.nextDouble() < 0.8 )
@@ -178,6 +178,6 @@ class BasicTestSuite1 extends FunSuite
                 lastInsertId = testTree.addLink( lastInsertId, nodeValue )
             }
         }
-    }
+    }*/
 }
 

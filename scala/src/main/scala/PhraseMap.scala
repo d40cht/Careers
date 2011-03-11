@@ -168,7 +168,7 @@ object PhraseMap
                         
                         if ( count % 10000 == 0 )
                         {
-                            println( "    " + count + " " + surfaceForm )
+                            //println( "    " + count + " " + surfaceForm )
                         }
                     }
                     case _ =>
@@ -216,7 +216,7 @@ object PhraseMap
         val getExistingTreeNode = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=(SELECT id FROM words WHERE name=?)" )
         val addTreeNode = db.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, (SELECT id FROM words WHERE name=?) )" )
         
-        val addPhraseTopic = db.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topics WHERE topics.name=?) )" )
+        val addPhraseTopic = db.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topics WHERE name=?) )" )
         val addCategory = db.prepare( "INSERT INTO categories VALUES( NULL, ? )" )
         val addCategoryMembership = db.prepare( "INSERT INTO categoryMembership VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM categories WHERE name=?) )" )
         
@@ -268,11 +268,14 @@ object PhraseMap
             var wordList : List[String] = Nil
             while ( run )
             {
-                wordList = tokenizer.getAttribute(classOf[TermAttribute]).term() :: wordList
+                val nextTerm = tokenizer.getAttribute(classOf[TermAttribute]).term()
+                if ( nextTerm != "" )
+                {
+                    wordList = nextTerm :: wordList
+                }
                 run = tokenizer.incrementToken()
             }
             tokenizer.close()
-            
             return wordList.reverse
         }
         
@@ -296,6 +299,7 @@ object PhraseMap
             //println( words.toString() )
 
             var parentId = -1L
+            var count = 0
             for ( word <- words )
             {
                 var treeNodeId = 0L
@@ -315,10 +319,13 @@ object PhraseMap
                 }
                 getExistingTreeNode.reset()
                 parentId = treeNodeId
+                count += 1
             }
             
+            val trimmedTopic = topic.split("::")(1).trim()
             addPhraseTopic.bind(1, parentId)
-            addPhraseTopic.bind(2, topic)
+            addPhraseTopic.bind(2, trimmedTopic)
+            //println( topic )
             addPhraseTopic.step()
             addPhraseTopic.reset()
             
@@ -364,7 +371,7 @@ object PhraseMap
         
         
         //val pm = new PhraseMap[String]()
-        val sql = new SQLiteWriter( "test.sqlite3" )
+        val sql = new SQLiteWriter( "disambig.sqlite3" )
         
         {
             println( "Adding topics..." )
@@ -401,7 +408,7 @@ object PhraseMap
             }
             
             println( "Creating surface forms index..." )
-            //sql.exec( "CREATE INDEX surfaceFormsIndex on surfaceForms(name)" )
+            sql.exec( "CREATE INDEX phraseTopicIndex ON phraseTopics(phraseTreeNodeId)" )
         }
         
         
