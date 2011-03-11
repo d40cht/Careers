@@ -24,18 +24,19 @@ class DisambiguatorTest extends FunSuite
         val phraseQuery = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?" )
         val topicQuery = db.prepare( "SELECT t1.name FROM topics AS t1 INNER JOIN phraseTopics AS t2 ON t1.id=t2.topicId WHERE t2.phraseTreeNodeId=?" )
         
-        def update( word : String ) : Boolean =
+        def update( rawWord : String ) : Boolean =
         {
+            val word = rawWord.toLowerCase()
             if ( !StopWords.stopWordSet.contains( word ) )
             {
                 hasRealWords = true
             }
             
             var success = false
-            wordQuery.bind(1, word.toLowerCase())
+            wordQuery.bind(1, word)
             if ( wordQuery.step() )
             {
-                wordList = word :: wordList
+                wordList = rawWord :: wordList
                 val wordId = wordQuery.columnInt(0)
                 
                 phraseQuery.bind(1, parentId)
