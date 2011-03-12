@@ -31,24 +31,34 @@ class ParagraphLayout extends JPanel
                     "http://www.java2s.com"
                     
                 val font = new Font("Serif", Font.PLAIN, 14)
-                val as = new AttributedString(s);
-                as.addAttribute(TextAttribute.FONT, font);
-                val aci = as.getIterator();
+                val as = new AttributedString(s)
+                as.addAttribute(TextAttribute.FONT, font)
+                val aci = as.getIterator()
 
-                val frc = g2.getFontRenderContext();
-                val lbm = new LineBreakMeasurer(aci, frc);
-                val insets = getInsets();
-                val wrappingWidth = getSize().width - insets.left - insets.right;
-                var x : Float = insets.left;
-                var y : Float = insets.top;
+                val frc = g2.getFontRenderContext()
+                val lbm = new LineBreakMeasurer(aci, frc)
+                val insets = getInsets()
+                val wrappingWidth = getSize().width - insets.left - insets.right
+                var x : Float = insets.left
+                var y : Float = insets.top
 
                 while (lbm.getPosition() < aci.getEndIndex())
                 {
-                    val textLayout = lbm.nextLayout(wrappingWidth);
-                    y += textLayout.getAscent();
-                    textLayout.draw(g2, x, y);
-                    y += 2*(textLayout.getDescent() + textLayout.getLeading());
-                    x = insets.left;
+                    val textLayout = lbm.nextLayout(wrappingWidth)
+                    
+                    // Allows us to keep track of which characters are where
+                    val numChars = textLayout.getCharacterCount()
+                    y += textLayout.getAscent()
+                    textLayout.draw(g2, x, y)
+                    
+                    // Can have start and end character positions   
+                    val layoutShape = textLayout.getLogicalHighlightShape(0, 10)
+                    val r = layoutShape.getBounds()
+                    val lineY = y.toInt + r.y + r.height
+                    g2.drawLine( r.x, lineY, r.x + r.width, lineY )
+                    
+                    y += 2*(textLayout.getDescent() + textLayout.getLeading())
+                    x = insets.left
                 }
             }
             
