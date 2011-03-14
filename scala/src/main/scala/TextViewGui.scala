@@ -9,6 +9,7 @@ import java.awt.font.TextAttribute
 import java.awt.font.TextLayout
 import java.text.AttributedCharacterIterator
 import java.text.AttributedString
+import java.awt.Color._
 
 import javax.swing.JFrame
 import javax.swing.JPanel
@@ -42,6 +43,8 @@ class ParagraphLayout extends JPanel
                 var x : Float = insets.left
                 var y : Float = insets.top
 
+
+                
                 while (lbm.getPosition() < aci.getEndIndex())
                 {
                     val textLayout = lbm.nextLayout(wrappingWidth)
@@ -49,12 +52,16 @@ class ParagraphLayout extends JPanel
                     // Allows us to keep track of which characters are where
                     val numChars = textLayout.getCharacterCount()
                     y += textLayout.getAscent()
+                    
+                    g2.setColor( black )
                     textLayout.draw(g2, x, y)
                     
                     // Can have start and end character positions   
                     val layoutShape = textLayout.getLogicalHighlightShape(0, 10)
                     val r = layoutShape.getBounds()
                     val lineY = y.toInt + r.y + r.height
+                    
+                    g2.setColor( red )
                     g2.drawLine( r.x, lineY, r.x + r.width, lineY )
                     
                     y += 2*(textLayout.getDescent() + textLayout.getLeading())

@@ -44,11 +44,12 @@ class DisambiguatorTest extends FunSuite
                 if ( phraseQuery.step() )
                 {
                     val currentId = phraseQuery.columnInt(0)
-                    if ( hasRealWords ) println( wordList.reverse.toString() + " " + wordId + " " + parentId + " " + currentId)
+                    //if ( hasRealWords ) println( wordList.reverse.toString() + " " + wordId + " " + parentId + " " + currentId)
                     topicQuery.bind(1, currentId)
                     while ( topicQuery.step() )
                     {
-                        if ( hasRealWords ) println( "   " + topicQuery.columnString(0) )
+                        // TODO: Do something with this!
+                        //if ( hasRealWords ) println( "   " + topicQuery.columnString(0) )
                     }
                     topicQuery.reset()
                  
@@ -120,4 +121,26 @@ class DisambiguatorTest extends FunSuite
         
         val topicQuery = db.prepare( "SELECT t2.id, t2.name, t3.categoryId, t4.name FROM surfaceForms AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN categoryMembership AS t3 ON t1.topicId=t3.topicId INNER JOIN categories AS t4 ON t3.categoryId=t4.id WHERE t1.name=? ORDER BY t2.id, t3.categoryId" )*/
     }
+    
+    class DisambiguationAlternative
+    {
+    }
+    
+    test( "Disambiguation alternative test 1" )
+    {
+        val test = List( List(1), List(1,2), List(1,2,3) )
+        
+        
+    }
+    
+    test( "Phrase topic combination test" )
+    {
+        //                  0      1       2       3      4        5        6       7       8      9      10    11
+        val phrase = List( "on", "the", "first", "day", "of", "christmas", "my", "true", "love", "sent", "to", "me" )
+        val topics = List( List(1,2,3), List(1,2,3,4,5), List(3,4,5), List(5), List(6,7,8), List(7,8) )
+        
+        
+    }
 }
+
+
