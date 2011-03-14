@@ -1,6 +1,7 @@
 import org.scalatest.FunSuite
 
 import java.io.{File, BufferedReader, FileReader}
+import scala.collection.mutable.ArrayBuffer
 import com.almworks.sqlite4java._
 
 import org.apache.lucene.util.Version.LUCENE_30
@@ -13,18 +14,16 @@ import scala.xml.XML
 class DisambiguatorTest extends FunSuite
 {
 
-    class PhraseTracker( val db : SQLiteConnection )
+    class PhraseTracker( val db : SQLiteConnection, val startIndex : Int )
     {
         var hasRealWords = false
         var parentId = -1L
-        var wordList = List[String]()
         
-        //phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER
         val wordQuery = db.prepare( "SELECT id FROM words WHERE name=?" )
         val phraseQuery = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?" )
-        val topicQuery = db.prepare( "SELECT t1.name FROM topics AS t1 INNER JOIN phraseTopics AS t2 ON t1.id=t2.topicId WHERE t2.phraseTreeNodeId=?" )
+        val topicQuery = db.prepare( "SELECT t1.id FROM topics AS t1 INNER JOIN phraseTopics AS t2 ON t1.id=t2.topicId WHERE t2.phraseTreeNodeId=?" )
         
-        def update( rawWord : String ) : Boolean =
+        def update( rawWord : String, currIndex : Int ) : (Boolean, Int, Int, List[Int]) =
         {
             val word = rawWord.toLowerCase()
             if ( !StopWords.stopWordSet.contains( word ) )
@@ -33,26 +32,29 @@ class DisambiguatorTest extends FunSuite
             }
             
             var success = false
+            var topics = List[Int]()
+
             wordQuery.bind(1, word)
             if ( wordQuery.step() )
             {
-                wordList = rawWord :: wordList
                 val wordId = wordQuery.columnInt(0)
                 
                 phraseQuery.bind(1, parentId)
                 phraseQuery.bind(2, wordId)
                 if ( phraseQuery.step() )
                 {
+                
                     val currentId = phraseQuery.columnInt(0)
-                    //if ( hasRealWords ) println( wordList.reverse.toString() + " " + wordId + " " + parentId + " " + currentId)
-                    topicQuery.bind(1, currentId)
-                    while ( topicQuery.step() )
+                    if ( hasRealWords )
                     {
-                        // TODO: Do something with this!
-                        //if ( hasRealWords ) println( "   " + topicQuery.columnString(0) )
+                        topicQuery.bind(1, currentId)
+                        while ( topicQuery.step() )
+                        {
+                            val topicId = topicQuery.columnInt(0)
+                            topics = topicId :: topics
+                        }
+                        topicQuery.reset()
                     }
-                    topicQuery.reset()
-                 
                     
                     parentId = currentId
                     success = true
@@ -61,7 +63,8 @@ class DisambiguatorTest extends FunSuite
             }
             wordQuery.reset()
             
-            return success
+            val result = (success, startIndex, currIndex, topics)
+            return result
         }
     }
 
@@ -74,31 +77,39 @@ class DisambiguatorTest extends FunSuite
         val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
         
         var run = true
-        var wordList : List[String] = Nil
+        val wordList = new ArrayBuffer[String]
         while ( run )
         {
-            wordList = tokenizer.getAttribute(classOf[TermAttribute]).term() :: wordList
+            wordList.append( tokenizer.getAttribute(classOf[TermAttribute]).term() )
             run = tokenizer.incrementToken()
         }
         tokenizer.close()
         
         val db = new SQLiteConnection( new File(testDbName) )
         db.open()
-
+        
         var openQueryList = List[PhraseTracker]()
-        for ( word <- wordList.reverse )
+        var wordIndex = 0
+        for ( word <- wordList )
         {
-            openQueryList = new PhraseTracker(db) :: openQueryList
+            openQueryList = new PhraseTracker(db, wordIndex) :: openQueryList
             
             var newList = List[PhraseTracker]()
             for ( query <- openQueryList )
             {
-                if ( query.update( word ) )
+                val (notTerminal, startIndex, endIndex, topicIds) = query.update(word, wordIndex)
+                if ( notTerminal )
                 {
                     newList = query :: newList
                 }
+                
+                if ( topicIds != Nil )
+                {
+                    println( ":: " + wordList.slice(startIndex,endIndex+1) )
+                }
             }
             openQueryList = newList
+            wordIndex += 1
         }
         
         val result =
