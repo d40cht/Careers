@@ -140,12 +140,30 @@ class DisambiguatorTest extends FunSuite
         }
         
         // Prune any topics which don't contain this category
-        def prune( assertedCategoryId : Int )
+        private def assertCategoryImpl( assertedCategoryId : Int ) : Boolean =
         {
+            var categoryAlive = false
             topicDetails = topicDetails.filter( _.categoryIds.contains(assertedCategoryId) )
-            for ( child <- children )
+            
+            if ( topicDetails != Nil ) categoryAlive = true
+            
+            children = children.filter( _.assertCategory( assertedCategoryId ) )
+            
+            if ( children != Nil ) categoryAlive = true
+            
+            return categoryAlive
+        }
+        
+        def assertCategory( assertedCategoryId : Int ) : Boolean =
+        {
+            // If we don't contain this category then it's not relevant to us and we don't change
+            if ( !containsCategory( assertedCategoryId ) )
             {
-                child.prune( assertedCategoryId )
+                return true
+            }
+            else
+            {
+                return assertCategoryImpl( assertedCategoryId )
             }
         }
     }
@@ -198,11 +216,24 @@ class DisambiguatorTest extends FunSuite
             wordIndex += 1
         }
         
-        
+        val categoryMembershipQuery = db.prepare( "SELECT categoryId FROM categoryMembership WHERE topicId=?" )
         var allTokens = List[DisambiguationAlternative]()
         for ( (startIndex, endIndex, topicIds) <- topicList )
         {
-            val nextDA = new DisambiguationAlternative( startIndex, endIndex, topicIds )
+            var topicDetails = List[TopicDetails]()
+            for ( topicId <- topicIds )
+            {
+                var categorySet = TreeSet[Int]()
+                categoryMembershipQuery.bind(1, topicId)
+                while (categoryMembershipQuery.step() )
+                {
+                    categorySet += categoryMembershipQuery.columnInt(0)
+                }
+                categoryMembershipQuery.reset()
+                
+                topicDetails = new TopicDetails(topicId, categorySet)::topicDetails
+            }
+            val nextDA = new DisambiguationAlternative( startIndex, endIndex, topicDetails )
             if ( allTokens != Nil && allTokens.head.overlaps( nextDA ) )
             {
                 allTokens.head.addAlternative( nextDA )
@@ -214,8 +245,6 @@ class DisambiguatorTest extends FunSuite
         }
         
         
-        
-        val categoryQuery = db.prepare( "SELECT categoryId FROM categoryMembership WHERE topicId=?" )
         var count = 0
         
         val categoryCount = new TreeMap[Int, Int]()
@@ -251,20 +280,17 @@ class DisambiguatorTest extends FunSuite
         // Sort so that most numerous categories come first
         sortedCategoryList = sortedCategoryList.sortWith( _._1 > _._1 )
         
+        println( "Number of words: " + wordList.length )
+        println( "DA sites before: " + allTokens.length )
+        
         // TODO: Iterate over categories asserting them one by one
         for ( (count, categoryId) <- sortedCategoryList )
         {
-            for ( token <- allTokens )
-            {
-                if ( token.containsCategory( categoryId ) )
-                {
-                    token.prune( categoryId )
-                }
-            }
+            allTokens = allTokens.filter( _.assertCategory( categoryId ) )
         }
         
-        println( "Number of words: " + wordList.length )
-        println( "DA sites: " + allTokens.length )
+        
+        println( "DA sites after pruning: " + allTokens.length )
         
         val result =
             <html>
