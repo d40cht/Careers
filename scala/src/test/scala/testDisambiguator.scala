@@ -11,6 +11,7 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 
 import scala.xml.XML
 import scala.collection.immutable.TreeSet
+import java.util.TreeMap
 
 class DisambiguatorTest extends FunSuite
 {
@@ -117,7 +118,8 @@ class DisambiguatorTest extends FunSuite
 
     test("Monbiot disambiguator test")
     {
-        val testFileName = "./src/test/scala/data/monbiotTest.txt"
+        //val testFileName = "./src/test/scala/data/monbiotTest.txt"
+        val testFileName = "./src/test/scala/data/simpleTest.txt"
         val testDbName = "disambig.sqlite3"
         val testOutName = "out.html"
         
@@ -177,8 +179,12 @@ class DisambiguatorTest extends FunSuite
             }
         }
         
+        
+        
         val categoryQuery = db.prepare( "SELECT categoryId FROM categoryMembership WHERE topicId=?" )
         var count = 0
+        
+        val categoryCount = new TreeMap[Int, Int]()
         for ( alternatives <- allTokens )
         {
             count += 1
@@ -196,7 +202,41 @@ class DisambiguatorTest extends FunSuite
                 categoryIds
             } )
             
+            for ( categoryId <- tokenCategoryIds )
+            {
+                if ( !categoryCount.containsKey(categoryId) )
+                {
+                    categoryCount.put(categoryId, 0)
+                }
+                categoryCount.put(categoryId, categoryCount.get(categoryId) + 1 )
+            }
             println( count + "  " + tokenCategoryIds.size )
+        }
+        
+        
+        var sortedCategoryList = List[(Int, String)]()
+        val categoryNameQuery = db.prepare("SELECT name FROM categories WHERE id=?")
+        val mapIt = categoryCount.entrySet().iterator()
+        while ( mapIt.hasNext() )
+        {
+            val next = mapIt.next()
+            val categoryId = next.getKey()
+            
+            categoryNameQuery.bind(1, categoryId)
+            categoryNameQuery.step()
+            val categoryName = categoryNameQuery.columnString(0)
+            categoryNameQuery.reset()
+            
+            val count = next.getValue()
+            
+            //println( "Category: " + categoryName + " " + count )
+            sortedCategoryList = (count, categoryName) :: sortedCategoryList
+        }
+        sortedCategoryList = sortedCategoryList.sortWith( _._1 < _._1 )
+        
+        for ( (count, name) <- sortedCategoryList )
+        {
+            println( "## " + count + " : " + name )
         }
         
         println( "Number of words: " + wordList.length )
