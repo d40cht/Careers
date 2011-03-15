@@ -10,6 +10,7 @@ import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
 import scala.xml.XML
+import scala.collection.immutable.TreeSet
 
 class DisambiguatorTest extends FunSuite
 {
@@ -67,6 +68,52 @@ class DisambiguatorTest extends FunSuite
             return result
         }
     }
+    
+    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, topicIds : List[Int] )
+    {
+        var children = List[DisambiguationAlternative]()
+        
+        def overlaps( da : DisambiguationAlternative ) : Boolean =
+        {
+            (startIndex >= da.startIndex && endIndex <= da.endIndex) ||
+            (da.startIndex >= startIndex && da.endIndex <= endIndex)
+        }
+        
+        def addAlternative( da : DisambiguationAlternative )
+        {
+            assert( overlaps( da ) )
+            var allOverlap = true
+            for ( child <- children )
+            {
+                if ( child.overlaps(da) )
+                {
+                    child.addAlternative(da)
+                }
+                else
+                {
+                    allOverlap = false
+                }
+            }
+            if ( !allOverlap )
+            {
+                children = da :: children
+            }
+        }
+        
+        def allCategoryIds( getCategoriesFn : Int => List[Int] ) : TreeSet[Int] =
+        {
+            var categoryIds = TreeSet[Int]()
+            for ( topicId <- topicIds )
+            {
+                categoryIds = categoryIds ++ getCategoriesFn(topicId)
+            }
+            for ( child <- children )
+            {
+                categoryIds = categoryIds ++ child.allCategoryIds( getCategoriesFn )
+            }
+            return categoryIds
+        }
+    }
 
     test("Monbiot disambiguator test")
     {
@@ -88,6 +135,8 @@ class DisambiguatorTest extends FunSuite
         val db = new SQLiteConnection( new File(testDbName) )
         db.open()
         
+        var topicList = List[(Int, Int, List[Int])]()
+        
         var openQueryList = List[PhraseTracker]()
         var wordIndex = 0
         for ( word <- wordList )
@@ -105,12 +154,53 @@ class DisambiguatorTest extends FunSuite
                 
                 if ( topicIds != Nil )
                 {
-                    println( ":: " + wordList.slice(startIndex,endIndex+1) )
+                    //println( ":: " + wordList.slice(startIndex,endIndex+1) )
+                    topicList = (startIndex, endIndex, topicIds)::topicList
                 }
             }
             openQueryList = newList
             wordIndex += 1
         }
+        
+        
+        var allTokens = List[DisambiguationAlternative]()
+        for ( (startIndex, endIndex, topicIds) <- topicList )
+        {
+            val nextDA = new DisambiguationAlternative( startIndex, endIndex, topicIds )
+            if ( allTokens != Nil && allTokens.head.overlaps( nextDA ) )
+            {
+                allTokens.head.addAlternative( nextDA )
+            }
+            else
+            {
+                allTokens = nextDA :: allTokens
+            }
+        }
+        
+        val categoryQuery = db.prepare( "SELECT categoryId FROM categoryMembership WHERE topicId=?" )
+        var count = 0
+        for ( alternatives <- allTokens )
+        {
+            count += 1
+            val tokenCategoryIds = alternatives.allCategoryIds( (topicId : Int) =>
+            {
+                var categoryIds = List[Int]()
+                categoryQuery.bind(1, topicId)
+                while ( categoryQuery.step() )
+                {
+                    val categoryId = categoryQuery.columnInt(0)
+                    categoryIds = categoryId :: categoryIds
+                }
+                categoryQuery.reset()
+                
+                categoryIds
+            } )
+            
+            println( count + "  " + tokenCategoryIds.size )
+        }
+        
+        println( "Number of words: " + wordList.length )
+        println( "DA sites: " + allTokens.length )
         
         val result =
             <html>
@@ -133,9 +223,6 @@ class DisambiguatorTest extends FunSuite
         val topicQuery = db.prepare( "SELECT t2.id, t2.name, t3.categoryId, t4.name FROM surfaceForms AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN categoryMembership AS t3 ON t1.topicId=t3.topicId INNER JOIN categories AS t4 ON t3.categoryId=t4.id WHERE t1.name=? ORDER BY t2.id, t3.categoryId" )*/
     }
     
-    class DisambiguationAlternative
-    {
-    }
     
     test( "Disambiguation alternative test 1" )
     {
