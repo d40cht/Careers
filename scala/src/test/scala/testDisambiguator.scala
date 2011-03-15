@@ -70,7 +70,11 @@ class DisambiguatorTest extends FunSuite
         }
     }
     
-    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, topicIds : List[Int] )
+    class TopicDetails( val topicId : Int, val categoryIds : TreeSet[Int] )
+    {
+    }
+    
+    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, var topicDetails : List[TopicDetails] )
     {
         var children = List[DisambiguationAlternative]()
         
@@ -101,18 +105,48 @@ class DisambiguatorTest extends FunSuite
             }
         }
         
-        def allCategoryIds( getCategoriesFn : Int => List[Int] ) : TreeSet[Int] =
+        def allCategoryIds() : TreeSet[Int] =
         {
             var categoryIds = TreeSet[Int]()
-            for ( topicId <- topicIds )
+            for ( topicDetail <- topicDetails )
             {
-                categoryIds = categoryIds ++ getCategoriesFn(topicId)
+                categoryIds = categoryIds ++ topicDetail.categoryIds
             }
             for ( child <- children )
             {
-                categoryIds = categoryIds ++ child.allCategoryIds( getCategoriesFn )
+                categoryIds = categoryIds ++ child.allCategoryIds()
             }
             return categoryIds
+        }
+        
+        def containsCategory( categoryId : Int ) : Boolean =
+        {
+            for ( td <- topicDetails )
+            {
+                if ( td.categoryIds.contains( categoryId ) )
+                {
+                    return true
+                }
+            }
+            for ( child <- children )
+            {
+                if ( child.containsCategory( categoryId ) )
+                {
+                    return true
+                }
+            }
+            
+            return false
+        }
+        
+        // Prune any topics which don't contain this category
+        def prune( assertedCategoryId : Int )
+        {
+            topicDetails = topicDetails.filter( _.categoryIds.contains(assertedCategoryId) )
+            for ( child <- children )
+            {
+                child.prune( assertedCategoryId )
+            }
         }
     }
 
@@ -188,19 +222,7 @@ class DisambiguatorTest extends FunSuite
         for ( alternatives <- allTokens )
         {
             count += 1
-            val tokenCategoryIds = alternatives.allCategoryIds( (topicId : Int) =>
-            {
-                var categoryIds = List[Int]()
-                categoryQuery.bind(1, topicId)
-                while ( categoryQuery.step() )
-                {
-                    val categoryId = categoryQuery.columnInt(0)
-                    categoryIds = categoryId :: categoryIds
-                }
-                categoryQuery.reset()
-                
-                categoryIds
-            } )
+            val tokenCategoryIds = alternatives.allCategoryIds()
             
             for ( categoryId <- tokenCategoryIds )
             {
@@ -214,7 +236,7 @@ class DisambiguatorTest extends FunSuite
         }
         
         
-        var sortedCategoryList = List[(Int, String)]()
+        var sortedCategoryList = List[(Int, Int)]()
         val categoryNameQuery = db.prepare("SELECT name FROM categories WHERE id=?")
         val mapIt = categoryCount.entrySet().iterator()
         while ( mapIt.hasNext() )
@@ -222,21 +244,23 @@ class DisambiguatorTest extends FunSuite
             val next = mapIt.next()
             val categoryId = next.getKey()
             
-            categoryNameQuery.bind(1, categoryId)
-            categoryNameQuery.step()
-            val categoryName = categoryNameQuery.columnString(0)
-            categoryNameQuery.reset()
-            
             val count = next.getValue()
-            
-            //println( "Category: " + categoryName + " " + count )
-            sortedCategoryList = (count, categoryName) :: sortedCategoryList
+            sortedCategoryList = (count, categoryId) :: sortedCategoryList
         }
-        sortedCategoryList = sortedCategoryList.sortWith( _._1 < _._1 )
         
-        for ( (count, name) <- sortedCategoryList )
+        // Sort so that most numerous categories come first
+        sortedCategoryList = sortedCategoryList.sortWith( _._1 > _._1 )
+        
+        // TODO: Iterate over categories asserting them one by one
+        for ( (count, categoryId) <- sortedCategoryList )
         {
-            println( "## " + count + " : " + name )
+            for ( token <- allTokens )
+            {
+                if ( token.containsCategory( categoryId ) )
+                {
+                    token.prune( categoryId )
+                }
+            }
         }
         
         println( "Number of words: " + wordList.length )
