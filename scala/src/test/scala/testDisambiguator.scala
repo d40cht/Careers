@@ -105,6 +105,16 @@ class DisambiguatorTest extends FunSuite
             }
         }
         
+        def numTopicAlternatives() : Int =
+        {
+            topicDetails.length + children.foldLeft(0)( _ + _.numTopicAlternatives() )
+        }
+        
+        def getTopicDetails() : List[TopicDetails] =
+        {
+            topicDetails ++ children.foldLeft(List[TopicDetails]())( _ ++ _.getTopicDetails() )
+        }
+        
         def allCategoryIds() : TreeSet[Int] =
         {
             var categoryIds = TreeSet[Int]()
@@ -216,6 +226,12 @@ class DisambiguatorTest extends FunSuite
             wordIndex += 1
         }
         
+        topicList = topicList.sortWith( (a, b) => if ( a._1 == b._1 ) a._2 > b._2 else a._1 < b._1 )
+        for ( (startIndex, endIndex, topicIds) <- topicList )
+        {
+            println( "++ " + wordList.slice(startIndex, endIndex+1) )
+        }
+        
         val categoryMembershipQuery = db.prepare( "SELECT categoryId FROM categoryMembership WHERE topicId=?" )
         var allTokens = List[DisambiguationAlternative]()
         for ( (startIndex, endIndex, topicIds) <- topicList )
@@ -245,52 +261,100 @@ class DisambiguatorTest extends FunSuite
         }
         
         
-        var count = 0
-        
-        val categoryCount = new TreeMap[Int, Int]()
-        for ( alternatives <- allTokens )
+        def getCategoryCounts( allTokens : List[DisambiguationAlternative] ) =
         {
-            count += 1
-            val tokenCategoryIds = alternatives.allCategoryIds()
-            
-            for ( categoryId <- tokenCategoryIds )
+            val categoryCount = new TreeMap[Int, Int]()
+            var count = 0
+            for ( alternatives <- allTokens )
             {
-                if ( !categoryCount.containsKey(categoryId) )
+                val tokenCategoryIds = alternatives.allCategoryIds()
+                val topicAlternatives = alternatives.numTopicAlternatives()
+                println( count + "  " + tokenCategoryIds.size + " " + topicAlternatives )
+                count += 1
+                
+                for ( categoryId <- tokenCategoryIds )
                 {
-                    categoryCount.put(categoryId, 0)
+                    if ( !categoryCount.containsKey(categoryId) )
+                    {
+                        categoryCount.put(categoryId, 0)
+                    }
+                    categoryCount.put(categoryId, categoryCount.get(categoryId) + 1 )
                 }
-                categoryCount.put(categoryId, categoryCount.get(categoryId) + 1 )
             }
-            println( count + "  " + tokenCategoryIds.size )
+            categoryCount
         }
+        
+        val categoryCounts = getCategoryCounts( allTokens )
+        
         
         
         var sortedCategoryList = List[(Int, Int)]()
         val categoryNameQuery = db.prepare("SELECT name FROM categories WHERE id=?")
-        val mapIt = categoryCount.entrySet().iterator()
+        val mapIt = categoryCounts.entrySet().iterator()
         while ( mapIt.hasNext() )
         {
             val next = mapIt.next()
             val categoryId = next.getKey()
-            
             val count = next.getValue()
+            
             sortedCategoryList = (count, categoryId) :: sortedCategoryList
         }
         
         // Sort so that most numerous categories come first
-        sortedCategoryList = sortedCategoryList.sortWith( _._1 > _._1 )
+        sortedCategoryList = sortedCategoryList.sortWith( _._1 > _._1 ) 
         
         println( "Number of words: " + wordList.length )
+        println( "Number of categories before: " + categoryCounts.size() )
         println( "DA sites before: " + allTokens.length )
         
         // TODO: Iterate over categories asserting them one by one
         for ( (count, categoryId) <- sortedCategoryList )
         {
-            allTokens = allTokens.filter( _.assertCategory( categoryId ) )
+            if ( count > 1 )
+            {
+                allTokens = allTokens.filter( _.assertCategory( categoryId ) )
+            }
         }
         
         
+        val newCategoryCounts = getCategoryCounts( allTokens )
+        println( "Number of categories after: " + newCategoryCounts.size() )
         println( "DA sites after pruning: " + allTokens.length )
+        
+        {
+            val mapIt = newCategoryCounts.entrySet().iterator()
+            while ( mapIt.hasNext() )
+            {
+                val next = mapIt.next()
+                val categoryId = next.getKey()
+                val count = next.getValue()
+                
+                categoryNameQuery.bind(1, categoryId)
+                categoryNameQuery.step()
+                println( "|| " + count + ": " + categoryNameQuery.columnString(0) )
+                categoryNameQuery.reset()
+            }
+        }
+        val topicNameQuery = db.prepare("SELECT name FROM topics WHERE id=?" )
+        var count = 0
+        for ( alternatives <- allTokens )
+        {
+            val tokenCategoryIds = alternatives.allCategoryIds()
+            val topicAlternatives = alternatives.numTopicAlternatives()
+            val topicDetails = alternatives.getTopicDetails()
+            
+            var topicNames = List[String]()
+            for ( topicDetail <- topicDetails )
+            {
+                topicNameQuery.bind(1, topicDetail.topicId)
+                topicNameQuery.step()
+                topicNames = topicNameQuery.columnString(0) :: topicNames
+                topicNameQuery.reset()
+            }
+            
+            println( wordList.slice(alternatives.startIndex, alternatives.endIndex+1).toString() + ": " + count + "  " + tokenCategoryIds.size + " " + topicAlternatives + " " + topicNames )
+            count += 1
+        }
         
         val result =
             <html>
