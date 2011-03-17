@@ -13,6 +13,8 @@ import scala.xml.XML
 import scala.collection.immutable.TreeSet
 import java.util.TreeMap
 
+import scala.util.matching.Regex
+
 class DisambiguatorTest extends FunSuite
 {
 
@@ -232,6 +234,8 @@ class DisambiguatorTest extends FunSuite
             println( "++ " + wordList.slice(startIndex, endIndex+1) )
         }
         
+        val bannedRegex = new Regex("[0-9]{4}")
+        val categoryNameQuery = db.prepare("SELECT name FROM categories WHERE id=?")
         val categoryMembershipQuery = db.prepare( "SELECT categoryId FROM categoryMembership WHERE topicId=?" )
         var allTokens = List[DisambiguationAlternative]()
         for ( (startIndex, endIndex, topicIds) <- topicList )
@@ -243,7 +247,18 @@ class DisambiguatorTest extends FunSuite
                 categoryMembershipQuery.bind(1, topicId)
                 while (categoryMembershipQuery.step() )
                 {
-                    categorySet += categoryMembershipQuery.columnInt(0)
+                    val categoryId = categoryMembershipQuery.columnInt(0)
+                    categoryNameQuery.bind(1, categoryId)
+                    categoryNameQuery.step()
+                    val categoryName = categoryNameQuery.columnString(0)
+                    categoryNameQuery.reset()
+                    
+                    bannedRegex.findFirstIn( categoryName ) match
+                    {
+                        case None => categorySet += categoryId
+                        case _ => println( "/// Punting banned category " + categoryName )
+                    }
+                    
                 }
                 categoryMembershipQuery.reset()
                 
@@ -289,7 +304,7 @@ class DisambiguatorTest extends FunSuite
         
         
         var sortedCategoryList = List[(Int, Int)]()
-        val categoryNameQuery = db.prepare("SELECT name FROM categories WHERE id=?")
+        
         val mapIt = categoryCounts.entrySet().iterator()
         while ( mapIt.hasNext() )
         {
