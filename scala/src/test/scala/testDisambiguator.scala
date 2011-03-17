@@ -199,6 +199,8 @@ class DisambiguatorTest extends FunSuite
         db.open()
         
         db.exec( "BEGIN" )
+        
+        // Will need some indices
         db.exec( "CREATE TEMPORARY TABLE textWords( id INTEGER PRIMARY KEY, wordId INTEGER )" )
         db.exec( "CREATE TEMPORARY TABLE phraseLinks( level INTEGER, INTEGER wordId, phraseTreeNodeId INTEGER )" )
         
@@ -213,6 +215,7 @@ class DisambiguatorTest extends FunSuite
         
         db.exec( "INSERT INTO phraseLinks (SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1)" )
         
+        // Will need to count how many rows inserted and when zero, stop running.
         val level = 1
         var updateQuery = db.prepare( "INSERT INTO phraseLinks (SELECT level, t1.id+1, t3.id FROM phraseLinks AS t1 INNER JOIN textWords AS t2 ON t2.id=t1.id+1 INNER JOIN phraseTreeNodes AS t3 ON t3.parentId=t1.phraseTreeNodeId AND t3.wordId=t2.wordId WHERE t1.level=?-1 )" )
         updateQuery.bind(1, level)
