@@ -180,6 +180,53 @@ class DisambiguatorTest extends FunSuite
         }
     }
     
+    class SQLiteWrapper( fileName : String )
+    {
+        val conn = new SQLiteConnection( new File( fileName ) )
+        
+        class PreparedStatement( query : String )
+        {
+            val statement = conn.prepare( query )
+            
+            private def bindRec( index : Int, params : List[Any] )
+            {
+                // TODO: Does this need a pattern match?
+                params.head match
+                {
+                    case v : Int => statement.bind( index, v )
+                    case v : String => statement.bind( index, v )
+                    case _ => throw new ClassCastException( "Unsupported type in bind." )
+                }
+                
+                
+                if ( params.tail != Nil )
+                {
+                    bindRec( index+1, params.tail )
+                }
+            }
+            
+            def bind( args : Any* )
+            {
+                val argList = args.toList
+                bindRec( 1, argList )
+            }
+            
+            def reset()
+            {
+                statement.reset()
+            }
+            
+            def step()
+            {
+            }
+        }
+        
+        def prepare( query : String )
+        {
+            return new PreparedStatement( query )
+        }
+    }
+    
     test("Efficient disambiguator test")
     {
         val testFileName = "./src/test/scala/data/simpleTest.txt"
@@ -190,10 +237,16 @@ class DisambiguatorTest extends FunSuite
         val wordList = new ArrayBuffer[String]
         while ( run )
         {
-            wordList.append( tokenizer.getAttribute(classOf[TermAttribute]).term() )
+            val term = tokenizer.getAttribute(classOf[TermAttribute]).term()
+            if ( term != "" )
+            {
+                wordList.append( term )
+            }
             run = tokenizer.incrementToken()
         }
         tokenizer.close()
+        
+        println( wordList.toString() )
         
         val db = new SQLiteConnection( new File(testDbName) )
         db.open()
@@ -202,7 +255,10 @@ class DisambiguatorTest extends FunSuite
         
         // Will need some indices
         db.exec( "CREATE TEMPORARY TABLE textWords( id INTEGER PRIMARY KEY, wordId INTEGER )" )
-        db.exec( "CREATE TEMPORARY TABLE phraseLinks( level INTEGER, INTEGER wordId, phraseTreeNodeId INTEGER )" )
+        db.exec( "CREATE TEMPORARY TABLE phraseLinks( level INTEGER, twId INTEGER, phraseTreeNodeId INTEGER )" )
+        db.exec( "CREATE TEMPORARY TABLE phrasesAndTopics( startIndex INTEGER, endIndex INTEGER, topicId INTEGER )" )
+        db.exec( "CREATE TEMPORARY TABLE topicCategories( topicId INTEGER, categoryId INTEGER, topicName TEXT, categoryName TEXT )" )
+        db.exec( "CREATE INDEX phraseLinkLevel ON phraseLinks(level)" )
         
         //phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER )
         val insertQuery = db.prepare( "INSERT INTO textWords VALUES( NULL, (SELECT id FROM words WHERE name=?) )" )
@@ -213,18 +269,43 @@ class DisambiguatorTest extends FunSuite
             insertQuery.reset()
         }
         
-        db.exec( "INSERT INTO phraseLinks (SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1)" )
+        db.exec( "INSERT INTO phraseLinks SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1" )
+        println( "--> " + wordList.length + " " + db.getChanges() )
         
         // Will need to count how many rows inserted and when zero, stop running.
-        val level = 1
-        var updateQuery = db.prepare( "INSERT INTO phraseLinks (SELECT level, t1.id+1, t3.id FROM phraseLinks AS t1 INNER JOIN textWords AS t2 ON t2.id=t1.id+1 INNER JOIN phraseTreeNodes AS t3 ON t3.parentId=t1.phraseTreeNodeId AND t3.wordId=t2.wordId WHERE t1.level=?-1 )" )
-        updateQuery.bind(1, level)
-        updateQuery.bind(2, level)
-        updateQuery.step()
-        updateQuery.reset()
+        var running = true
+        var level = 1
+        while (running)
+        {
+            var updateQuery = db.prepare( "INSERT INTO phraseLinks SELECT ?1, t1.twId+1, t3.id FROM phraseLinks AS t1 INNER JOIN textWords AS t2 ON t2.id=t1.twId+1 INNER JOIN phraseTreeNodes AS t3 ON t3.parentId=t1.phraseTreeNodeId AND t3.wordId=t2.wordId WHERE t1.level=?1-1" )
+            updateQuery.bind(1, level)
+            updateQuery.step()
+            updateQuery.reset()
+            
+            val numChanges = db.getChanges()
+            println( "--> " + level + " " + numChanges )
+            if ( numChanges == 0 ) running = false
+            
+            level += 1
+        }
         
         // get wordId from 
         //db.exec( "INSERT INTO phraseLinks (SELECT level, t1.id+1, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON 
+        
+        println( "Crosslinking topics" )
+        db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId ORDER BY t1.twId-t1.level, t1.twId" )
+        println( "Crosslinking categories" )
+        db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.categoryId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoryMembership AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 ON t1.topicId=t3.id INNER JOIN categories AS t4 on t2.categoryId=t4.id" )
+        println( "Complete" )
+        
+        val getPhrases = db.prepare( "SELECT DISTINCT startIndex, endIndex FROM phrasesAndTopics" )
+        while ( getPhrases.step() )
+        {
+            val fromIndex = getPhrases.columnInt(0)-1
+            val toIndex = getPhrases.columnInt(1)-1
+            println( ":: " + fromIndex + " " + toIndex + " " + wordList.slice(fromIndex, toIndex+1) )
+        }
+        getPhrases.reset()
 
         db.exec( "ROLLBACK" )
     }
