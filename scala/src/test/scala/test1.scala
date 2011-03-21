@@ -11,6 +11,93 @@ import org.dbpedia.extraction.wikiparser.{Node}
 import java.io.File
 import com.almworks.sqlite4java._
  
+class ResTupleTestSuite extends FunSuite
+{
+    trait TypedCol[T]
+    {
+        var v : Option[T] = None
+        def assign( value : String )
+    }
+    
+    sealed trait HList
+    {
+        def assign( vals : List[String] )
+    }
+
+    final case class HCons[H <: TypedCol[_], T <: HList]( var head : H, tail : T ) extends HList
+    {
+        def ::[T <: TypedCol[_]](v : T) = HCons(v, this)
+        def assign( vals : List[String] )
+        {
+            head.assign( vals.head )
+            tail.assign( vals.tail )
+        }
+    }
+    
+    final class HNil extends HList
+    {
+        def ::[T <: TypedCol[_]](v : T) = HCons(v, this)
+        def assign( vals : List[String] )
+        {
+            require( vals == Nil )
+        }
+    }
+    
+    type ::[H <: TypedCol[_], T <: HList] = HCons[H, T]
+    
+    val HNil = new HNil()
+    
+    
+    
+    final class IntCol extends TypedCol[Int]
+    {
+        def assign( value : String ) { v = Some( value.toInt ) }
+    }
+    
+    final class DoubleCol extends TypedCol[Double]
+    {
+        def assign( value : String ) { v = Some( value.toDouble ) }
+    }
+    
+    final class StringCol extends TypedCol[String]
+    {
+        def assign( value : String ) { v = Some( value ) }
+    }
+    
+    trait TypedColMaker[T]
+    {
+        def build() : TypedCol[T]
+    }
+    
+    object TypedColMaker
+    {
+        implicit object IntColMaker extends TypedColMaker[Int]
+        {
+            def build() : TypedCol[Int] = new IntCol()
+        }
+        implicit object DoubleColMaker extends TypedColMaker[Double]
+        {
+            def build() : TypedCol[Double] = new DoubleCol()
+        }
+        implicit object StringColMaker extends TypedColMaker[String]
+        {
+            def build() : TypedCol[String] = new StringCol()
+        }
+    }
+    
+    def Col[T : TypedColMaker]() = implicitly[TypedColMaker[T]].build()
+    
+    test( "Simple test" )
+    {
+        val data = Col[Int]::Col[Double]::Col[String]::HNil
+        
+        data.assign( "12" :: "43.0" :: "Hello" :: Nil )
+        assert( data.head.v === Some(12) )
+        assert( data.tail.head.v == Some(43.0) )
+        assert( data.tail.tail.head.v === Some("Hello") )
+    }
+}
+ 
 class BasicTestSuite1 extends FunSuite
 {
 
@@ -20,8 +107,7 @@ class BasicTestSuite1 extends FunSuite
         
         return markupFiltered
     }
-
-
+    
     test("A first test")
     {
         assert( 3 === 5-2 )

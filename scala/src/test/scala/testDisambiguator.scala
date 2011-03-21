@@ -179,25 +179,44 @@ class DisambiguatorTest extends FunSuite
             }
         }
     }
-    
-    class SQLiteWrapper( fileName : String )
+   
+    final class SQLiteWrapper( fileName : String )
     {
         val conn = new SQLiteConnection( new File( fileName ) )
+        conn.open()
         
-        class PreparedStatement( query : String )
+        def exec( statement : String )
+        {
+            conn.exec( statement )
+        }
+        
+        def prepare( query : String ) =
+        {
+            new PreparedStatement(query)
+        }
+        
+        // All tuples inherit from product
+        final class PreparedStatement( query : String )
         {
             val statement = conn.prepare( query )
             
+            final class Column( index : Int )
+            {
+            }
+            
+            implicit def toInt( v : Column ) : Int = 4//v.conn.columnInt( v.index )
+            
             private def bindRec( index : Int, params : List[Any] )
             {
+                println( "Value " + params.head )
                 // TODO: Does this need a pattern match?
                 params.head match
                 {
                     case v : Int => statement.bind( index, v )
                     case v : String => statement.bind( index, v )
+                    case v : Double => statement.bind( index, v )
                     case _ => throw new ClassCastException( "Unsupported type in bind." )
                 }
-                
                 
                 if ( params.tail != Nil )
                 {
@@ -207,8 +226,14 @@ class DisambiguatorTest extends FunSuite
             
             def bind( args : Any* )
             {
-                val argList = args.toList
-                bindRec( 1, argList )
+                bindRec( 1, args.toList )
+            }
+            
+            def exec( args : Any* )
+            {
+                bindRec( 1, args.toList )
+                step()
+                reset()
             }
             
             def reset()
@@ -216,16 +241,38 @@ class DisambiguatorTest extends FunSuite
                 statement.reset()
             }
             
-            def step()
+            // Replace this hideousness with some HList joy if applicable
+            def step() : Boolean =
             {
+                return statement.step()
             }
-        }
-        
-        def prepare( query : String )
-        {
-            return new PreparedStatement( query )
+            
+            def col( index : Int ) = new Column(index)
         }
     }
+    
+    test("SQLite wrapper test")
+    {
+        val db = new SQLiteWrapper( "test.sqlite" )
+        db.exec( "BEGIN" )
+        db.exec( "CREATE TABLE test( number INTEGER, value FLOAT, name TEXT )" )
+        
+        val insStatement = db.prepare( "INSERT INTO test VALUES( ?, ?, ? )" )
+        insStatement.exec( 1, 5.0, "Hello1" )
+        insStatement.exec( 2, 6.0, "Hello2" )
+        insStatement.exec( 3, 7.0, "Hello3" )
+        insStatement.exec( 4, 8.0, "Hello4" )
+        
+        val getStatement = db.prepare( "SELECT * from test" )
+        assert( getStatement.step() === true )
+        
+        //val t2 : (Int, Double, Text) = getStatement.row()
+        
+        getStatement.reset()
+        
+        db.exec( "ROLLBACK" )
+    }
+    
     
     test("Efficient disambiguator test")
     {
