@@ -21,6 +21,66 @@ class BasicTestSuite1 extends FunSuite
         return markupFiltered
     }
 
+    trait TypedHolder[T]
+    {
+        var v : Option[T] = None
+        def assign( value : String )
+    }
+    
+    final class StringTypeHolder extends TypedHolder[String]
+    {
+        override def assign( value : String ) { v = Some(value) }
+    }
+    
+    final class IntTypeHolder extends TypedHolder[Int]
+    {
+        override def assign( value : String ) { v = Some(value.toInt) }
+    }
+    
+    final class DoubleTypeHolder extends TypedHolder[Double]
+    {
+        override def assign( value : String ) { v = Some(value.toDouble) }
+    }
+    
+    trait TypedHolderMaker[T]
+    {
+        def build() : TypedHolder[T]
+    }
+    
+    object TypedHolderMaker
+    {
+        implicit object StringHolderMaker extends TypedHolderMaker[String]
+        {
+            def build() = new StringTypeHolder()
+        }
+        
+        implicit object IntHolderMaker extends TypedHolderMaker[Int]
+        {
+            def build() = new IntTypeHolder()
+        }
+        
+        implicit object DoubleTypeHolder extends TypedHolderMaker[Double]
+        {
+            def build() = new DoubleTypeHolder()
+        }
+    }
+    
+    def buildTypeHolder[T : TypedHolderMaker]() = implicitly[TypedHolderMaker[T]].build()
+    
+
+    test("Column type test")
+    {
+        val v1 = buildTypeHolder[Int]()
+        v1.assign( "12" )
+        assert( v1.v === Some(12) )
+        /*val v1 = makeHolder( "12", 0 )
+        val v2 = makeHolder( "Hello", "" )
+        val v3 = makeHolder( "13.0", 0.0 )
+        assert( v1.v === 12 )
+        assert( v2.v === "Hello" )
+        assert( v3.v === 13.0 )*/
+        
+    }
 
     test("A first test")
     {

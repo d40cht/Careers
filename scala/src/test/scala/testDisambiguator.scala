@@ -184,6 +184,8 @@ class DisambiguatorTest extends FunSuite
     {
         val conn = new SQLiteConnection( new File( fileName ) )
         
+        // TODO: Parameterise with tuple type
+        // make applicable to for comprehensions (implement filter, map, flatMap)
         class PreparedStatement( query : String )
         {
             val statement = conn.prepare( query )
