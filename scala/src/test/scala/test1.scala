@@ -16,28 +16,28 @@ class ResTupleTestSuite extends FunSuite
     trait TypedCol[T]
     {
         var v : Option[T] = None
-        def assign( value : String )
+        def <=( value : String )
     }
     
     sealed trait HList
     {
-        def assign( vals : List[String] )
+        def <=( vals : List[String] )
     }
 
     final case class HCons[H <: TypedCol[_], T <: HList]( var head : H, tail : T ) extends HList
     {
         def ::[T <: TypedCol[_]](v : T) = HCons(v, this)
-        def assign( vals : List[String] )
+        def <=( vals : List[String] )
         {
-            head.assign( vals.head )
-            tail.assign( vals.tail )
+            head <= vals.head
+            tail <= vals.tail
         }
     }
     
     final class HNil extends HList
     {
         def ::[T <: TypedCol[_]](v : T) = HCons(v, this)
-        def assign( vals : List[String] )
+        def <=( vals : List[String] )
         {
             require( vals == Nil )
         }
@@ -51,17 +51,17 @@ class ResTupleTestSuite extends FunSuite
     
     final class IntCol extends TypedCol[Int]
     {
-        def assign( value : String ) { v = Some( value.toInt ) }
+        def <=( value : String ) { v = Some( value.toInt ) }
     }
     
     final class DoubleCol extends TypedCol[Double]
     {
-        def assign( value : String ) { v = Some( value.toDouble ) }
+        def <=( value : String ) { v = Some( value.toDouble ) }
     }
     
     final class StringCol extends TypedCol[String]
     {
-        def assign( value : String ) { v = Some( value ) }
+        def <=( value : String ) { v = Some( value ) }
     }
     
     trait TypedColMaker[T]
@@ -91,7 +91,7 @@ class ResTupleTestSuite extends FunSuite
     {
         val data = Col[Int]::Col[Double]::Col[String]::HNil
         
-        data.assign( "12" :: "43.0" :: "Hello" :: Nil )
+        data <= "12" :: "43.0" :: "Hello" :: Nil
         assert( data.head.v === Some(12) )
         assert( data.tail.head.v == Some(43.0) )
         assert( data.tail.tail.head.v === Some("Hello") )
