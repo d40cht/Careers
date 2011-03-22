@@ -10,6 +10,34 @@ import org.dbpedia.extraction.wikiparser.{Node}
 
 import java.io.File
 import com.almworks.sqlite4java._
+
+import SqliteWrapper._
+ 
+class ResTupleTestSuite extends FunSuite
+{
+    test("SQLite wrapper test")
+    {
+        val db = new SQLiteWrapper( null )
+        db.exec( "BEGIN" )
+        db.exec( "CREATE TABLE test( number INTEGER, value FLOAT, name TEXT )" )
+        
+        val insStatement = db.prepare( "INSERT INTO test VALUES( ?, ?, ? )", HNil )
+        insStatement.exec( 1, 5.0, "Hello1" )
+        insStatement.exec( 2, 6.0, "Hello2" )
+        insStatement.exec( 3, 7.0, "Hello3" )
+        insStatement.exec( 4, 8.0, "Hello4" )
+        
+        val getStatement = db.prepare( "SELECT * from test", Col[Int]::Col[Double]::Col[String]::HNil )
+        assert( getStatement.step() === true )
+        assert( _1(getStatement.row) === Some(1) )
+        assert( _2(getStatement.row) === Some(5.0) )
+        assert( _3(getStatement.row) === Some("Hello1") )
+        
+        getStatement.reset()
+        
+        db.exec( "ROLLBACK" )
+    }
+}
  
 class BasicTestSuite1 extends FunSuite
 {
@@ -19,67 +47,6 @@ class BasicTestSuite1 extends FunSuite
         val markupFiltered = raw.filter( _ != '\'' )
         
         return markupFiltered
-    }
-
-    trait TypedHolder[T]
-    {
-        var v : Option[T] = None
-        def assign( value : String )
-    }
-    
-    final class StringTypeHolder extends TypedHolder[String]
-    {
-        override def assign( value : String ) { v = Some(value) }
-    }
-    
-    final class IntTypeHolder extends TypedHolder[Int]
-    {
-        override def assign( value : String ) { v = Some(value.toInt) }
-    }
-    
-    final class DoubleTypeHolder extends TypedHolder[Double]
-    {
-        override def assign( value : String ) { v = Some(value.toDouble) }
-    }
-    
-    trait TypedHolderMaker[T]
-    {
-        def build() : TypedHolder[T]
-    }
-    
-    object TypedHolderMaker
-    {
-        implicit object StringHolderMaker extends TypedHolderMaker[String]
-        {
-            def build() = new StringTypeHolder()
-        }
-        
-        implicit object IntHolderMaker extends TypedHolderMaker[Int]
-        {
-            def build() = new IntTypeHolder()
-        }
-        
-        implicit object DoubleTypeHolder extends TypedHolderMaker[Double]
-        {
-            def build() = new DoubleTypeHolder()
-        }
-    }
-    
-    def buildTypeHolder[T : TypedHolderMaker]() = implicitly[TypedHolderMaker[T]].build()
-    
-
-    test("Column type test")
-    {
-        val v1 = buildTypeHolder[Int]()
-        v1.assign( "12" )
-        assert( v1.v === Some(12) )
-        /*val v1 = makeHolder( "12", 0 )
-        val v2 = makeHolder( "Hello", "" )
-        val v3 = makeHolder( "13.0", 0.0 )
-        assert( v1.v === 12 )
-        assert( v2.v === "Hello" )
-        assert( v3.v === 13.0 )*/
-        
     }
 
     test("A first test")

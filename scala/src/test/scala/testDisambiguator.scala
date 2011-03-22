@@ -179,55 +179,7 @@ class DisambiguatorTest extends FunSuite
             }
         }
     }
-    
-    class SQLiteWrapper( fileName : String )
-    {
-        val conn = new SQLiteConnection( new File( fileName ) )
-        
-        // TODO: Parameterise with tuple type
-        // make applicable to for comprehensions (implement filter, map, flatMap)
-        class PreparedStatement( query : String )
-        {
-            val statement = conn.prepare( query )
-            
-            private def bindRec( index : Int, params : List[Any] )
-            {
-                // TODO: Does this need a pattern match?
-                params.head match
-                {
-                    case v : Int => statement.bind( index, v )
-                    case v : String => statement.bind( index, v )
-                    case _ => throw new ClassCastException( "Unsupported type in bind." )
-                }
-                
-                
-                if ( params.tail != Nil )
-                {
-                    bindRec( index+1, params.tail )
-                }
-            }
-            
-            def bind( args : Any* )
-            {
-                val argList = args.toList
-                bindRec( 1, argList )
-            }
-            
-            def reset()
-            {
-                statement.reset()
-            }
-            
-            def step()
-            {
-            }
-        }
-        
-        def prepare( query : String )
-        {
-            return new PreparedStatement( query )
-        }
-    }
+   
     
     test("Efficient disambiguator test")
     {
