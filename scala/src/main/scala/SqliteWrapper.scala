@@ -102,6 +102,8 @@ object SqliteWrapper
             conn.exec( statement )
         }
         
+        def getChanges() = conn.getChanges()
+        
         def prepare[T <: HList]( query : String, row : T ) =
         {
             new PreparedStatement(query, row)

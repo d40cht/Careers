@@ -15,6 +15,8 @@ import java.util.TreeMap
 
 import scala.util.matching.Regex
 
+import SqliteWrapper._
+
 class DisambiguatorTest extends FunSuite
 {
 
@@ -202,8 +204,9 @@ class DisambiguatorTest extends FunSuite
         
         println( wordList.toString() )
         
-        val db = new SQLiteConnection( new File(testDbName) )
-        db.open()
+        //val db = new SQLiteConnection( new File(testDbName) )
+        //db.open()
+        val db = new SQLiteWrapper( new File(testDbName) )
         
         db.exec( "BEGIN" )
         
@@ -215,12 +218,10 @@ class DisambiguatorTest extends FunSuite
         db.exec( "CREATE INDEX phraseLinkLevel ON phraseLinks(level)" )
         
         //phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER )
-        val insertQuery = db.prepare( "INSERT INTO textWords VALUES( NULL, (SELECT id FROM words WHERE name=?) )" )
+        val insertQuery = db.prepare( "INSERT INTO textWords VALUES( NULL, (SELECT id FROM words WHERE name=?) )", HNil )
         for ( word <- wordList )
         {
-            insertQuery.bind(1, word)
-            insertQuery.step()
-            insertQuery.reset()
+            insertQuery.exec( word )
         }
         
         db.exec( "INSERT INTO phraseLinks SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1" )
@@ -231,10 +232,8 @@ class DisambiguatorTest extends FunSuite
         var level = 1
         while (running)
         {
-            var updateQuery = db.prepare( "INSERT INTO phraseLinks SELECT ?1, t1.twId+1, t3.id FROM phraseLinks AS t1 INNER JOIN textWords AS t2 ON t2.id=t1.twId+1 INNER JOIN phraseTreeNodes AS t3 ON t3.parentId=t1.phraseTreeNodeId AND t3.wordId=t2.wordId WHERE t1.level=?1-1" )
-            updateQuery.bind(1, level)
-            updateQuery.step()
-            updateQuery.reset()
+            var updateQuery = db.prepare( "INSERT INTO phraseLinks SELECT ?1, t1.twId+1, t3.id FROM phraseLinks AS t1 INNER JOIN textWords AS t2 ON t2.id=t1.twId+1 INNER JOIN phraseTreeNodes AS t3 ON t3.parentId=t1.phraseTreeNodeId AND t3.wordId=t2.wordId WHERE t1.level=?1-1", HNil )
+            updateQuery.exec(level)
             
             val numChanges = db.getChanges()
             println( "--> " + level + " " + numChanges )
@@ -252,11 +251,11 @@ class DisambiguatorTest extends FunSuite
         db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.categoryId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoryMembership AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 ON t1.topicId=t3.id INNER JOIN categories AS t4 on t2.categoryId=t4.id" )
         println( "Complete" )
         
-        val getPhrases = db.prepare( "SELECT DISTINCT startIndex, endIndex FROM phrasesAndTopics" )
+        val getPhrases = db.prepare( "SELECT DISTINCT startIndex, endIndex FROM phrasesAndTopics", Col[Int]::Col[Int]::HNil )
         while ( getPhrases.step() )
         {
-            val fromIndex = getPhrases.columnInt(0)-1
-            val toIndex = getPhrases.columnInt(1)-1
+            val fromIndex = _1( getPhrases.row ) match { case Some(v : Int) => v-1 }
+            val toIndex = _2( getPhrases.row ) match { case Some(v : Int) => v-1 }
             println( ":: " + fromIndex + " " + toIndex + " " + wordList.slice(fromIndex, toIndex+1) )
         }
         getPhrases.reset()
