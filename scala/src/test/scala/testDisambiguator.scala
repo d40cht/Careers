@@ -204,8 +204,6 @@ class DisambiguatorTest extends FunSuite
         
         println( wordList.toString() )
         
-        //val db = new SQLiteConnection( new File(testDbName) )
-        //db.open()
         val db = new SQLiteWrapper( new File(testDbName) )
         
         db.exec( "BEGIN" )
@@ -254,8 +252,8 @@ class DisambiguatorTest extends FunSuite
         val getPhrases = db.prepare( "SELECT DISTINCT startIndex, endIndex FROM phrasesAndTopics", Col[Int]::Col[Int]::HNil )
         while ( getPhrases.step() )
         {
-            val fromIndex = _1( getPhrases.row ) match { case Some(v : Int) => v-1 }
-            val toIndex = _2( getPhrases.row ) match { case Some(v : Int) => v-1 }
+            val fromIndex = _1( getPhrases.row ).get() - 1
+            val toIndex = _2( getPhrases.row ).get() - 1
             println( ":: " + fromIndex + " " + toIndex + " " + wordList.slice(fromIndex, toIndex+1) )
         }
         getPhrases.reset()
