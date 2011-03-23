@@ -29,9 +29,9 @@ class ResTupleTestSuite extends FunSuite
         
         val getStatement = db.prepare( "SELECT * from test", Col[Int]::Col[Double]::Col[String]::HNil )
         assert( getStatement.step() === true )
-        assert( _1(getStatement.row) === Some(1) )
-        assert( _2(getStatement.row) === Some(5.0) )
-        assert( _3(getStatement.row) === Some("Hello1") )
+        assert( _1(getStatement.row).get === 1 )
+        assert( _2(getStatement.row).get === 5.0 )
+        assert( _3(getStatement.row).get === "Hello1" )
         
         getStatement.reset()
         
