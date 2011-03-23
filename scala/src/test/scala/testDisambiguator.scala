@@ -202,8 +202,6 @@ class DisambiguatorTest extends FunSuite
         }
         tokenizer.close()
         
-        println( wordList.toString() )
-        
         val db = new SQLiteWrapper( new File(testDbName) )
         
         db.exec( "BEGIN" )
@@ -223,7 +221,6 @@ class DisambiguatorTest extends FunSuite
         }
         
         db.exec( "INSERT INTO phraseLinks SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1" )
-        println( "--> " + wordList.length + " " + db.getChanges() )
         
         // Will need to count how many rows inserted and when zero, stop running.
         var running = true
@@ -234,27 +231,19 @@ class DisambiguatorTest extends FunSuite
             updateQuery.exec(level)
             
             val numChanges = db.getChanges()
-            println( "--> " + level + " " + numChanges )
             if ( numChanges == 0 ) running = false
             
             level += 1
         }
         
-        // get wordId from 
-        //db.exec( "INSERT INTO phraseLinks (SELECT level, t1.id+1, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON 
-        
-        println( "Crosslinking topics" )
         db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId ORDER BY t1.twId-t1.level, t1.twId" )
-        println( "Crosslinking categories" )
         db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.categoryId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoryMembership AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 ON t1.topicId=t3.id INNER JOIN categories AS t4 on t2.categoryId=t4.id" )
-        println( "Complete" )
         
         val getPhrases = db.prepare( "SELECT DISTINCT startIndex, endIndex FROM phrasesAndTopics", Col[Int]::Col[Int]::HNil )
         while ( getPhrases.step() )
         {
             val fromIndex = _1( getPhrases.row ).get - 1
             val toIndex = _2( getPhrases.row ).get - 1
-            println( ":: " + fromIndex + " " + toIndex + " " + wordList.slice(fromIndex, toIndex+1) )
         }
         getPhrases.reset()
 

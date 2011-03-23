@@ -117,7 +117,6 @@ object SqliteWrapper
             
             private def bindRec( index : Int, params : List[Any] )
             {
-                println( "Value " + params.head )
                 // TODO: Does this need a pattern match?
                 params.head match
                 {
