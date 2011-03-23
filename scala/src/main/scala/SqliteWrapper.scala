@@ -82,10 +82,10 @@ object SqliteWrapper
 	def _2[H1, H2, T <: HList]( t : HCons[TypedCol[H1], HCons[TypedCol[H2], T]] ) = t.tail.head.v
 	def _3[H1, H2, H3, T <: HList]( t : HCons[TypedCol[H1], HCons[TypedCol[H2], HCons[TypedCol[H3], T]]] ) = t.tail.tail.head.v
 	def _4[H1, H2, H3, H4, T <: HList]( t : HCons[TypedCol[H1], HCons[TypedCol[H2], HCons[TypedCol[H3], HCons[TypedCol[H4], T]]]] ) = t.tail.tail.tail.head.v
-	/*def _5[H1 <: TypedCol[_], H2 <: TypedCol[_], H3 <: TypedCol[_], H4 <: TypedCol[_], H5 <: TypedCol[_], T <: HList]( t : HCons[H1, HCons[H2, HCons[H3, HCons[H4, HCons[H5, T]]]]] ) = t.tail.tail.tail.tail.head.v
-	def _6[H1 <: TypedCol[_], H2 <: TypedCol[_], H3 <: TypedCol[_], H4 <: TypedCol[_], H5 <: TypedCol[_], H6 <: TypedCol[_], T <: HList]( t : HCons[H1, HCons[H2, HCons[H3, HCons[H4, HCons[H5, HCons[H6, T]]]]]] ) = t.tail.tail.tail.tail.tail.head.v
-	def _7[H1 <: TypedCol[_], H2 <: TypedCol[_], H3 <: TypedCol[_], H4 <: TypedCol[_], H5 <: TypedCol[_], H6 <: TypedCol[_], H7 <: TypedCol[_], T <: HList]( t : HCons[H1, HCons[H2, HCons[H3, HCons[H4, HCons[H5, HCons[H6, HCons[H7, T]]]]]]] ) = t.tail.tail.tail.tail.tail.tail.head.v
-	def _8[H1 <: TypedCol[_], H2 <: TypedCol[_], H3 <: TypedCol[_], H4 <: TypedCol[_], H5 <: TypedCol[_], H6 <: TypedCol[_], H7 <: TypedCol[_], H8 <: TypedCol[_], T <: HList]( t : HCons[H1, HCons[H2, HCons[H3, HCons[H4, HCons[H5, HCons[H6, HCons[H7, HCons[H8, T]]]]]]]] ) = t.tail.tail.tail.tail.tail.tail.tail.head.v*/
+	def _5[H1, H2, H3, H4, H5, T <: HList]( t : HCons[TypedCol[H1], HCons[TypedCol[H2], HCons[TypedCol[H3], HCons[TypedCol[H4], HCons[TypedCol[H5], T]]]]] ) = t.tail.tail.tail.tail.head.v
+	def _6[H1, H2, H3, H4, H5, H6, T <: HList]( t : HCons[TypedCol[H1], HCons[TypedCol[H2], HCons[TypedCol[H3], HCons[TypedCol[H4], HCons[TypedCol[H5], HCons[TypedCol[H6], T]]]]]] ) = t.tail.tail.tail.tail.tail.head.v
+	def _7[H1, H2, H3, H4, H5, H6, H7, T <: HList]( t : HCons[TypedCol[H1], HCons[TypedCol[H2], HCons[TypedCol[H3], HCons[TypedCol[H4], HCons[TypedCol[H5], HCons[TypedCol[H6], HCons[TypedCol[H7], T]]]]]]] ) = t.tail.tail.tail.tail.tail.tail.head.v
+	def _8[H1, H2, H3, H4, H5, H6, H7, H8, T <: HList]( t : HCons[TypedCol[H1], HCons[TypedCol[H2], HCons[TypedCol[H3], HCons[TypedCol[H4], HCons[TypedCol[H5], HCons[TypedCol[H6], HCons[TypedCol[H7], HCons[TypedCol[H8], T]]]]]]]] ) = t.tail.tail.tail.tail.tail.tail.tail.head.v
 
 	final class DataWrapper[T <: HList]( var row : T )
 	{
