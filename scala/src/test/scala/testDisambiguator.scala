@@ -2,7 +2,6 @@ import org.scalatest.FunSuite
 
 import java.io.{File, BufferedReader, FileReader}
 import scala.collection.mutable.ArrayBuffer
-import com.almworks.sqlite4java._
 
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
@@ -20,14 +19,14 @@ import SqliteWrapper._
 class DisambiguatorTest extends FunSuite
 {
 
-    class PhraseTracker( val db : SQLiteConnection, val startIndex : Int )
+    class PhraseTracker( val db : SQLiteWrapper, val startIndex : Int )
     {
         var hasRealWords = false
         var parentId = -1L
         
-        val wordQuery = db.prepare( "SELECT id FROM words WHERE name=?" )
-        val phraseQuery = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?" )
-        val topicQuery = db.prepare( "SELECT t1.id FROM topics AS t1 INNER JOIN phraseTopics AS t2 ON t1.id=t2.topicId WHERE t2.phraseTreeNodeId=?" )
+        val wordQuery = db.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
+        val phraseQuery = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Int]::HNil )
+        val topicQuery = db.prepare( "SELECT t1.id FROM topics AS t1 INNER JOIN phraseTopics AS t2 ON t1.id=t2.topicId WHERE t2.phraseTreeNodeId=?", Col[Int]::HNil )
         
         def update( rawWord : String, currIndex : Int ) : (Boolean, Int, Int, List[Int]) =
         {
@@ -40,23 +39,21 @@ class DisambiguatorTest extends FunSuite
             var success = false
             var topics = List[Int]()
 
-            wordQuery.bind(1, word)
+			wordQuery.bind( word )
             if ( wordQuery.step() )
             {
-                val wordId = wordQuery.columnInt(0)
+                val wordId = _1(wordQuery.row).get
                 
-                phraseQuery.bind(1, parentId)
-                phraseQuery.bind(2, wordId)
+                phraseQuery.bind( parentId, wordId )
                 if ( phraseQuery.step() )
                 {
-                
-                    val currentId = phraseQuery.columnInt(0)
+                    val currentId = _1(phraseQuery.row).get
                     if ( hasRealWords )
                     {
-                        topicQuery.bind(1, currentId)
+                        topicQuery.bind(currentId)
                         while ( topicQuery.step() )
                         {
-                            val topicId = topicQuery.columnInt(0)
+                            val topicId = _1(topicQuery.row).get
                             topics = topicId :: topics
                         }
                         topicQuery.reset()
@@ -270,8 +267,7 @@ class DisambiguatorTest extends FunSuite
             }
             tokenizer.close()
             
-            val db = new SQLiteConnection( new File(testDbName) )
-            db.open()
+            val db = new SQLiteWrapper( new File(testDbName) )
             
             var topicList = List[(Int, Int, List[Int])]()
             
@@ -307,8 +303,8 @@ class DisambiguatorTest extends FunSuite
             }
             
             val bannedRegex = new Regex("[0-9]{4}")
-            val categoryNameQuery = db.prepare("SELECT name FROM categories WHERE id=?")
-            val categoryMembershipQuery = db.prepare( "SELECT categoryId FROM categoryMembership WHERE topicId=?" )
+            val categoryNameQuery = db.prepare("SELECT name FROM categories WHERE id=?", Col[String]::HNil)
+            val categoryMembershipQuery = db.prepare( "SELECT categoryId FROM categoryMembership WHERE topicId=?", Col[Int]::HNil )
             var allTokens = List[DisambiguationAlternative]()
             for ( (startIndex, endIndex, topicIds) <- topicList )
             {
@@ -316,13 +312,13 @@ class DisambiguatorTest extends FunSuite
                 for ( topicId <- topicIds )
                 {
                     var categorySet = TreeSet[Int]()
-                    categoryMembershipQuery.bind(1, topicId)
+                    categoryMembershipQuery.bind(topicId)
                     while (categoryMembershipQuery.step() )
                     {
-                        val categoryId = categoryMembershipQuery.columnInt(0)
-                        categoryNameQuery.bind(1, categoryId)
+                        val categoryId = _1(categoryMembershipQuery.row).get
+                        categoryNameQuery.bind(categoryId)
                         categoryNameQuery.step()
-                        val categoryName = categoryNameQuery.columnString(0)
+                        val categoryName = _1(categoryNameQuery.row).get
                         categoryNameQuery.reset()
                         
                         bannedRegex.findFirstIn( categoryName ) match
@@ -416,13 +412,13 @@ class DisambiguatorTest extends FunSuite
                     val categoryId = next.getKey()
                     val count = next.getValue()
                     
-                    categoryNameQuery.bind(1, categoryId)
+                    categoryNameQuery.bind()
                     categoryNameQuery.step()
-                    println( "|| " + count + ": " + categoryNameQuery.columnString(0) )
+                    println( "|| " + count + ": " + _1(categoryNameQuery.row).get )
                     categoryNameQuery.reset()
                 }
             }
-            val topicNameQuery = db.prepare("SELECT name FROM topics WHERE id=?" )
+            val topicNameQuery = db.prepare("SELECT name FROM topics WHERE id=?", Col[String]::HNil )
             var count = 0
             for ( alternatives <- allTokens )
             {
@@ -433,9 +429,9 @@ class DisambiguatorTest extends FunSuite
                 var topicNames = List[String]()
                 for ( topicDetail <- topicDetails )
                 {
-                    topicNameQuery.bind(1, topicDetail.topicId)
+                    topicNameQuery.bind(topicDetail.topicId)
                     topicNameQuery.step()
-                    topicNames = topicNameQuery.columnString(0) :: topicNames
+                    topicNames = _1(topicNameQuery.row).get :: topicNames
                     topicNameQuery.reset()
                 }
                 
@@ -455,13 +451,6 @@ class DisambiguatorTest extends FunSuite
                 </html>
                 
             XML.save( testOutName, result )
-            
-            //println( wordList.reverse.toString )
-            
-            /*val dbFileName = 
-            val db = new SQLiteConnection( new File(dbFileName) )
-            
-            val topicQuery = db.prepare( "SELECT t2.id, t2.name, t3.categoryId, t4.name FROM surfaceForms AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN categoryMembership AS t3 ON t1.topicId=t3.topicId INNER JOIN categories AS t4 ON t3.categoryId=t4.id WHERE t1.name=? ORDER BY t2.id, t3.categoryId" )*/
         }
     }
     
