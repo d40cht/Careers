@@ -97,6 +97,11 @@ object SqliteWrapper
         val conn = new SQLiteConnection( dbFile )
         conn.open()
         
+        def dispose()
+        {
+        	conn.dispose()
+        }
+        
         def exec( statement : String )
         {
             conn.exec( statement )

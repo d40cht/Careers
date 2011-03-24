@@ -242,9 +242,11 @@ class DisambiguatorTest extends FunSuite
             val fromIndex = _1( getPhrases.row ).get - 1
             val toIndex = _2( getPhrases.row ).get - 1
         }
+        println("Boo!")
         getPhrases.reset()
 
         db.exec( "ROLLBACK" )
+        db.dispose()
     }
 
     test("Monbiot disambiguator test")
@@ -265,7 +267,7 @@ class DisambiguatorTest extends FunSuite
                 wordList.append( tokenizer.getAttribute(classOf[TermAttribute]).term() )
                 run = tokenizer.incrementToken()
             }
-            tokenizer.close()
+            tokenizer.close() 
             
             val db = new SQLiteWrapper( new File(testDbName) )
             
@@ -451,6 +453,8 @@ class DisambiguatorTest extends FunSuite
                 </html>
                 
             XML.save( testOutName, result )
+            
+            db.dispose()
         }
     }
     
