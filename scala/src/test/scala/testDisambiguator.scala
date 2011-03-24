@@ -19,57 +19,7 @@ import SqliteWrapper._
 class DisambiguatorTest extends FunSuite
 {
 
-    class PhraseTracker( val db : SQLiteWrapper, val startIndex : Int )
-    {
-        var hasRealWords = false
-        var parentId = -1L
-        
-        val wordQuery = db.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
-        val phraseQuery = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Int]::HNil )
-        val topicQuery = db.prepare( "SELECT t1.id FROM topics AS t1 INNER JOIN phraseTopics AS t2 ON t1.id=t2.topicId WHERE t2.phraseTreeNodeId=?", Col[Int]::HNil )
-        
-        def update( rawWord : String, currIndex : Int ) : (Boolean, Int, Int, List[Int]) =
-        {
-            val word = rawWord.toLowerCase()
-            if ( !StopWords.stopWordSet.contains( word ) )
-            {
-                hasRealWords = true
-            }
-            
-            var success = false
-            var topics = List[Int]()
-
-			wordQuery.bind( word )
-            if ( wordQuery.step() )
-            {
-                val wordId = _1(wordQuery.row).get
-                
-                phraseQuery.bind( parentId, wordId )
-                if ( phraseQuery.step() )
-                {
-                    val currentId = _1(phraseQuery.row).get
-                    if ( hasRealWords )
-                    {
-                        topicQuery.bind(currentId)
-                        while ( topicQuery.step() )
-                        {
-                            val topicId = _1(topicQuery.row).get
-                            topics = topicId :: topics
-                        }
-                        topicQuery.reset()
-                    }
-                    
-                    parentId = currentId
-                    success = true
-                }
-                phraseQuery.reset()
-            }
-            wordQuery.reset()
-            
-            val result = (success, startIndex, currIndex, topics)
-            return result
-        }
-    }
+    
     
     class TopicDetails( val topicId : Int, val categoryIds : TreeSet[Int] )
     {
@@ -200,7 +150,8 @@ class DisambiguatorTest extends FunSuite
         }
         tokenizer.close()*/
         
-        var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::Nil
+        //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::Nil
+        var wordList = "saudi" :: "arabia" :: Nil
         
         val db = new SQLiteWrapper( new File(testDbName) )
         
@@ -220,6 +171,7 @@ class DisambiguatorTest extends FunSuite
             insertQuery.exec( word )
         }
         
+        println( "Building phrase table.")
         db.exec( "INSERT INTO phraseLinks SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1" )
         
         // Will need to count how many rows inserted and when zero, stop running.
@@ -236,20 +188,114 @@ class DisambiguatorTest extends FunSuite
             level += 1
         }
         
+        println( "Crosslinking topics." )
         db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId ORDER BY t1.twId-t1.level, t1.twId" )
+        println( "Crosslinking categories." )
         db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.categoryId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoryMembership AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 ON t1.topicId=t3.id INNER JOIN categories AS t4 on t2.categoryId=t4.id" )
+        println( "Building index." )
+        db.exec( "CREATE INDEX topicCategoriesIndex ON topicCategories(topicId)" )
         
-        val getPhrases = db.prepare( "SELECT DISTINCT startIndex, endIndex FROM phrasesAndTopics", Col[Int]::Col[Int]::HNil )
+        println( "Retrieving data." )
+        val getPhrases = db.prepare( "SELECT t1.startIndex-1, t1.endIndex-1, t1.topicId, t2.categoryId, t2.categoryName FROM phrasesAndTopics AS t1 INNER JOIN topicCategories AS t2 ON t1.topicId=t2.topicId ORDER BY t1.endIndex DESC, t1.startIndex ASC, t1.topicId, t2.categoryId", Col[Int]::Col[Int]::Col[Int]::Col[Int]::Col[String]::HNil )
+        
+        println( "Building disambiguation alternative forest." )
+        val bannedRegex = new Regex("[0-9]{4}")
+        var daSites = List[DisambiguationAlternative]()
+        var currDA : DisambiguationAlternative = null
+        var topicDetails : TopicDetails = null
         while ( getPhrases.step() )
         {
-            val fromIndex = _1( getPhrases.row ).get - 1
-            val toIndex = _2( getPhrases.row ).get - 1
+            val startIndex      = _1( getPhrases.row ).get
+            val endIndex        = _2( getPhrases.row ).get
+            val topicId         = _3( getPhrases.row ).get
+            val categoryId      = _4( getPhrases.row ).get
+            val categoryName    = _5( getPhrases.row ).get
+            
+            if ( currDA == null || currDA.startIndex != startIndex || currDA.endIndex != endIndex )
+            {
+                currDA = new DisambiguationAlternative( startIndex, endIndex, List[TopicDetails]() )
+                
+                if ( daSites == Nil || !daSites.head.overlaps( currDA ) )
+                {
+                    daSites = currDA :: daSites
+                }
+                else
+                {
+                    daSites.head.addAlternative( currDA )
+                }
+            }
+            
+            if ( currDA.topicDetails == Nil || currDA.topicDetails.head.topicId != topicId )
+            {
+                currDA.topicDetails = new TopicDetails( topicId, new TreeSet[Int]() )::currDA.topicDetails
+            }
+            val curTopicDetails = currDA.topicDetails.head
+            
+            bannedRegex.findFirstIn( categoryName ) match
+            {
+                case None => curTopicDetails.categoryIds + categoryId
+                case _ =>
+            }
         }
-        println("Boo!")
         getPhrases.reset()
+        println( "  complete..." )
+        
+
 
         db.exec( "ROLLBACK" )
         db.dispose()
+    }
+    
+    class PhraseTracker( val db : SQLiteWrapper, val startIndex : Int )
+    {
+        var hasRealWords = false
+        var parentId = -1L
+        
+        val wordQuery = db.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
+        val phraseQuery = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Int]::HNil )
+        val topicQuery = db.prepare( "SELECT t1.id FROM topics AS t1 INNER JOIN phraseTopics AS t2 ON t1.id=t2.topicId WHERE t2.phraseTreeNodeId=?", Col[Int]::HNil )
+        
+        def update( rawWord : String, currIndex : Int ) : (Boolean, Int, Int, List[Int]) =
+        {
+            val word = rawWord.toLowerCase()
+            if ( !StopWords.stopWordSet.contains( word ) )
+            {
+                hasRealWords = true
+            }
+            
+            var success = false
+            var topics = List[Int]()
+
+			wordQuery.bind( word )
+            if ( wordQuery.step() )
+            {
+                val wordId = _1(wordQuery.row).get
+                
+                phraseQuery.bind( parentId, wordId )
+                if ( phraseQuery.step() )
+                {
+                    val currentId = _1(phraseQuery.row).get
+                    if ( hasRealWords )
+                    {
+                        topicQuery.bind(currentId)
+                        while ( topicQuery.step() )
+                        {
+                            val topicId = _1(topicQuery.row).get
+                            topics = topicId :: topics
+                        }
+                        topicQuery.reset()
+                    }
+                    
+                    parentId = currentId
+                    success = true
+                }
+                phraseQuery.reset()
+            }
+            wordQuery.reset()
+            
+            val result = (success, startIndex, currIndex, topics)
+            return result
+        }
     }
 
     test("Monbiot disambiguator test")
@@ -301,6 +347,7 @@ class DisambiguatorTest extends FunSuite
                 wordIndex += 1
             }
             
+            // startIndex, endIndex, topicId
             topicList = topicList.sortWith( (a, b) => if ( a._1 == b._1 ) a._2 > b._2 else a._1 < b._1 )
             for ( (startIndex, endIndex, topicIds) <- topicList )
             {

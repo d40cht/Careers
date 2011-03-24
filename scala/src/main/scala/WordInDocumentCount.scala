@@ -36,7 +36,7 @@ val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileRe
         }
         tokenizer.close()*/
 
-
+/*
 class WordInDocumentMembershipMapper extends Mapper[Text, Text, Text, Text]
 {
     val markupParser = WikiParser()
@@ -144,5 +144,5 @@ object WordInDocumentMembership
         if ( job.waitForCompletion(true) ) 0 else 1
     }
 }
-
+*/
 
