@@ -9,127 +9,13 @@ import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
 import scala.xml.XML
-import scala.collection.immutable.TreeSet
-import java.util.TreeMap
 
-import scala.util.matching.Regex
 
 import SqliteWrapper._
+import Disambiguator._
 
 class DisambiguatorTest extends FunSuite
 {
-
-    
-    
-    class TopicDetails( val topicId : Int, val categoryIds : TreeSet[Int] )
-    {
-    }
-    
-    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, var topicDetails : List[TopicDetails] )
-    {
-        var children = List[DisambiguationAlternative]()
-        
-        def overlaps( da : DisambiguationAlternative ) : Boolean =
-        {
-            (startIndex >= da.startIndex && endIndex <= da.endIndex) ||
-            (da.startIndex >= startIndex && da.endIndex <= endIndex)
-        }
-        
-        def addAlternative( da : DisambiguationAlternative )
-        {
-            assert( overlaps( da ) )
-            var allOverlap = true
-            for ( child <- children )
-            {
-                if ( child.overlaps(da) )
-                {
-                    child.addAlternative(da)
-                }
-                else
-                {
-                    allOverlap = false
-                }
-            }
-            if ( !allOverlap )
-            {
-                children = da :: children
-            }
-        }
-        
-        def numTopicAlternatives() : Int =
-        {
-            topicDetails.length + children.foldLeft(0)( _ + _.numTopicAlternatives() )
-        }
-        
-        def getTopicDetails() : List[TopicDetails] =
-        {
-            topicDetails ++ children.foldLeft(List[TopicDetails]())( _ ++ _.getTopicDetails() )
-        }
-        
-        def allCategoryIds() : TreeSet[Int] =
-        {
-            var categoryIds = TreeSet[Int]()
-            for ( topicDetail <- topicDetails )
-            {
-                categoryIds = categoryIds ++ topicDetail.categoryIds
-            }
-            for ( child <- children )
-            {
-                categoryIds = categoryIds ++ child.allCategoryIds()
-            }
-            return categoryIds
-        }
-        
-        def containsCategory( categoryId : Int ) : Boolean =
-        {
-            for ( td <- topicDetails )
-            {
-                if ( td.categoryIds.contains( categoryId ) )
-                {
-                    return true
-                }
-            }
-            for ( child <- children )
-            {
-                if ( child.containsCategory( categoryId ) )
-                {
-                    return true
-                }
-            }
-            
-            return false
-        }
-        
-        // Prune any topics which don't contain this category
-        private def assertCategoryImpl( assertedCategoryId : Int ) : Boolean =
-        {
-            var categoryAlive = false
-            topicDetails = topicDetails.filter( _.categoryIds.contains(assertedCategoryId) )
-            
-            if ( topicDetails != Nil ) categoryAlive = true
-            
-            children = children.filter( _.assertCategory( assertedCategoryId ) )
-            
-            if ( children != Nil ) categoryAlive = true
-            
-            return categoryAlive
-        }
-        
-        def assertCategory( assertedCategoryId : Int ) : Boolean =
-        {
-            // If we don't contain this category then it's not relevant to us and we don't change
-            if ( !containsCategory( assertedCategoryId ) )
-            {
-                return true
-            }
-            else
-            {
-                return assertCategoryImpl( assertedCategoryId )
-            }
-        }
-    }
-   
-    
     test("Efficient disambiguator test")
     {
         val testFileName = "./src/test/scala/data/simpleTest.txt"
@@ -151,102 +37,14 @@ class DisambiguatorTest extends FunSuite
         tokenizer.close()*/
         
         //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::Nil
-        var wordList = "saudi" :: "arabia" :: Nil
+        var wordList = "saudi" :: "arabian" :: "oil" :: "in":: "the" :: "desert" :: Nil
         
-        val db = new SQLiteWrapper( new File(testDbName) )
-        
-        db.exec( "BEGIN" )
-        
-        // Will need some indices
-        db.exec( "CREATE TEMPORARY TABLE textWords( id INTEGER PRIMARY KEY, wordId INTEGER )" )
-        db.exec( "CREATE TEMPORARY TABLE phraseLinks( level INTEGER, twId INTEGER, phraseTreeNodeId INTEGER )" )
-        db.exec( "CREATE TEMPORARY TABLE phrasesAndTopics( startIndex INTEGER, endIndex INTEGER, topicId INTEGER )" )
-        db.exec( "CREATE TEMPORARY TABLE topicCategories( topicId INTEGER, categoryId INTEGER, topicName TEXT, categoryName TEXT )" )
-        db.exec( "CREATE INDEX phraseLinkLevel ON phraseLinks(level)" )
-        
-        //phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER )
-        val insertQuery = db.prepare( "INSERT INTO textWords VALUES( NULL, (SELECT id FROM words WHERE name=?) )", HNil )
-        for ( word <- wordList )
-        {
-            insertQuery.exec( word )
-        }
-        
-        println( "Building phrase table.")
-        db.exec( "INSERT INTO phraseLinks SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1" )
-        
-        // Will need to count how many rows inserted and when zero, stop running.
-        var running = true
-        var level = 1
-        while (running)
-        {
-            var updateQuery = db.prepare( "INSERT INTO phraseLinks SELECT ?1, t1.twId+1, t3.id FROM phraseLinks AS t1 INNER JOIN textWords AS t2 ON t2.id=t1.twId+1 INNER JOIN phraseTreeNodes AS t3 ON t3.parentId=t1.phraseTreeNodeId AND t3.wordId=t2.wordId WHERE t1.level=?1-1", HNil )
-            updateQuery.exec(level)
-            
-            val numChanges = db.getChanges()
-            if ( numChanges == 0 ) running = false
-            
-            level += 1
-        }
-        
-        println( "Crosslinking topics." )
-        db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId ORDER BY t1.twId-t1.level, t1.twId" )
-        println( "Crosslinking categories." )
-        db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.categoryId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoryMembership AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 ON t1.topicId=t3.id INNER JOIN categories AS t4 on t2.categoryId=t4.id" )
-        println( "Building index." )
-        db.exec( "CREATE INDEX topicCategoriesIndex ON topicCategories(topicId)" )
-        
-        println( "Retrieving data." )
-        val getPhrases = db.prepare( "SELECT t1.startIndex-1, t1.endIndex-1, t1.topicId, t2.categoryId, t2.categoryName FROM phrasesAndTopics AS t1 INNER JOIN topicCategories AS t2 ON t1.topicId=t2.topicId ORDER BY t1.endIndex DESC, t1.startIndex ASC, t1.topicId, t2.categoryId", Col[Int]::Col[Int]::Col[Int]::Col[Int]::Col[String]::HNil )
-        
-        println( "Building disambiguation alternative forest." )
-        val bannedRegex = new Regex("[0-9]{4}")
-        var daSites = List[DisambiguationAlternative]()
-        var currDA : DisambiguationAlternative = null
-        var topicDetails : TopicDetails = null
-        while ( getPhrases.step() )
-        {
-            val startIndex      = _1( getPhrases.row ).get
-            val endIndex        = _2( getPhrases.row ).get
-            val topicId         = _3( getPhrases.row ).get
-            val categoryId      = _4( getPhrases.row ).get
-            val categoryName    = _5( getPhrases.row ).get
-            
-            if ( currDA == null || currDA.startIndex != startIndex || currDA.endIndex != endIndex )
-            {
-                currDA = new DisambiguationAlternative( startIndex, endIndex, List[TopicDetails]() )
-                
-                if ( daSites == Nil || !daSites.head.overlaps( currDA ) )
-                {
-                    daSites = currDA :: daSites
-                }
-                else
-                {
-                    daSites.head.addAlternative( currDA )
-                }
-            }
-            
-            if ( currDA.topicDetails == Nil || currDA.topicDetails.head.topicId != topicId )
-            {
-                currDA.topicDetails = new TopicDetails( topicId, new TreeSet[Int]() )::currDA.topicDetails
-            }
-            val curTopicDetails = currDA.topicDetails.head
-            
-            bannedRegex.findFirstIn( categoryName ) match
-            {
-                case None => curTopicDetails.categoryIds + categoryId
-                case _ =>
-            }
-        }
-        getPhrases.reset()
-        println( "  complete..." )
-        
-
-
-        db.exec( "ROLLBACK" )
-        db.dispose()
+        val disambiguator = new Disambiguator( wordList, new SQLiteWrapper( new File(testDbName) ) )
+        disambiguator.build()
+        disambiguator.resolve()
     }
     
-    class PhraseTracker( val db : SQLiteWrapper, val startIndex : Int )
+    /*class PhraseTracker( val db : SQLiteWrapper, val startIndex : Int )
     {
         var hasRealWords = false
         var parentId = -1L
@@ -506,7 +304,7 @@ class DisambiguatorTest extends FunSuite
             
             db.dispose()
         }
-    }
+    }*/
     
     
     test( "Disambiguation alternative test 1" )
