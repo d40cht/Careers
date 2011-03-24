@@ -188,9 +188,10 @@ class DisambiguatorTest extends FunSuite
         val testFileName = "./src/test/scala/data/simpleTest.txt"
         val testDbName = "disambig.sqlite3"
         
-        val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
+        /*val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
         var run = true
-        val wordList = new ArrayBuffer[String]
+        //val wordList = new ArrayBuffer[String]
+        
         while ( run )
         {
             val term = tokenizer.getAttribute(classOf[TermAttribute]).term()
@@ -200,7 +201,9 @@ class DisambiguatorTest extends FunSuite
             }
             run = tokenizer.incrementToken()
         }
-        tokenizer.close()
+        tokenizer.close()*/
+        
+        var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::Nil
         
         val db = new SQLiteWrapper( new File(testDbName) )
         
