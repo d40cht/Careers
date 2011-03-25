@@ -7,7 +7,7 @@ import SqliteWrapper._
 
 object Disambiguator
 {
-    class TopicDetails( val topicId : Int, val categoryIds : TreeSet[Int] )
+    class TopicDetails( val topicId : Int, var categoryIds : TreeSet[Int] )
     {
     }
 
@@ -132,7 +132,6 @@ object Disambiguator
             db.exec( "CREATE TEMPORARY TABLE topicCategories( topicId INTEGER, categoryId INTEGER, topicName TEXT, categoryName TEXT )" )
             db.exec( "CREATE INDEX phraseLinkLevel ON phraseLinks(level)" )
             
-            //phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER )
             val insertQuery = db.prepare( "INSERT INTO textWords VALUES( NULL, (SELECT id FROM words WHERE name=?) )", HNil )
             for ( word <- wordList )
             {
@@ -198,9 +197,10 @@ object Disambiguator
                 }
                 val curTopicDetails = currDA.topicDetails.head
                 
+                println( "KJKJK::: " + categoryName )
                 bannedRegex.findFirstIn( categoryName ) match
                 {
-                    case None => curTopicDetails.categoryIds + categoryId
+                    case None => curTopicDetails.categoryIds = curTopicDetails.categoryIds + categoryId
                     case _ =>
                 }
             }
@@ -211,8 +211,6 @@ object Disambiguator
             {
                 println( da.startIndex, da.endIndex, da.topicDetails.length )
             }
-            
-            //CREATE TEMPORARY TABLE topicCategories( topicId INTEGER, categoryId INTEGER, topicName TEXT, categoryName TEXT )
 
             println( "Pulling topic and category names." )
             val topicNameQuery = db.prepare( "SELECT DISTINCT topicId, topicName FROM topicCategories", Col[Int]::Col[String]::HNil )
