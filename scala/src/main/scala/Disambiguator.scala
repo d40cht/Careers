@@ -4,42 +4,59 @@ import java.util.TreeMap
 import scala.util.matching.Regex
 
 import SqliteWrapper._
+import StopWords.stopWordSet
 
 object Disambiguator
 {
+	val bannedRegex = new Regex("[0-9]{4}")
+	def validCategory ( categoryName : String ) =
+	{
+		var valid = true
+		if ( categoryName == "Living people" ) valid = false
+		
+	    bannedRegex.findFirstIn( categoryName ) match
+		{
+			case None =>
+			case _ => valid = false
+		}
+		
+		valid
+	}
+	
+	def validPhrase( words : List[String] ) = words.foldLeft( false )( _ || !stopWordSet.contains(_) )
+	
     class TopicDetails( val topicId : Int, var categoryIds : TreeSet[Int] )
     {
     }
 
-    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, var topicDetails : List[TopicDetails] )
+    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, var topicDetails : List[TopicDetails], val validPhrase : Boolean )
     {
         var children = List[DisambiguationAlternative]()
         
-        def overlaps( da : DisambiguationAlternative ) : Boolean =
-        {
+        def overlaps( da : DisambiguationAlternative ) =
             (startIndex >= da.startIndex && endIndex <= da.endIndex) ||
             (da.startIndex >= startIndex && da.endIndex <= endIndex)
-        }
         
         def addAlternative( da : DisambiguationAlternative )
         {
             assert( overlaps( da ) )
-            var allOverlap = true
-            for ( child <- children )
+            
+            val allOverlap = children.foldLeft( true )( _ && _.overlaps(da) )
+            
+            if ( allOverlap )
             {
-                if ( child.overlaps(da) )
-                {
-                    child.addAlternative(da)
-                }
-                else
-                {
-                    allOverlap = false
-                }
+            	children = da :: children
             }
-            if ( !allOverlap )
+            else
             {
-                children = da :: children
-            }
+				for ( child <- children )
+				{
+				    if ( child != da && child.overlaps(da) )
+				    {
+				        child.addAlternative(da)
+				    }
+				}
+			}
         }
         
         def numTopicAlternatives() : Int =
@@ -98,21 +115,10 @@ object Disambiguator
             
             if ( children != Nil ) categoryAlive = true
             
-            return categoryAlive
+            categoryAlive
         }
         
-        def assertCategory( assertedCategoryId : Int ) : Boolean =
-        {
-            // If we don't contain this category then it's not relevant to us and we don't change
-            if ( !containsCategory( assertedCategoryId ) )
-            {
-                return true
-            }
-            else
-            {
-                return assertCategoryImpl( assertedCategoryId )
-            }
-        }
+        def assertCategory( assertedCategoryId : Int ) = !containsCategory( assertedCategoryId ) || assertCategoryImpl( assertedCategoryId )
     }
 
     class Disambiguator( val wordList : List[String], db : SQLiteWrapper )
@@ -163,30 +169,39 @@ object Disambiguator
             db.exec( "CREATE INDEX topicCategoriesIndex ON topicCategories(topicId)" )
             
             println( "Retrieving data." )
-            val getPhrases = db.prepare( "SELECT t1.startIndex-1, t1.endIndex-1, t1.topicId, t2.categoryId, t2.categoryName FROM phrasesAndTopics AS t1 INNER JOIN topicCategories AS t2 ON t1.topicId=t2.topicId ORDER BY t1.endIndex DESC, t1.startIndex ASC, t1.topicId, t2.categoryId", Col[Int]::Col[Int]::Col[Int]::Col[Int]::Col[String]::HNil )
+            val getPhrases = db.prepare( "SELECT DISTINCT t1.startIndex-1, t1.endIndex-1, t1.topicId, t2.categoryId, t2.topicName, t2.categoryName FROM phrasesAndTopics AS t1 INNER JOIN topicCategories AS t2 ON t1.topicId=t2.topicId ORDER BY t1.endIndex DESC, t1.startIndex ASC, t1.topicId, t2.categoryId", Col[Int]::Col[Int]::Col[Int]::Col[Int]::Col[String]::Col[String]::HNil )
             
             println( "Building disambiguation alternative forest." )
-            val bannedRegex = new Regex("[0-9]{4}")
             var currDA : DisambiguationAlternative = null
             var topicDetails : TopicDetails = null
-            while ( getPhrases.step() )
+            
+            var categories = TreeSet[Int]()
+            getPhrases.foreach( row =>
             {
-                val startIndex      = _1( getPhrases.row ).get
-                val endIndex        = _2( getPhrases.row ).get
-                val topicId         = _3( getPhrases.row ).get
-                val categoryId      = _4( getPhrases.row ).get
-                val categoryName    = _5( getPhrases.row ).get
+                val startIndex      = _1( row ).get
+                val endIndex        = _2( row ).get
+                val topicId         = _3( row ).get
+                val categoryId      = _4( row ).get
+                val topicName		= _5( row ).get
+                val categoryName    = _6( row ).get
+                
+                if ( !categories.contains(categoryId) ) categories = categories + categoryId
+                
+                //println( startIndex, endIndex, topicId, categoryId, topicName, categoryName )
                 
                 if ( currDA == null || currDA.startIndex != startIndex || currDA.endIndex != endIndex )
                 {
-                    currDA = new DisambiguationAlternative( startIndex, endIndex, List[TopicDetails]() )
+                	val phraseWords = wordList.slice( startIndex, endIndex+1 )
+                    currDA = new DisambiguationAlternative( startIndex, endIndex, List[TopicDetails](), validPhrase(phraseWords) )
                     
                     if ( daSites == Nil || !daSites.head.overlaps( currDA ) )
                     {
+                    	println( "Adding new site: " + wordList.slice(startIndex, endIndex+1) )
                         daSites = currDA :: daSites
                     }
                     else
                     {
+                    	println( "Adding site to existing: ", wordList.slice(daSites.head.startIndex, daSites.head.endIndex+1), wordList.slice(currDA.startIndex, currDA.endIndex+1) )
                         daSites.head.addAlternative( currDA )
                     }
                 }
@@ -197,15 +212,13 @@ object Disambiguator
                 }
                 val curTopicDetails = currDA.topicDetails.head
                 
-                println( "KJKJK::: " + categoryName )
-                bannedRegex.findFirstIn( categoryName ) match
+                if ( validCategory( categoryName ) )
                 {
-                    case None => curTopicDetails.categoryIds = curTopicDetails.categoryIds + categoryId
-                    case _ =>
-                }
-            }
-            getPhrases.reset()
-            println( "  complete..." )
+                	curTopicDetails.categoryIds = curTopicDetails.categoryIds + categoryId
+				}
+            } )
+
+            println( "  complete... " + categories.size )
             
             for ( da <- daSites )
             {
@@ -213,23 +226,10 @@ object Disambiguator
             }
 
             println( "Pulling topic and category names." )
-            val topicNameQuery = db.prepare( "SELECT DISTINCT topicId, topicName FROM topicCategories", Col[Int]::Col[String]::HNil )
-            while ( topicNameQuery.step() )
-            {
-                val id = _1(topicNameQuery.row).get
-                val name = _2(topicNameQuery.row).get
-                topicNameMap.put(id, name)
-            }
-            topicNameQuery.reset()
-            
-            val categoryNameQuery = db.prepare( "SELECT DISTINCT categoryId, categoryName FROM topicCategories", Col[Int]::Col[String]::HNil )
-            while ( categoryNameQuery.step() )
-            {
-                val id = _1(categoryNameQuery.row).get
-                val name = _2(categoryNameQuery.row).get
-                categoryNameMap.put(id, name)
-            }
-            categoryNameQuery.reset()
+            db.prepare( "SELECT DISTINCT topicId, topicName FROM topicCategories", Col[Int]::Col[String]::HNil ).
+            	foreach( row => topicNameMap.put( _1(row).get, _2(row).get ) )
+            db.prepare( "SELECT DISTINCT categoryId, categoryName FROM topicCategories", Col[Int]::Col[String]::HNil ).
+            	foreach( row => categoryNameMap.put( _1(row).get, _2(row).get ) )
 
             db.exec( "ROLLBACK" )
             db.dispose()
@@ -241,6 +241,8 @@ object Disambiguator
             var count = 0
             for ( alternatives <- daSites )
             {
+            	println( "BOOO: " + alternatives.children.length )
+            	
                 val tokenCategoryIds = alternatives.allCategoryIds()
                 val topicAlternatives = alternatives.numTopicAlternatives()
                 println( count + "  " + tokenCategoryIds.size + " " + topicAlternatives )
@@ -262,6 +264,13 @@ object Disambiguator
         {
             val categoryCounts = getCategoryCounts( daSites )
             var sortedCategoryList = List[(Int, Int)]()
+            
+            daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
+            
+            println( "Pruning invalid phrases" )
+            daSites = daSites.filter( _.validPhrase )
+            
+            daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
             
             val mapIt = categoryCounts.entrySet().iterator()
             while ( mapIt.hasNext() )

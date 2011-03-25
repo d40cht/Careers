@@ -4,15 +4,21 @@ import com.almworks.sqlite4java._
 
 object SqliteWrapper
 {
+
+	def deepCopy[A](a: A)(implicit m: reflect.Manifest[A]): A = util.Marshal.load[A](util.Marshal.dump(a))
+	
 	trait TypedCol[T]
 	{
-		var v : Option[T] = None
+		var v : Option[T]
 		def assign( res : SQLiteStatement, index : Int )
+		def copy : TypedCol[T]
 	}
 
 	sealed trait HList
 	{
+		type SelfType <: TypedCol[_]
 		def assign( res : SQLiteStatement, index : Int )
+		def copy : HList
 	}
 
 	final case class HCons[H <: TypedCol[_], T <: HList]( var head : H, tail : T ) extends HList
@@ -23,14 +29,14 @@ object SqliteWrapper
 		    head.assign( res, index )
 		    tail.assign( res, index+1 )
 		}
+		override def copy = HCons(head.copy, tail.copy)
 	}
 
 	final class HNil extends HList
 	{
 		def ::[T <: TypedCol[_]](v : T) = HCons(v, this)
-		def assign( res : SQLiteStatement, index : Int )
-		{
-		}
+		def assign( res : SQLiteStatement, index : Int ) {}
+		override def copy = HNil
 	}
 
 	type ::[H <: TypedCol[_], T <: HList] = HCons[H, T]
@@ -39,19 +45,22 @@ object SqliteWrapper
 
 
 
-	final class IntCol extends TypedCol[Int]
+	final class IntCol( var v : Option[Int] = None ) extends TypedCol[Int]
 	{
 		def assign( res : SQLiteStatement, index : Int ) { v = Some( res.columnInt(index) ) }
+		def copy = new IntCol( v match { case Some(x) => Some(x); case None => None } )
 	}
 
-	final class DoubleCol extends TypedCol[Double]
+	final class DoubleCol( var v : Option[Double] = None ) extends TypedCol[Double]
 	{
 		def assign( res : SQLiteStatement, index : Int ) { v = Some( res.columnDouble(index) ) }
+		def copy = new DoubleCol( v match { case Some(x) => Some(x); case None => None } )
 	}
 
-	final class StringCol extends TypedCol[String]
+	final class StringCol( var v : Option[String] = None ) extends TypedCol[String]
 	{
 		def assign( res : SQLiteStatement, index : Int ) { v = Some( res.columnString(index) ) }
+		def copy = new StringCol( v match { case Some(x) => Some(x); case None => None } )
 	}
 
 	trait TypedColMaker[T]
@@ -116,9 +125,9 @@ object SqliteWrapper
         
         // TODO: Parameterise with tuple type
         // make applicable to for comprehensions (implement filter, map, flatMap)
-        final class PreparedStatement[T <: HList]( query : String, var row : T )
+        sealed class PreparedStatementBase[T <: HList]( query : String, var row : T )
         {
-            val statement = conn.prepare( query )
+            protected val statement = conn.prepare( query )
             
             private def bindRec( index : Int, params : List[Any] )
             {
@@ -137,6 +146,16 @@ object SqliteWrapper
                 }
             }
             
+            protected def step() : Boolean =
+            {
+            	val success = statement.step()
+            	if ( success )
+            	{
+            		row.assign( statement, 0 )
+				}
+                return success
+            }
+            
             def bind( args : Any* )
             {
                 bindRec( 1, args.toList )
@@ -153,17 +172,46 @@ object SqliteWrapper
             {
                 statement.reset()
             }
-            
-            def step() : Boolean =
-            {
-            	val success = statement.step()
-            	if ( success )
-            	{
-            		row.assign( statement, 0 )
-				}
-                return success
-            }
         }
+        
+        final class PreparedStatement[T <: HList]( query : String, row : T ) extends PreparedStatementBase( query, row ) with Iterator[T]
+        {
+        	var nextRow : Option[T] = None
+        	var currRow : Option[T] = None
+        	var init = true
+        	
+        	private def advance()
+        	{
+        		if ( step() )
+        		{
+        			nextRow = Some(row)
+        		}
+        		else
+        		{
+        			nextRow = None
+        			reset()
+        		}
+        	}
+
+        	def hasNext = 
+        	{
+        		if ( init )
+        		{
+        			advance()
+        			init = false
+        		}
+        		nextRow match { case Some(x) => true; case None => false }
+			}
+        	def next =
+        	{
+        		nextRow match
+        		{
+        			case Some(x) => currRow = Some(x.copy.asInstanceOf[T])
+        			case None => currRow = None
+        		}
+        		advance(); currRow.get
+			}
+		}
     }
 }
 

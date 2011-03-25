@@ -21,19 +21,18 @@ class ResTupleTestSuite extends FunSuite
         db.exec( "BEGIN" )
         db.exec( "CREATE TABLE test( number INTEGER, value FLOAT, name TEXT )" )
         
+        val data = (1, 5.0, "Hello1")::(2, 6.0, "Hello2")::(3, 7.0, "Hello3")::(4, 8.0, "Hello4")::Nil
+                
         val insStatement = db.prepare( "INSERT INTO test VALUES( ?, ?, ? )", HNil )
-        insStatement.exec( 1, 5.0, "Hello1" )
-        insStatement.exec( 2, 6.0, "Hello2" )
-        insStatement.exec( 3, 7.0, "Hello3" )
-        insStatement.exec( 4, 8.0, "Hello4" )
+        for ( v <- data ) insStatement.exec( v._1, v._2, v._3 )
         
-        val getStatement = db.prepare( "SELECT * from test", Col[Int]::Col[Double]::Col[String]::HNil )
-        assert( getStatement.step() === true )
-        assert( _1(getStatement.row).get === 1 )
-        assert( _2(getStatement.row).get === 5.0 )
-        assert( _3(getStatement.row).get === "Hello1" )
-        
-        getStatement.reset()
+        val getStatement = db.prepare( "SELECT * from test ORDER BY NUMBER ASC", Col[Int]::Col[Double]::Col[String]::HNil )
+	    for ( (row, expected) <- getStatement.zip(data.iterator) )
+        {
+        	assert( expected._1 === _1(row).get )
+        	assert( expected._2 === _2(row).get )
+        	assert( expected._3 === _3(row).get )
+        }
         
         db.exec( "ROLLBACK" )
     }
@@ -74,58 +73,6 @@ class BasicTestSuite1 extends FunSuite
         
         //println( parsed.toString() )
     }
-    
-    
-    
-    /*test("A simple phrasemap test")
-    {
-        class ResChecker( var expectedResults : List[(String, List[Int])] )
-        {
-            def check( m : String, terminals : List[Int] )
-            {
-                assert( expectedResults != Nil )
-                val (expectedPhrase, expectedTerminals) = expectedResults.head
-                assert( m === expectedPhrase )
-                assert( terminals.sortWith( _ < _ ) === expectedTerminals.sortWith( _ < _ ) )
-                expectedResults = expectedResults.tail
-            }
-        }
-        
-        val pm = new PhraseMap[Int]()
-        
-        pm.addPhrase( "hell", 1 )
-        pm.addPhrase( "hello world, la de la", 2 )
-        pm.addPhrase( "hello", 3 )
-        pm.addPhrase( "hello", 4 )
-        pm.addPhrase( "hello world", 5 )
-        pm.addPhrase( "hello world, la de la", 6 )
-        pm.addPhrase( "hello world, la de la", 7 )
-        
-        val testPhrase = "hello birds, hello sky, hello world. it's a hell of a day to be saying hello. hello world, la de la de la."  
-        val rc = new ResChecker( List(
-            ("hello", List(3, 4)),
-            ("hello", List(3, 4)),
-            ("hello", List(3, 4)),
-            ("hello world", List(5)),
-            ("hell", List(1)),
-            ("hello", List(3,4)),
-            ("hello", List(3,4)),
-            ("hello world", List(5)),
-            ("hello world, la de la", List(2,6,7) ) ) )
-      
-        var lastChar = ' '
-        val pw = new PhraseWalker( pm, rc.check )
-        for (c <- testPhrase )
-        {
-            if ( PhraseMap.isNonWordChar(lastChar) )
-            {
-                pw.startNew()
-                
-            }
-            pw.update( c )
-            lastChar = c
-        }
-    }*/
     
     test("Simple sqlite test")
     {
@@ -190,21 +137,5 @@ class BasicTestSuite1 extends FunSuite
             return treeNodeId
         }
     }
-    
-    /*test("SQLite performance test")
-    {
-        val randSource = new Random()
-        val testTree = new TestTreeClass( "testTree.sqlite3" )
-        
-        for ( i <- 0 until 160000 )
-        {
-            var lastInsertId : Long = -1
-            while ( randSource.nextDouble() < 0.8 )
-            {
-                var nodeValue = randSource.nextInt( 1000000 )
-                lastInsertId = testTree.addLink( lastInsertId, nodeValue )
-            }
-        }
-    }*/
 }
 
