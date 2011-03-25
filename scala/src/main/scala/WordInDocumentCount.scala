@@ -20,6 +20,8 @@ import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
+import scala.collection.immutable.TreeSet
+import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 
 /*
 val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
@@ -36,13 +38,33 @@ val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileRe
         }
         tokenizer.close()*/
 
-/*
-class WordInDocumentMembershipMapper extends Mapper[Text, Text, Text, Text]
+
+class WordInDocumentMembershipMapper extends Mapper[Text, Text, Text, IntWritable]
 {
     val markupParser = WikiParser()
+    
+    def getWords( page : String ) : List[String] =
+    {
+    	val textSource = new StringReader( page )
+        val tokenizer = new StandardTokenizer( LUCENE_30, textSource )
+    
+        var run = true
+        var wordList : List[String] = Nil
+        while ( run )
+        {
+            val nextTerm = tokenizer.getAttribute(classOf[TermAttribute]).term()
+            if ( nextTerm != "" )
+            {
+                wordList = nextTerm :: wordList
+            }
+            run = tokenizer.incrementToken()
+        }
+        tokenizer.close()
+        return wordList.reverse
+    }
    
     
-    def extractRawText( parentTopic : Text, elements : Seq[Node], context : Mapper[Text, Text, Text, IntegerWritable]#Context )
+    def extractRawText( parentTopic : Text, elements : Seq[Node], context : Mapper[Text, Text, Text, IntWritable]#Context ) : String =
     {
     	var fullText = new StringBuffer()
     	
@@ -52,34 +74,40 @@ class WordInDocumentMembershipMapper extends Mapper[Text, Text, Text, Text]
             {
                 case SectionNode(name, level, children, line ) =>
                 {
-                    extractRawText( parentTopic, children, context )
+                    fullText.append( extractRawText( parentTopic, children, context ) )
                 }
                 case TableNode( caption, children, line ) =>
                 {
-                    extractRawText( parentTopic, children, context )
+                    fullText.append( extractRawText( parentTopic, children, context ) )
                 }
 
                 case TextNode( text, line ) =>
                 {
                     // Nothing for now
+                    fullText.append( text )
                 }
 
                 case _ =>
             }
         }
+        
+        fullText.toString
     }
 
                 
-    override def map( key : Text, value : Text, context : Mapper[Text, Text, Text, IntegerWritable]#Context ) =
+    override def map( key : Text, value : Text, context : Mapper[Text, Text, Text, IntWritable]#Context ) =
     {
         val topicTitle = key
         val topicText = value
         
+        var uniqueWords = TreeSet[String]()
         try
         {
             val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
             val parsed = markupParser( page )
-            extractWords( key, parsed.children, context )
+            val words = getWords( extractRawText( key, parsed.children, context ) )
+            
+            words.foreach( x => uniqueWords = uniqueWords + x )
         }
         catch
         {
@@ -88,19 +116,21 @@ class WordInDocumentMembershipMapper extends Mapper[Text, Text, Text, Text]
                 println( "Bad parse: " + topicTitle )
             }
         }
+        
+        for ( word <- uniqueWords ) context.write( new Text(word), new IntWritable(1) )
     }
 }
 
-class WordInDocumentMembershipReducer extends Reducer[Text, IntegerWritable, Text, IntegerWritable]
+class WordInDocumentMembershipReducer extends Reducer[Text, IntWritable, Text, IntWritable]
 {
-    override def reduce(key : Text, values : java.lang.Iterable[IntegerWritable], context : Reducer[Text, IntegerWritable, Text, IntegerWritable]#Context)
+    override def reduce(key : Text, values : java.lang.Iterable[IntWritable], context : Reducer[Text, IntWritable, Text, IntWritable]#Context)
     {
         var count = 0
         for ( value <- values )
         {
             count += 1
         }
-        context.write( key, count )
+        context.write( key, new IntWritable(count) )
     }
 }
 
@@ -131,10 +161,10 @@ object WordInDocumentMembership
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
         job.setMapOutputKeyClass(classOf[Text])
-        job.setMapOutputValueClass(classOf[IntegerWritable])
+        job.setMapOutputValueClass(classOf[IntWritable])
         
         job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[IntegerWritable])
+        job.setOutputValueClass(classOf[IntWritable])
         
         
                 
@@ -144,5 +174,5 @@ object WordInDocumentMembership
         if ( job.waitForCompletion(true) ) 0 else 1
     }
 }
-*/
+
 
