@@ -242,16 +242,22 @@ object PhraseMap
     def main( args : Array[String] )
     {
         val conf = new Configuration()
-        
+        run( conf, args(0), args(1) )
+    }
+    
+    def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
+    {
         conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"));
         conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"));
         val fs = FileSystem.get(conf)   
         
-        val sql = new SQLiteWriter( "disambig.sqlite3" )
+        val sql = new SQLiteWriter( outputFilePath )
+        
+        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory;
         
         {
             println( "Adding topics..." )
-            val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
+            val fileList = fs.listStatus( new Path( basePath + "/surfaceforms" ) )
             
             for ( fileStatus <- fileList )
             {
@@ -287,7 +293,7 @@ object PhraseMap
         
         
         {
-            val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )
+            val fileList = fs.listStatus( new Path( basePath + "/categoryMembership" ) )
             
             println( "Adding categories..." )
             for ( fileStatus <- fileList )

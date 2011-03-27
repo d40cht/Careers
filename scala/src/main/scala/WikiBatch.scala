@@ -24,6 +24,6 @@ object WikiBatch
         WordInDocumentMembership.run( conf, inputFile, outputPathBase + "/wordInDocumentCount", numReduces)
         
         // Now pull them all in and build the sqlite db
-        
+        PhraseMap.run( conf, outputPathBase, "testOut.sqlite3" )
     }
 }
