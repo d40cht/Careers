@@ -8,118 +8,13 @@ import java.util.{TreeMap, HashMap, HashSet}
 import butter4s.json.Parser
 
 import java.io.File
-import com.almworks.sqlite4java._
 
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
-/*class PhraseNode[TargetType]
-{
-    type SelfType = PhraseNode[TargetType]
-    val children = new TreeMap[Char, SelfType]()
-    var terminalData : List[TargetType] = Nil
-    var terminalCount = 0
-    
-    def add( phrase : Seq[Char], endpoint : TargetType )
-    {
-        phrase match
-        {
-            case Seq( head, tail @ _* ) =>
-            {
-                if ( !children.containsKey(head) )
-                {
-                    children.put(head, new SelfType())
-                }
-                
-                children.get(head).add(tail, endpoint)
-            }
-            case Seq() =>
-            {
-                terminalData = endpoint::terminalData
-                terminalCount += 1
-                if ( terminalCount > 1000 )
-                {
-                   println( terminalCount )
-                }
-            }
-        }
-    }
-    
-    def walk( el : Char ) : Option[SelfType] =
-    {
-        if ( children.containsKey( el ) )
-        {
-            return Some( children.get(el) )
-        }
-        else
-        {
-            return None
-        }
-    }
-}
-
-class PhraseMap[TargetType]
-{
-    val root = new PhraseNode[TargetType]()
-   
-    
-    def addPhrase( phrase : String, endpoint : TargetType )
-    {
-        root.add( phrase, endpoint )
-    }
-}
-
-class PhraseWalker[TargetType]( val phraseMap : PhraseMap[TargetType], val phraseRegFn : (String, List[TargetType]) => Unit )
-{
-    type PhraseListType = List[(List[Char], PhraseNode[TargetType])]
-    
-    var activePhrases : PhraseListType = Nil
-
-    def startNew()
-    {
-        activePhrases = (List[Char](), phraseMap.root)::activePhrases
-    }
-
-    private def phrasesUpdateImpl( el : Char, activeList : PhraseListType ) : PhraseListType =
-    {
-        activeList match
-        {
-            case (headChars, headPhraseNode)::tail =>
-            {
-                if ( headPhraseNode.terminalData != Nil )
-                {
-                    if ( PhraseMap.isNonWordChar( el ) )
-                    {
-                        phraseRegFn( headChars.reverse.mkString(""), headPhraseNode.terminalData )
-                    }
-                }
-                
-                headPhraseNode.walk(el) match
-                {
-                    case Some( rest ) =>
-                    {
-                        return (el::headChars, rest)::phrasesUpdateImpl( el, tail )
-                    }
-                    case None =>
-                    {
-                        return phrasesUpdateImpl( el, tail )
-                    }
-                }
-            }
-            case Nil =>
-            {
-                return Nil
-            }
-        }
-    }
-    
-    def update( el : Char )
-    {
-        activePhrases = phrasesUpdateImpl( el, activePhrases )
-    }
-}*/
+import SqliteWrapper._
 
 object PhraseMap
 {
@@ -193,11 +88,11 @@ object PhraseMap
     
     class SQLiteWriter( fileName : String )
     {
-        val db = new SQLiteConnection( new File(fileName) )
+        //val db = new SQLiteConnection( new File(fileName) )
+        val db = new SQLiteWrapper( new File( fileName ) )
         
         val topics = new HashSet[String]
         
-        db.open()
         // Various options, inc. 2Gb page cache and no journal to massively speed up creation of this db
         db.exec( "PRAGMA cache_size=512000" )
         db.exec( "PRAGMA journal_mode=off" )
@@ -209,16 +104,16 @@ object PhraseMap
         db.exec( "CREATE TABLE categories( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
         db.exec( "CREATE TABLE categoryMembership( topicId INTEGER, categoryId INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id), FOREIGN KEY(categoryId) REFERENCES topics(id) )" )
         
-        val addTopic = db.prepare( "INSERT INTO topics VALUES( NULL, ? )" )
+        val addTopic = db.prepare( "INSERT INTO topics VALUES( NULL, ? )", HNil )
         //val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
-        val addWord = db.prepare( "INSERT OR IGNORE INTO words VALUES(NULL, ?)" )
+        val addWord = db.prepare( "INSERT OR IGNORE INTO words VALUES(NULL, ?)", HNil )
         
-        val getExistingTreeNode = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=(SELECT id FROM words WHERE name=?)" )
-        val addTreeNode = db.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, (SELECT id FROM words WHERE name=?) )" )
+        val getExistingTreeNode = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=(SELECT id FROM words WHERE name=?)", Col[Int]::HNil )
+        val addTreeNode = db.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, (SELECT id FROM words WHERE name=?) )", HNil )
         
-        val addPhraseTopic = db.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topics WHERE name=?) )" )
-        val addCategory = db.prepare( "INSERT INTO categories VALUES( NULL, ? )" )
-        val addCategoryMembership = db.prepare( "INSERT INTO categoryMembership VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM categories WHERE name=?) )" )
+        val addPhraseTopic = db.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topics WHERE name=?) )", HNil )
+        val addCategory = db.prepare( "INSERT INTO categories VALUES( NULL, ? )", HNil )
+        val addCategoryMembership = db.prepare( "INSERT INTO categoryMembership VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM categories WHERE name=?) )", HNil )
         
         var count = 0
         
@@ -250,10 +145,7 @@ object PhraseMap
             val trimmedTopic = topic.split("::")(1).trim()
             if ( !topics.contains( topic ) )
             {
-                addTopic.bind(1, trimmedTopic )
-                addTopic.step()
-                addTopic.reset()
-                
+                addTopic.exec( trimmedTopic )
                 topics.add( topic )
                 
                 manageTransactions()
@@ -282,12 +174,7 @@ object PhraseMap
         def addWords( surfaceForm : String, topic : String )
         {
             val words = getWords( new StringReader( surfaceForm ) )
-            for ( word <- words )
-            {
-                addWord.bind(1, word)
-                addWord.step()
-                addWord.reset()
-            }  
+            for ( word <- words ) addWord.exec( word )
             
             manageTransactions() 
         }
@@ -303,19 +190,18 @@ object PhraseMap
             for ( word <- words )
             {
                 var treeNodeId = 0L
-                getExistingTreeNode.bind( 1, parentId )
-                getExistingTreeNode.bind( 2, word )
-                if ( getExistingTreeNode.step() )
+                getExistingTreeNode.bind( parentId, word )
+                
+                val res = getExistingTreeNode.toList
+                if ( res != Nil )
                 {
-                    treeNodeId = getExistingTreeNode.columnInt(0)
+                    treeNodeId = _1(res.head).get
                 }
                 else
                 {
-                    addTreeNode.bind(1, parentId)
-                    addTreeNode.bind(2, word)
-                    addTreeNode.step()
+                    addTreeNode.exec(parentId, word)
                     treeNodeId = db.getLastInsertId()
-                    addTreeNode.reset()
+                    //addTreeNode.reset()
                 }
                 getExistingTreeNode.reset()
                 parentId = treeNodeId
@@ -323,11 +209,7 @@ object PhraseMap
             }
             
             val trimmedTopic = topic.split("::")(1).trim()
-            addPhraseTopic.bind(1, parentId)
-            addPhraseTopic.bind(2, trimmedTopic)
-            //println( topic )
-            addPhraseTopic.step()
-            addPhraseTopic.reset()
+            addPhraseTopic.exec( parentId, trimmedTopic )
             
             manageTransactions()
         }
@@ -336,9 +218,7 @@ object PhraseMap
         {
             if ( !topics.contains(categoryName) )
             {
-                addCategory.bind(1, categoryName)
-                addCategory.step()
-                addCategory.reset()
+                addCategory.exec(categoryName)
                 
                 topics.add( categoryName )
                 
@@ -348,10 +228,7 @@ object PhraseMap
         
         def addCategoryMapping( topicName : String, categoryName : String )
         {
-            addCategoryMembership.bind(1, topicName)
-            addCategoryMembership.bind(2, categoryName)
-            addCategoryMembership.step()
-            addCategoryMembership.reset()
+            addCategoryMembership.exec(topicName, categoryName)
             
             manageTransactions()
         }
@@ -365,19 +242,16 @@ object PhraseMap
     def main( args : Array[String] )
     {
         val conf = new Configuration()
+        
         conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"));
         conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"));
         val fs = FileSystem.get(conf)   
         
-        
-        //val pm = new PhraseMap[String]()
         val sql = new SQLiteWriter( "disambig.sqlite3" )
         
         {
             println( "Adding topics..." )
             val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )
-            //val fileList = List(fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/surfaceformres" ) )(1))
-            
             
             for ( fileStatus <- fileList )
             {
@@ -414,7 +288,6 @@ object PhraseMap
         
         {
             val fileList = fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )
-            //val fileList = List(fs.listStatus( new Path( "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/categoryres" ) )(1) )
             
             println( "Adding categories..." )
             for ( fileStatus <- fileList )
@@ -443,29 +316,6 @@ object PhraseMap
         
         sql.close()
         println( "*** Parse complete ***" )
-
-        /*def printRes( m : String, terminals : List[String] )
-        {
-            println( "Found: " + m + ", " + terminals.toString() )
-        }
-        
-        while ( true )
-        {
-            val query = Console.readLine
-            val pw = new PhraseWalker( pm, printRes )
-            var lastChar = ' '
-            for (c <- query )
-            {
-                if ( PhraseMap.isNonWordChar(lastChar) )
-                {
-                    pw.startNew()
-                    
-                }
-                pw.update( c )
-                lastChar = c
-            }
-            pw.update( ' ' )
-        }*/
     }
 }
 

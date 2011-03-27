@@ -156,13 +156,18 @@ object SurfaceForms
             return 2
         }
         
+        run( conf, args(0), args(1), args(2).toInt )
+    }
+    
+    def run( conf : Configuration, inputFileName : String, outputFilePath : String, numReduces : Int )
+    {
         val job = new Job(conf, "Surface forms")
         
         job.setJarByClass(classOf[SurfaceFormsMapper])
         job.setMapperClass(classOf[SurfaceFormsMapper])
         //job.setCombinerClass(classOf[SurfaceFormsReducer])
         job.setReducerClass(classOf[SurfaceFormsReducer])
-        job.setNumReduceTasks( args(2).toInt )
+        job.setNumReduceTasks( numReduces )
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
         job.setMapOutputKeyClass(classOf[Text])
@@ -173,8 +178,8 @@ object SurfaceForms
         
         
                 
-        FileInputFormat.addInputPath(job, new Path(args(0)))
-        FileOutputFormat.setOutputPath(job, new Path(args(1)))
+        FileInputFormat.addInputPath(job, new Path(inputFileName))
+        FileOutputFormat.setOutputPath(job, new Path(outputFilePath))
         
         if ( job.waitForCompletion(true) ) 0 else 1
     }

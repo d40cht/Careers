@@ -123,6 +123,8 @@ object SqliteWrapper
             new PreparedStatement(query, row)
         }
         
+        def getLastInsertId() = conn.getLastInsertId()
+        
         // TODO: Parameterise with tuple type
         // make applicable to for comprehensions (implement filter, map, flatMap)
         sealed class PreparedStatementBase[T <: HList]( query : String, var row : T )

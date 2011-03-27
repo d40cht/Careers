@@ -118,6 +118,31 @@ class CategoryMembershipReducer extends Reducer[Text, Text, Text, JSONObjectWrit
 
 object CategoryMembership
 {
+    def run( conf : Configuration, inputFileName : String, outputFilePath : String, numReduces : Int )
+    {
+        val job = new Job(conf, "Surface forms")
+        
+        job.setJarByClass(classOf[CategoryMembershipMapper])
+        job.setMapperClass(classOf[CategoryMembershipMapper])
+        //job.setCombinerClass(classOf[SurfaceFormsReducer])
+        job.setReducerClass(classOf[CategoryMembershipReducer])
+        job.setNumReduceTasks( numReduces )
+        
+        job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
+        job.setMapOutputKeyClass(classOf[Text])
+        job.setMapOutputValueClass(classOf[Text])
+        
+        job.setOutputKeyClass(classOf[Text])
+        job.setOutputValueClass(classOf[JSONObjectWritable])
+        
+        
+                
+        FileInputFormat.addInputPath(job, new Path(inputFileName))
+        FileOutputFormat.setOutputPath(job, new Path(outputFilePath))
+        
+        if ( job.waitForCompletion(true) ) 0 else 1
+    }
+    
     def main(args:Array[String]) : Unit =
     {
         val conf = new Configuration()
@@ -133,27 +158,7 @@ object CategoryMembership
             return 2
         }
         
-        val job = new Job(conf, "Surface forms")
-        
-        job.setJarByClass(classOf[CategoryMembershipMapper])
-        job.setMapperClass(classOf[CategoryMembershipMapper])
-        //job.setCombinerClass(classOf[SurfaceFormsReducer])
-        job.setReducerClass(classOf[CategoryMembershipReducer])
-        job.setNumReduceTasks( args(2).toInt )
-        
-        job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
-        job.setMapOutputKeyClass(classOf[Text])
-        job.setMapOutputValueClass(classOf[Text])
-        
-        job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[JSONObjectWritable])
-        
-        
-                
-        FileInputFormat.addInputPath(job, new Path(args(0)))
-        FileOutputFormat.setOutputPath(job, new Path(args(1)))
-        
-        if ( job.waitForCompletion(true) ) 0 else 1
+        run( conf, args(0), args(1), args(2).toInt )
     }
 }
 
