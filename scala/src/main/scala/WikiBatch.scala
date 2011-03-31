@@ -17,17 +17,37 @@ object WikiBatch
         
         val inputFile = args(0)
         val outputPathBase = args(1)
-        val outputDbFileName = args(2)
-        val numReduces = args(3).toInt
+        val numReduces = args(2).toInt
 
-        if (0)
-        {            
-            CategoryMembership.run( conf, inputFile, outputPathBase + "/categoryMembership", numReduces )
-            SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceforms", numReduces)
-            WordInDocumentMembership.run( conf, inputFile, outputPathBase + "/wordInDocumentCount", numReduces)
-        }
+        // Refactor the following to:
+        // WordInDocumentMembership (for tf-idf)
+        // A utility fn that parses topic names and decides whether to process them (including for links)
+        // A class that processes each topic and produces a mapping from topicName -> (topicId, isRedirect, isDisambig)
+        // A class that processes all links (inc. redirects): parentTopic -> destTopic, surface form, isInFirstParagraph, isRedirect
+
+        WordInDocumentMembership.run( conf, inputFile, outputPathBase + "/wordInDocumentCount", numReduces)
+   
+        CategoryMembership.run( conf, inputFile, outputPathBase + "/categoryMembership", numReduces )
+        SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceforms", numReduces)
         
-        // Now pull them all in and build the sqlite db
-        PhraseMap.run( conf, outputPathBase, "testOut.sqlite3" )
+        RedirectParser.run( conf, inputFile, outputPathBase + "/redirects", numReduces)
+        
+
     }
+}
+
+object DatabaseBuilder
+{
+	def main(args:Array[String]) : Unit =
+    {
+        // Run Hadoop jobs
+        val conf = new Configuration()
+
+        val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
+        
+        val inputPathBase = args(0)
+
+		// Now pull them all in and build the sqlite db
+        PhraseMap.run( conf, inputPathBase, "testOut.sqlite3" )
+	}
 }
