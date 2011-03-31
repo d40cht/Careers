@@ -13,6 +13,22 @@ import com.almworks.sqlite4java._
 
 import SqliteWrapper._
  
+class VariousDbpediaParseTests extends FunSuite
+{
+    val markupParser = WikiParser()
+    
+    test("Redirect parsing")
+    {
+        val pageTitle = "Academic Acceleration"
+        val pageText = "#REDIRECT [[Academic acceleration]] {{R from other capitalisation}}"
+        
+        val page = new WikiPage( WikiTitle.parse( pageTitle ), 0, 0, pageText )
+        val parsed = markupParser( page )
+        println( parsed )
+        assert( parsed.isRedirect === true )
+    }
+}
+ 
 class ResTupleTestSuite extends FunSuite
 {
     test("SQLite wrapper test")

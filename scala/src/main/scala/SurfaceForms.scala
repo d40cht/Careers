@@ -20,6 +20,8 @@ import scala.collection.mutable.HashSet
 import org.json.JSONArray
 import edu.umd.cloud9.io.JSONObjectWritable
 
+import Utils._
+
 // TODO:
 // Sanity check text to remove junk
 
@@ -27,12 +29,6 @@ import edu.umd.cloud9.io.JSONObjectWritable
 class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
 {
     val markupParser = WikiParser()
-    
-    private def normalize( raw : String ) : String =
-    {
-        // Deal with: double/triple spaces, embedded xml tags
-        return raw.toLowerCase().filter(_ != '\'' )
-    }
     
     def extractLinks( elements : Seq[Node], context : Mapper[Text, Text, Text, Text]#Context )
     {

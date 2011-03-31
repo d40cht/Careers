@@ -33,11 +33,10 @@ object WikiBatch
         // A class that processes each topic and produces a mapping from topicName -> (topicId, isRedirect, isDisambig)
         // A class that processes all links (inc. redirects): parentTopic -> destTopic, surface form, isInFirstParagraph, isRedirect
 
-        WordInDocumentMembership.run( conf, inputFile, outputPathBase + "/wordInDocumentCount", numReduces)
+        WordInTopicMembership.run( conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces)
+        SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceforms", numReduces)
    
         CategoryMembership.run( conf, inputFile, outputPathBase + "/categoryMembership", numReduces )
-        SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceforms", numReduces)
-        
         RedirectParser.run( conf, inputFile, outputPathBase + "/redirects", numReduces)
         
 

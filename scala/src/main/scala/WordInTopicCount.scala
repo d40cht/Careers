@@ -23,47 +23,12 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 import scala.collection.immutable.TreeSet
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 
-/*
-val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
-        var run = true
-        val wordList = new ArrayBuffer[String]
-        while ( run )
-        {
-            val term = tokenizer.getAttribute(classOf[TermAttribute]).term()
-            if ( term != "" )
-            {
-                wordList.append( term )
-            }
-            run = tokenizer.incrementToken()
-        }
-        tokenizer.close()*/
+import Utils._
 
-
-class WordInDocumentMembershipMapper extends Mapper[Text, Text, Text, IntWritable]
+class WordInTopicMembershipMapper extends Mapper[Text, Text, Text, IntWritable]
 {
     val markupParser = WikiParser()
-    
-    def getWords( page : String ) : List[String] =
-    {
-    	val textSource = new StringReader( page )
-        val tokenizer = new StandardTokenizer( LUCENE_30, textSource )
-    
-        var run = true
-        var wordList : List[String] = Nil
-        while ( run )
-        {
-            val nextTerm = tokenizer.getAttribute(classOf[TermAttribute]).term()
-            if ( nextTerm != "" )
-            {
-                wordList = nextTerm :: wordList
-            }
-            run = tokenizer.incrementToken()
-        }
-        tokenizer.close()
-        return wordList.reverse
-    }
-   
-    
+        
     def extractRawText( parentTopic : Text, elements : Seq[Node], context : Mapper[Text, Text, Text, IntWritable]#Context ) : String =
     {
     	var fullText = new StringBuffer()
@@ -105,7 +70,7 @@ class WordInDocumentMembershipMapper extends Mapper[Text, Text, Text, IntWritabl
         {
             val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
             val parsed = markupParser( page )
-            val words = getWords( extractRawText( key, parsed.children, context ) )
+            val words = luceneTextTokenizer( extractRawText( key, parsed.children, context ) )
             
             words.foreach( x => uniqueWords = uniqueWords + x.toLowerCase )
         }
@@ -121,7 +86,7 @@ class WordInDocumentMembershipMapper extends Mapper[Text, Text, Text, IntWritabl
     }
 }
 
-class WordInDocumentMembershipReducer extends Reducer[Text, IntWritable, Text, IntWritable]
+class WordInTopicMembershipReducer extends Reducer[Text, IntWritable, Text, IntWritable]
 {
     override def reduce(key : Text, values : java.lang.Iterable[IntWritable], context : Reducer[Text, IntWritable, Text, IntWritable]#Context)
     {
@@ -135,7 +100,7 @@ class WordInDocumentMembershipReducer extends Reducer[Text, IntWritable, Text, I
 }
 
 
-object WordInDocumentMembership
+object WordInTopicMembership
 {
     def main(args:Array[String]) : Unit =
     {
@@ -159,9 +124,9 @@ object WordInDocumentMembership
     {
         val job = new Job(conf, "Surface forms")
         
-        job.setJarByClass(classOf[WordInDocumentMembershipMapper])
-        job.setMapperClass(classOf[WordInDocumentMembershipMapper])
-        job.setReducerClass(classOf[WordInDocumentMembershipReducer])
+        job.setJarByClass(classOf[WordInTopicMembershipMapper])
+        job.setMapperClass(classOf[WordInTopicMembershipMapper])
+        job.setReducerClass(classOf[WordInTopicMembershipReducer])
         job.setNumReduceTasks( numReduces )
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])

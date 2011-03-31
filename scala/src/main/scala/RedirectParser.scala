@@ -15,11 +15,6 @@ import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.{Node}
 
-import org.apache.lucene.util.Version.LUCENE_30
-import org.apache.lucene.analysis.Token
-import org.apache.lucene.analysis.tokenattributes.TermAttribute
-import org.apache.lucene.analysis.standard.StandardTokenizer
-
 import scala.collection.immutable.TreeSet
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 
