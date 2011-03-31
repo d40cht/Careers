@@ -1,6 +1,10 @@
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.util.GenericOptionsParser
 
+import java.io.File
+import SqliteWrapper._
+import com.almworks.sqlite4java._
+
 // Run: Category membership, Surface forms, Word in document count.
 
 // To add: link counts - forward and backwards.
@@ -11,6 +15,10 @@ object WikiBatch
     def main(args:Array[String]) : Unit =
     {
         // Run Hadoop jobs
+        println( "Here1" )
+        val blah = new SQLiteWrapper( new File( "testook.sqlite" ) )
+        println( "Here2" )
+        
         val conf = new Configuration()
 
         val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
