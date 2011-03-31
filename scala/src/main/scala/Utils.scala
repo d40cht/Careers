@@ -4,6 +4,7 @@ import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
 import java.io.StringReader
+import org.dbpedia.extraction.wikiparser._
 
 object Utils
 {
@@ -13,7 +14,6 @@ object Utils
         return raw.toLowerCase().filter(_ != '\'' )
     }
     
-
     def luceneTextTokenizer( page : String ) : List[String] =
     {
     	val textSource = new StringReader( page )
@@ -32,6 +32,68 @@ object Utils
         }
         tokenizer.close()
         return wordList.reverse
-    }    
+    }
+    
+    
+    //def extractLinks( elements : Seq[Node], context : Mapper[Text, Text, Text, Text]#Context )
+    def extractLinks( element : Node, inFirstSection : Boolean, contextAddFn : (String, String, String, Boolean) => Unit )
+    {
+        element match
+        {
+            case PageNode(title, id, revision, isRedirect, isDisambiguation, children) =>
+            {
+                for ( child <- children ) extractLinks( child, inFirstSection, contextAddFn )
+            }
+            case InternalLinkNode(destination, children, line) =>
+            {
+                
+                // TODO: Allow Main and Category
+                if ( children.length != 0 &&
+                    (destination.namespace.toString() == "Main" ||
+                     destination.namespace.toString() == "Category") )
+                {
+                    val destinationTopic = destination.decoded
+                    
+                    val first = children(0)
+                    first match
+                    {
+                        case TextNode( surfaceForm, line ) =>
+                        {
+                            val normalizedText = normalize( surfaceForm )
+
+                            // TODO: Annotate if in first paragraph. If redirect only take first
+                            contextAddFn( normalizedText, destination.namespace.toString, destination.decoded.toString, inFirstSection )
+                        }
+                        case _ =>
+                        {
+                        }
+                    }
+                }
+            }
+
+            case SectionNode(name, level, children, line ) =>
+            {
+                for ( child <- children ) extractLinks( child, false, contextAddFn )
+            }
+
+            case TemplateNode( title, children, line ) =>
+            {
+                // Namespace is 'Template'. Don't want POV, advert, trivia
+                for ( child <- children ) extractLinks( child, inFirstSection, contextAddFn )
+            }
+
+            case TableNode( caption, children, line ) =>
+            {
+                for ( child <- children ) extractLinks( child, inFirstSection, contextAddFn )
+            }
+
+            case TextNode( text, line ) =>
+            {
+                // Nothing for now
+            }
+
+            case _ =>
+        }
+    }
 }
 

@@ -15,31 +15,26 @@ import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.{Node}
 
-import scala.collection.mutable.HashSet
+import scala.collection.immutable.TreeSet
+import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 
-import org.json.JSONArray
-import edu.umd.cloud9.io.JSONObjectWritable
-
-import Utils._
-
-// TODO:
-// Sanity check text to remove junk
-
-
-class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
+class ComprehensiveLinkMapper extends Mapper[Text, Text, Text, Text]
 {
     val markupParser = WikiParser()
-
+                
     override def map( key : Text, value : Text, context : Mapper[Text, Text, Text, Text]#Context ) =
     {
         val topicTitle = key
         val topicText = value
-        
         try
         {
             val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
             val parsed = markupParser( page )
-            extractLinks( parsed, true, (surfaceForm, namespace, Topic, firstSection) => context.write( new Text(surfaceForm), new Text(Topic) ) )
+            
+            if ( parsed.isRedirect )
+            {
+                context.write( new Text(topicTitle), new Text( value ) )
+            }
         }
         catch
         {
@@ -51,34 +46,22 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
     }
 }
 
-class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
+class ComprehensiveLinkReducer extends Reducer[Text, Text, Text, Text]
 {
-    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, JSONObjectWritable]#Context)
+    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context)
     {
-        val seen = new HashSet[Text]
-        val outValues = new JSONObjectWritable()
         var count = 0
         for ( value <- values )
         {
-            if ( !seen.contains(value) )
-            {
-                //context.write( key, value )
-                outValues.put( count.toString(), value.toString() )
-                seen += value
-                count += 1
-            }
-            
-            if ( count > 1000 )
-            {
-                return Unit
-            }
+            context.write( key, value )
+            count += 1
+            //require( count <= 1 )
         }
-        context.write( key, outValues )
     }
 }
 
 
-object SurfaceForms
+object ComprehensiveLinkParser
 {
     def main(args:Array[String]) : Unit =
     {
@@ -87,7 +70,7 @@ object SurfaceForms
         
         if ( otherArgs.length != 3 )
         {
-            println( "Usage: surfaceforms <in> <out> <num reduces>")
+            println( "Usage: redirect parser <in> <out> <num reduces>")
             for ( arg <- otherArgs )
             {
                 println( "  " + arg )
@@ -100,12 +83,11 @@ object SurfaceForms
     
     def run( conf : Configuration, inputFileName : String, outputFilePath : String, numReduces : Int )
     {
-        val job = new Job(conf, "Surface forms")
+        val job = new Job(conf, "ComprehensiveLink parser")
         
-        job.setJarByClass(classOf[SurfaceFormsMapper])
-        job.setMapperClass(classOf[SurfaceFormsMapper])
-        //job.setCombinerClass(classOf[SurfaceFormsReducer])
-        job.setReducerClass(classOf[SurfaceFormsReducer])
+        job.setJarByClass(classOf[ComprehensiveLinkMapper])
+        job.setMapperClass(classOf[ComprehensiveLinkMapper])
+        job.setReducerClass(classOf[ComprehensiveLinkReducer])
         job.setNumReduceTasks( numReduces )
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
@@ -113,7 +95,7 @@ object SurfaceForms
         job.setMapOutputValueClass(classOf[Text])
         
         job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[JSONObjectWritable])
+        job.setOutputValueClass(classOf[Text])
         
         
                 

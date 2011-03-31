@@ -12,6 +12,8 @@ import java.io.File
 import com.almworks.sqlite4java._
 
 import SqliteWrapper._
+import scala.io.Source._
+import Utils._
  
 class VariousDbpediaParseTests extends FunSuite
 {
@@ -26,6 +28,16 @@ class VariousDbpediaParseTests extends FunSuite
         val parsed = markupParser( page )
         println( parsed )
         assert( parsed.isRedirect === true )
+    }
+    
+    test("Page parsing")
+    {
+        val testFileName = "./src/test/scala/data/parsetest.txt"
+        val text = fromFile(testFileName).getLines.mkString
+        
+        val page = new WikiPage( WikiTitle.parse( "Test" ), 0, 0, text )
+        val parsed = markupParser( page )
+        extractLinks( parsed, true, (surfaceForm, namespace, Topic, firstSection) => println( surfaceForm, namespace, Topic, firstSection ) )
     }
 }
  
