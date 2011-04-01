@@ -83,6 +83,7 @@ object Utils
                     }
                 }
 
+                case PageNode( title, id, revision, isRedirect, isDisambig, children ) => for ( child <- children ) extractLinks( child, contextAddFn )
                 case SectionNode( name, level, children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )
                 case TemplateNode( title, children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )
                 case TableNode( caption, children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )

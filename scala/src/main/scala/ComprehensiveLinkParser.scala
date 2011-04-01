@@ -105,7 +105,7 @@ object ComprehensiveLinkParser
         
         if ( otherArgs.length != 3 )
         {
-            println( "Usage: redirect parser <in> <out> <num reduces>")
+            println( "Usage: link parser <in> <out> <num reduces>")
             for ( arg <- otherArgs )
             {
                 println( "  " + arg )

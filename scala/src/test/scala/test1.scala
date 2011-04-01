@@ -38,7 +38,7 @@ class VariousDbpediaParseTests extends FunSuite
         val page = new WikiPage( WikiTitle.parse( "Test" ), 0, 0, text )
         val parsed = markupParser( page )
         val extractor = new LinkExtractor()
-        //extractor.extractLinks( parsed, (surfaceForm, namespace, Topic, firstSection) => println( surfaceForm, namespace, Topic, firstSection ) )
+        extractor.extractLinks( parsed, (surfaceForm, namespace, Topic, firstSection) => println( surfaceForm, namespace, Topic, firstSection ) )
     }
 }
  
