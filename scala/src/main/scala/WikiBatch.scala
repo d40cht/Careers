@@ -15,10 +15,6 @@ object WikiBatch
     def main(args:Array[String]) : Unit =
     {
         // Run Hadoop jobs
-        println( "Here1" )
-        val blah = new SQLiteWrapper( new File( "testook.sqlite" ) )
-        println( "Here2" )
-        
         val conf = new Configuration()
 
         val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
