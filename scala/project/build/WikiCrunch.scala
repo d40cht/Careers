@@ -1,19 +1,19 @@
 import sbt._
-import com.github.retronym.OneJarProject
+//import com.github.retronym.OneJarProject
 
-/*class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with ProguardProject
+class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with ProguardProject
 {
     val lucenecore = "org.apache.lucene" % "lucene-core" % "3.0.3"
     val scalatest = "org.scalatest" % "scalatest" % "1.3"
     
     //val entryClass = "Crunch"
-    val entryClass = "SurfaceForms"
+    //val entryClass = "SurfaceForms"
 
     //override def mainClass = Some(entryClass)
     
     override def proguardOptions = List(
         proguardKeepAllScala,
-        proguardKeepMain( entryClass ),
+        //proguardKeepMain( entryClass ),
         "-dontskipnonpubliclibraryclasses",
         "-dontskipnonpubliclibraryclassmembers",
         "-keep class * { public protected *; }",
@@ -23,12 +23,11 @@ import com.github.retronym.OneJarProject
     override def proguardInJars = super.proguardInJars +++ scalaLibraryPath
     
 }
-*/
 
 
-class MyProject(info: ProjectInfo) extends DefaultProject(info) with OneJarProject
+/*class MyProject(info: ProjectInfo) extends DefaultProject(info) with OneJarProject
 {
     val lucenecore = "org.apache.lucene" % "lucene-core" % "3.0.3"
     val scalatest = "org.scalatest" % "scalatest" % "1.3"
     override def mainClass = Some("WikiBatch")
-}
+}*/
