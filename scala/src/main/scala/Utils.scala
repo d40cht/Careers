@@ -6,6 +6,8 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 import java.io.StringReader
 import org.dbpedia.extraction.wikiparser._
 
+import scala.util.matching.Regex
+
 object Utils
 {
     def normalize( raw : String ) : String =
@@ -38,6 +40,7 @@ object Utils
     class LinkExtractor()
     {
         var inFirstSection = true
+        val linkRegex = new Regex( "[=]+[^=]+[=]+" )
         
         def extractLinks( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
         {
@@ -80,7 +83,6 @@ object Utils
                     for ( child <- children )
                     {
                         extractLinks( child, contextAddFn )
-                        inFirstSection = false
                     }
                 }
 
@@ -94,10 +96,20 @@ object Utils
                 {
                     for ( child <- children ) extractLinks( child, contextAddFn )
                 }
+                
+                case PropertyNode( value, children, line ) =>
+                {
+                    for ( child <- children ) extractLinks( child, contextAddFn )
+                }
 
                 case TextNode( text, line ) =>
                 {
                     // Nothing for now
+                    linkRegex.findFirstIn(text) match
+                    {
+                        case None =>
+                        case _ => inFirstSection = false
+                    }
                 }
 
                 case _ =>
