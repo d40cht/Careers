@@ -1,6 +1,6 @@
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.IntWritable
+import org.apache.hadoop.io.{Writable,IntWritable}
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.mapreduce.Job
 import org.apache.hadoop.mapreduce.Mapper
@@ -17,12 +17,47 @@ import org.dbpedia.extraction.wikiparser.{Node}
 
 import scala.collection.immutable.TreeSet
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
+import java.io.{DataInput, DataOutput}
 
-class ComprehensiveLinkMapper extends Mapper[Text, Text, Text, Text]
+import Utils._
+
+class LinkData( var surfaceForm : String, var namespace : String, var destination : String, var firstSection : Boolean ) extends Writable
+{
+    def this() = this(null, null, null, false)
+    
+    override def write( out : DataOutput )
+    {
+        out.writeUTF( surfaceForm )
+        out.writeUTF( namespace )
+        out.writeUTF( destination )
+        out.writeBoolean( firstSection )
+    }
+    
+    override def readFields( in : DataInput )
+    {
+        surfaceForm = in.readUTF()
+        namespace = in.readUTF()
+        destination = in.readUTF()
+        firstSection = in.readBoolean()
+    }
+}
+
+object LinkData
+{
+    def read( in : DataInput ) =
+    {
+        val w = new LinkData()
+        w.readFields(in)
+        w
+    }
+}
+
+
+class ComprehensiveLinkMapper extends Mapper[Text, Text, Text, LinkData]
 {
     val markupParser = WikiParser()
                 
-    override def map( key : Text, value : Text, context : Mapper[Text, Text, Text, Text]#Context ) =
+    override def map( key : Text, value : Text, context : Mapper[Text, Text, Text, LinkData]#Context ) =
     {
         val topicTitle = key
         val topicText = value
@@ -30,11 +65,11 @@ class ComprehensiveLinkMapper extends Mapper[Text, Text, Text, Text]
         {
             val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
             val parsed = markupParser( page )
-            
-            if ( parsed.isRedirect )
+            val extractor = new LinkExtractor()
+            extractor.extractLinks( parsed, (surfaceForm, namespace, Topic, firstSection) =>
             {
-                context.write( new Text(topicTitle), new Text( value ) )
-            }
+                context.write( new Text(topicTitle), new LinkData( surfaceForm, namespace, Topic, firstSection ) )
+            } )
         }
         catch
         {
@@ -46,9 +81,9 @@ class ComprehensiveLinkMapper extends Mapper[Text, Text, Text, Text]
     }
 }
 
-class ComprehensiveLinkReducer extends Reducer[Text, Text, Text, Text]
+class ComprehensiveLinkReducer extends Reducer[Text, LinkData, Text, LinkData]
 {
-    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context)
+    override def reduce(key : Text, values : java.lang.Iterable[LinkData], context : Reducer[Text, LinkData, Text, LinkData]#Context)
     {
         var count = 0
         for ( value <- values )
@@ -92,10 +127,10 @@ object ComprehensiveLinkParser
         
         job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
         job.setMapOutputKeyClass(classOf[Text])
-        job.setMapOutputValueClass(classOf[Text])
+        job.setMapOutputValueClass(classOf[LinkData])
         
         job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[Text])
+        job.setOutputValueClass(classOf[LinkData])
         
         
                 

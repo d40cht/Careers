@@ -46,10 +46,6 @@ object Utils
         {
             element match
             {
-                case PageNode(title, id, revision, isRedirect, isDisambiguation, children) =>
-                {
-                    for ( child <- children ) extractLinks( child, contextAddFn )
-                }
                 case InternalLinkNode(destination, children, line) =>
                 {
                     
@@ -76,32 +72,7 @@ object Utils
                         }
                     }
                 }
-
-                case SectionNode(name, level, children, line ) =>
-                {
-                    println( "                 > section level ", level )
-                    for ( child <- children )
-                    {
-                        extractLinks( child, contextAddFn )
-                    }
-                }
-
-                case TemplateNode( title, children, line ) =>
-                {
-                    // Namespace is 'Template'. Don't want POV, advert, trivia
-                    for ( child <- children ) extractLinks( child, contextAddFn )
-                }
-
-                case TableNode( caption, children, line ) =>
-                {
-                    for ( child <- children ) extractLinks( child, contextAddFn )
-                }
                 
-                case PropertyNode( value, children, line ) =>
-                {
-                    for ( child <- children ) extractLinks( child, contextAddFn )
-                }
-
                 case TextNode( text, line ) =>
                 {
                     // Nothing for now
@@ -111,6 +82,13 @@ object Utils
                         case _ => inFirstSection = false
                     }
                 }
+
+                case SectionNode( name, level, children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )
+                case TemplateNode( title, children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )
+                case TableNode( caption, children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )
+                case TableRowNode( children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )
+                case TableCellNode( children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )
+                case PropertyNode( value, children, line ) => for ( child <- children ) extractLinks( child, contextAddFn )
 
                 case _ =>
             }
