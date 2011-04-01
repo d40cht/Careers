@@ -35,64 +35,73 @@ object Utils
     }
     
     
-    //def extractLinks( elements : Seq[Node], context : Mapper[Text, Text, Text, Text]#Context )
-    def extractLinks( element : Node, inFirstSection : Boolean, contextAddFn : (String, String, String, Boolean) => Unit )
+    class LinkExtractor()
     {
-        element match
+        var inFirstSection = true
+        
+        def extractLinks( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
         {
-            case PageNode(title, id, revision, isRedirect, isDisambiguation, children) =>
+            element match
             {
-                for ( child <- children ) extractLinks( child, inFirstSection, contextAddFn )
-            }
-            case InternalLinkNode(destination, children, line) =>
-            {
-                
-                // TODO: Allow Main and Category
-                if ( children.length != 0 &&
-                    (destination.namespace.toString() == "Main" ||
-                     destination.namespace.toString() == "Category") )
+                case PageNode(title, id, revision, isRedirect, isDisambiguation, children) =>
                 {
-                    val destinationTopic = destination.decoded
+                    for ( child <- children ) extractLinks( child, contextAddFn )
+                }
+                case InternalLinkNode(destination, children, line) =>
+                {
                     
-                    val first = children(0)
-                    first match
+                    // TODO: Allow Main and Category
+                    if ( children.length != 0 &&
+                        (destination.namespace.toString() == "Main" ||
+                         destination.namespace.toString() == "Category") )
                     {
-                        case TextNode( surfaceForm, line ) =>
+                        val destinationTopic = destination.decoded
+                        
+                        val first = children(0)
+                        first match
                         {
-                            val normalizedText = normalize( surfaceForm )
+                            case TextNode( surfaceForm, line ) =>
+                            {
+                                val normalizedText = normalize( surfaceForm )
 
-                            // TODO: Annotate if in first paragraph. If redirect only take first
-                            contextAddFn( normalizedText, destination.namespace.toString, destination.decoded.toString, inFirstSection )
-                        }
-                        case _ =>
-                        {
+                                // TODO: Annotate if in first paragraph. If redirect only take first
+                                contextAddFn( normalizedText, destination.namespace.toString, destination.decoded.toString, inFirstSection )
+                            }
+                            case _ =>
+                            {
+                            }
                         }
                     }
                 }
-            }
 
-            case SectionNode(name, level, children, line ) =>
-            {
-                for ( child <- children ) extractLinks( child, false, contextAddFn )
-            }
+                case SectionNode(name, level, children, line ) =>
+                {
+                    println( "                 > section level ", level )
+                    for ( child <- children )
+                    {
+                        extractLinks( child, contextAddFn )
+                        inFirstSection = false
+                    }
+                }
 
-            case TemplateNode( title, children, line ) =>
-            {
-                // Namespace is 'Template'. Don't want POV, advert, trivia
-                for ( child <- children ) extractLinks( child, inFirstSection, contextAddFn )
-            }
+                case TemplateNode( title, children, line ) =>
+                {
+                    // Namespace is 'Template'. Don't want POV, advert, trivia
+                    for ( child <- children ) extractLinks( child, contextAddFn )
+                }
 
-            case TableNode( caption, children, line ) =>
-            {
-                for ( child <- children ) extractLinks( child, inFirstSection, contextAddFn )
-            }
+                case TableNode( caption, children, line ) =>
+                {
+                    for ( child <- children ) extractLinks( child, contextAddFn )
+                }
 
-            case TextNode( text, line ) =>
-            {
-                // Nothing for now
-            }
+                case TextNode( text, line ) =>
+                {
+                    // Nothing for now
+                }
 
-            case _ =>
+                case _ =>
+            }
         }
     }
 }

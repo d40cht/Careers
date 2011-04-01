@@ -39,7 +39,8 @@ class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
         {
             val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
             val parsed = markupParser( page )
-            extractLinks( parsed, true, (surfaceForm, namespace, Topic, firstSection) => context.write( new Text(surfaceForm), new Text(Topic) ) )
+            val extractor = new LinkExtractor()
+            extractor.extractLinks( parsed, (surfaceForm, namespace, Topic, firstSection) => context.write( new Text(surfaceForm), new Text(Topic) ) )
         }
         catch
         {
