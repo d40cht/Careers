@@ -244,7 +244,9 @@ object PhraseMap
 
     def main( args : Array[String] )
     {
+        println( "Here1" )
         val conf = new Configuration()
+        println( "Here2" )
         run( conf, args(0), args(1) )
     }
     
@@ -258,7 +260,7 @@ object PhraseMap
         db.exec( "PRAGMA cache_size=512000" )
         db.exec( "PRAGMA journal_mode=off" )
         db.exec( "PRAGMA synchronous=off" )
-        db.exec( "CREATE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER )" )
+        db.exec( "CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER )" )
         
         println( "Building word list..." )
         db.exec( "BEGIN" )
@@ -267,9 +269,12 @@ object PhraseMap
         {
             val commitQuery = db.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
             val fileList = fs.listStatus( new Path( basePath + "/wordInTopicCount" ) )
+            println( fileList.length )
             for ( fileStatus <- fileList )
             {
                 val filePath = fileStatus.getPath
+
+                println( "  processing: ", filePath )
                 
                 assert( fs.exists(filePath) )
                 val reader = new BufferedReader( new InputStreamReader( fs.open( filePath ) ) )
@@ -294,6 +299,7 @@ object PhraseMap
             for ( fileStatus <- fileList )
             {
                 val filePath = fileStatus.getPath
+                println( "  processing: ", filePath )
                 val sfile = new HadoopReader( fs, filePath, conf )
                 
                 var key = new Text()
