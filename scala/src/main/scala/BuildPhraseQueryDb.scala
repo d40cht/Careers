@@ -1,8 +1,10 @@
 import java.io.{BufferedReader, InputStreamReader}
 
+import org.apache.hadoop.io.Text
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 
+import org.apache.hadoop.io.SequenceFile.{createWriter, Reader => HadoopReader}
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 import java.util.{TreeMap, HashMap, HashSet}
 import butter4s.json.Parser
@@ -15,6 +17,7 @@ import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
 import SqliteWrapper._
+//import ComprehensiveLinkParser.LinkData
 
 object PhraseMap
 {
@@ -251,9 +254,72 @@ object PhraseMap
         conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"));
         val fs = FileSystem.get(conf)   
         
+        val db = new SQLiteWrapper( new File( outputFilePath ) )
+        db.exec( "PRAGMA cache_size=512000" )
+        db.exec( "PRAGMA journal_mode=off" )
+        db.exec( "PRAGMA synchronous=off" )
+        db.exec( "CREATE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER )" )
+        
+        println( "Building word list..." )
+        db.exec( "BEGIN" )
+        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
+        
+        {
+            val commitQuery = db.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
+            val fileList = fs.listStatus( new Path( basePath + "/wordInTopicCount" ) )
+            for ( fileStatus <- fileList )
+            {
+                val filePath = fileStatus.getPath
+                
+                assert( fs.exists(filePath) )
+                val reader = new BufferedReader( new InputStreamReader( fs.open( filePath ) ) )
+                
+                var count = 0
+                var line : String = null
+                while ( {line = reader.readLine(); line != null} )
+                {
+                    val firstTabIndex = line.indexOf( '\t' )
+                    val word = new String(line.substring(0,firstTabIndex))
+                    val count = new String(line.substring(firstTabIndex+1))
+                    commitQuery.exec( word, count.toInt )
+                }
+            }
+        }
+        db.exec( "COMMIT" )
+        println( "  complete." )
+        println( "Parsing links..." )
+        
+        {
+            val fileList = fs.listStatus( new Path( basePath + "/links" ) )
+            for ( fileStatus <- fileList )
+            {
+                val filePath = fileStatus.getPath
+                val sfile = new HadoopReader( fs, filePath, conf )
+                
+                var key = new Text()
+                var value = new LinkData()
+                
+                while ( sfile.next( key, value ) )
+                {
+                    val sourceTopic = key.toString
+                    val destTopic = value.namespace + ":" + value.destination
+                    val surfaceForm = value.surfaceForm
+                    val inFirstSection = value.firstSection
+                }
+            }
+        }
+        println( "  complete." )
+    }
+    
+    def run2( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
+    {
+        conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"));
+        conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"));
+        val fs = FileSystem.get(conf)   
+        
         val sql = new SQLiteWriter( outputFilePath )
         
-        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory;
+        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
         
         {
             println( "Adding topics..." )

@@ -131,6 +131,8 @@ object ComprehensiveLinkParser
         
         job.setOutputKeyClass(classOf[Text])
         job.setOutputValueClass(classOf[LinkData])
+        
+        // Output needs to be sequence file otherwise toString is called on LinkData losing information
         job.setOutputFormatClass(classOf[SequenceFileOutputFormat[Text, LinkData] ])
         
         
