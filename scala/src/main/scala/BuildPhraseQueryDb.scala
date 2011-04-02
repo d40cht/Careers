@@ -270,12 +270,7 @@ object PhraseMap
         
         {
             val commitQuery = db.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
-<<<<<<< HEAD
-            val fileList = fs.listStatus( new Path( basePath + "/wordInTopicCount" ) )
-            println( fileList.length )
-=======
             val fileList = fs.listStatus( new Path( basePath + "/wordInTopicCount" ) ).slice(0,2)
->>>>>>> origin/master
             for ( fileStatus <- fileList )
             {
                 val filePath = fileStatus.getPath
@@ -305,7 +300,7 @@ object PhraseMap
         {
             //( fromId INTEGER, toId INTEGER, surfaceForm TEXT, firstSection BOOLEAN )
             val insQuery = db.prepare( "INSERT OR IGNORE INTO topics VALUES( NULL, ? )", HNil )
-            val insertLinkQuery = db.prepare( "INSERT INTO links VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?), ?, ?", HNil )
+            val insertLinkQuery = db.prepare( "INSERT INTO links VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?), ?, ? )", HNil )
             val fileList = fs.listStatus( new Path( basePath + "/links" ) ).slice(0,2)
             for ( fileStatus <- fileList )
             {
