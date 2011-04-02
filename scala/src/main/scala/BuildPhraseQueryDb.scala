@@ -259,6 +259,7 @@ object PhraseMap
         db.exec( "PRAGMA journal_mode=off" )
         db.exec( "PRAGMA synchronous=off" )
         db.exec( "CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER )" )
+        db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT ) CONSTRAINT UNIQUE(name)" )
         
         println( "Building word list..." )
         db.exec( "BEGIN" )
@@ -289,7 +290,10 @@ object PhraseMap
         println( "  complete." )
         println( "Parsing links..." )
         
+        db.exec( "BEGIN" )
+        
         {
+            val insQuery = db.prepare( "INSERT OR IGNORE INTO topics VALUES( NULL, ? )", HNil )
             val fileList = fs.listStatus( new Path( basePath + "/links" ) )
             for ( fileStatus <- fileList )
             {
@@ -308,10 +312,13 @@ object PhraseMap
                         val destTopic = value.namespace + ":" + value.destination
                         val surfaceForm = value.surfaceForm
                         val inFirstSection = value.firstSection
+                        
+                        insQuery.exec( sourceTopic )
                     }
                 }
             }
         }
+        db.exec( "COMMIT" )
         println( "  complete." )
     }
     
