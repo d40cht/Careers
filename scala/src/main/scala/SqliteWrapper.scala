@@ -62,6 +62,12 @@ object SqliteWrapper
 		def assign( res : SQLiteStatement, index : Int ) { v = Some( res.columnString(index) ) }
 		def copy = new StringCol( v match { case Some(x) => Some(x); case None => None } )
 	}
+	
+	final class BoolCol( var v : Option[Boolean] = None ) extends TypedCol[Boolean]
+	{
+		def assign( res : SQLiteStatement, index : Int ) { v = Some( if (res.columnInt(index)==1) true else false ) }
+		def copy = new BoolCol( v match { case Some(x) => Some(x); case None => None } )
+	}
 
 	trait TypedColMaker[T]
 	{
@@ -81,6 +87,10 @@ object SqliteWrapper
 		implicit object StringColMaker extends TypedColMaker[String]
 		{
 		    def build() : TypedCol[String] = new StringCol()
+		}
+		implicit object BoolColMaker extends TypedColMaker[Boolean]
+		{
+		    def build() : TypedCol[Boolean] = new BoolCol()
 		}
 	}
 
@@ -139,6 +149,7 @@ object SqliteWrapper
                     case v : Int => statement.bind( index, v )
                     case v : String => statement.bind( index, v )
                     case v : Double => statement.bind( index, v )
+                    case v : Boolean => statement.bind( index, if (v==true) 1 else 0 )
                     case _ => throw new ClassCastException( "Unsupported type in bind." )
                 }
                 
