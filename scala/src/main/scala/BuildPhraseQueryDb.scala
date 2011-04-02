@@ -262,6 +262,7 @@ object PhraseMap
         db.exec( "PRAGMA synchronous=off" )
         db.exec( "CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER, UNIQUE(word) )" )
         db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name) )" )
+        db.exec( "CREATE TABLE links( fromId INTEGER, toId INTEGER, surfaceForm TEXT, firstSection BOOLEAN )" )
         
         println( "Building word list..." )
         db.exec( "BEGIN" )
@@ -269,8 +270,12 @@ object PhraseMap
         
         {
             val commitQuery = db.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
+<<<<<<< HEAD
             val fileList = fs.listStatus( new Path( basePath + "/wordInTopicCount" ) )
             println( fileList.length )
+=======
+            val fileList = fs.listStatus( new Path( basePath + "/wordInTopicCount" ) ).slice(0,2)
+>>>>>>> origin/master
             for ( fileStatus <- fileList )
             {
                 val filePath = fileStatus.getPath
@@ -298,8 +303,10 @@ object PhraseMap
         db.exec( "BEGIN" )
         
         {
+            //( fromId INTEGER, toId INTEGER, surfaceForm TEXT, firstSection BOOLEAN )
             val insQuery = db.prepare( "INSERT OR IGNORE INTO topics VALUES( NULL, ? )", HNil )
-            val fileList = fs.listStatus( new Path( basePath + "/links" ) )
+            val insertLinkQuery = db.prepare( "INSERT INTO links VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?), ?, ?", HNil )
+            val fileList = fs.listStatus( new Path( basePath + "/links" ) ).slice(0,2)
             for ( fileStatus <- fileList )
             {
                 val filePath = fileStatus.getPath
@@ -315,11 +322,13 @@ object PhraseMap
                     while ( sfile.next( key, value ) )
                     {
                         val sourceTopic = key.toString
-                        val destTopic = value.namespace + ":" + value.destination
+                        val destTopic = if (value.namespace=="Main") value.destination else value.namespace + ":" + value.destination
                         val surfaceForm = value.surfaceForm
                         val inFirstSection = value.firstSection
                         
                         insQuery.exec( sourceTopic )
+                        insQuery.exec( destTopic )
+                        insertLinkQuery.exec( sourceTopic, destTopic, surfaceForm, inFirstSection )
                     }
                 }
             }
