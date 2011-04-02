@@ -250,15 +250,15 @@ object PhraseMap
     
     def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
     {
-        conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"));
-        conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"));
+        conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"))
+        conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
         val fs = FileSystem.get(conf)   
         
         val db = new SQLiteWrapper( new File( outputFilePath ) )
         db.exec( "PRAGMA cache_size=512000" )
         db.exec( "PRAGMA journal_mode=off" )
         db.exec( "PRAGMA synchronous=off" )
-        db.exec( "CREATE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER )" )
+        db.exec( "CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER )" )
         
         println( "Building word list..." )
         db.exec( "BEGIN" )
@@ -294,17 +294,21 @@ object PhraseMap
             for ( fileStatus <- fileList )
             {
                 val filePath = fileStatus.getPath
-                val sfile = new HadoopReader( fs, filePath, conf )
                 
-                var key = new Text()
-                var value = new LinkData()
-                
-                while ( sfile.next( key, value ) )
+                if ( !filePath.toString.startsWith( "_SUCCESS" ) )
                 {
-                    val sourceTopic = key.toString
-                    val destTopic = value.namespace + ":" + value.destination
-                    val surfaceForm = value.surfaceForm
-                    val inFirstSection = value.firstSection
+                    val sfile = new HadoopReader( fs, filePath, conf )
+                    
+                    var key = new Text()
+                    var value = new LinkData()
+                    
+                    while ( sfile.next( key, value ) )
+                    {
+                        val sourceTopic = key.toString
+                        val destTopic = value.namespace + ":" + value.destination
+                        val surfaceForm = value.surfaceForm
+                        val inFirstSection = value.firstSection
+                    }
                 }
             }
         }
