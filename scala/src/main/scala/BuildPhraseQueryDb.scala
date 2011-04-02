@@ -244,7 +244,9 @@ object PhraseMap
 
     def main( args : Array[String] )
     {
+        println( "Here1" )
         val conf = new Configuration()
+        println( "Here2" )
         run( conf, args(0), args(1) )
     }
     
@@ -258,8 +260,8 @@ object PhraseMap
         db.exec( "PRAGMA cache_size=512000" )
         db.exec( "PRAGMA journal_mode=off" )
         db.exec( "PRAGMA synchronous=off" )
-        db.exec( "CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER )" )
-        db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT ) CONSTRAINT UNIQUE(name)" )
+        db.exec( "CREATE TABLE words (id INTEGER PRIMARY KEY AUTOINCREMENT, word TEXT, count INTEGER, UNIQUE(word) )" )
+        db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name) )" )
         db.exec( "CREATE TABLE links( fromId INTEGER, toId INTEGER, surfaceForm TEXT, firstSection BOOLEAN )" )
         
         println( "Building word list..." )
@@ -272,6 +274,8 @@ object PhraseMap
             for ( fileStatus <- fileList )
             {
                 val filePath = fileStatus.getPath
+
+                println( "  processing: ", filePath )
                 
                 assert( fs.exists(filePath) )
                 val reader = new BufferedReader( new InputStreamReader( fs.open( filePath ) ) )
@@ -296,13 +300,14 @@ object PhraseMap
         {
             //( fromId INTEGER, toId INTEGER, surfaceForm TEXT, firstSection BOOLEAN )
             val insQuery = db.prepare( "INSERT OR IGNORE INTO topics VALUES( NULL, ? )", HNil )
-            val insertLinkQuery = db.prepare( "INSERT INTO links VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?), ?, ?", HNil )
+            val insertLinkQuery = db.prepare( "INSERT INTO links VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?), ?, ? )", HNil )
             val fileList = fs.listStatus( new Path( basePath + "/links" ) ).slice(0,2)
             for ( fileStatus <- fileList )
             {
                 val filePath = fileStatus.getPath
+                println( "  processing: ", filePath )
                 
-                if ( !filePath.toString.startsWith( "_SUCCESS" ) )
+                if ( !filePath.toString.endsWith( "_SUCCESS" ) )
                 {
                     val sfile = new HadoopReader( fs, filePath, conf )
                     

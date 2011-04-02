@@ -15,10 +15,6 @@ object WikiBatch
     def main(args:Array[String]) : Unit =
     {
         // Run Hadoop jobs
-        println( "Here1" )
-        val blah = new SQLiteWrapper( new File( "testook.sqlite" ) )
-        println( "Here2" )
-        
         val conf = new Configuration()
 
         val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
@@ -37,7 +33,6 @@ object WikiBatch
         //       specify relevance to be used in all the jobs below.
 
         WordInTopicMembership.run( conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        //SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceforms", numReduces )
         ComprehensiveLinkParser.run( conf, inputFile, outputPathBase + "/links", numReduces )
    
         //CategoryMembership.run( conf, inputFile, outputPathBase + "/categoryMembership", numReduces )

@@ -18,6 +18,7 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
         "-dontskipnonpubliclibraryclassmembers",
         "-keep class * { public protected *; }",
         "-dontobfuscate",
+        "-dontoptimize",
         "-keeppackagenames"
     )
     override def proguardInJars = super.proguardInJars +++ scalaLibraryPath
