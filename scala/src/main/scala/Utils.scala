@@ -36,8 +36,79 @@ object Utils
         return wordList.reverse
     }
     
+
+    def traverseWikiTree( element : Node, visitorFn : Node => Unit )
+    {
+        visitorFn( element )
+        element match
+        {
+            case InternalLinkNode(destination, children, line) => for ( child <- children ) traverseWikiTree( child, visitorFn )
+            case PageNode( title, id, revision, isRedirect, isDisambig, children ) => for ( child <- children ) traverseWikiTree( child, visitorFn )
+            case SectionNode( name, level, children, line ) => for ( child <- children ) traverseWikiTree( child, visitorFn )
+            case TemplateNode( title, children, line ) => for ( child <- children ) traverseWikiTree( child, visitorFn )
+            case TableNode( caption, children, line ) => for ( child <- children ) traverseWikiTree( child, visitorFn )
+            case TableRowNode( children, line ) => for ( child <- children ) traverseWikiTree( child, visitorFn )
+            case TableCellNode( children, line ) => for ( child <- children ) traverseWikiTree( child, visitorFn )
+            case PropertyNode( value, children, line ) => for ( child <- children ) traverseWikiTree( child, visitorFn )
+            case TextNode( text, line ) =>
+            
+            case _ =>
+        }
+    }
     
-    class LinkExtractor()
+    class LinkExtractor
+    {
+        var inFirstSection = true
+        val linkRegex = new Regex( "[=]+[^=]+[=]+" )
+        
+        private def visitNode( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
+        {
+            element match
+            {
+                case InternalLinkNode( destination, children, line ) =>
+                {
+                    if ( children.length != 0 &&
+                        (destination.namespace.toString() == "Main" ||
+                         destination.namespace.toString() == "Category") )
+                    {
+                        val destinationTopic = destination.decoded
+                        
+                        val first = children(0)
+                        first match
+                        {
+                            case TextNode( surfaceForm, line ) =>
+                            {
+                                val normalizedText = normalize( surfaceForm )
+
+                                // TODO: Annotate if in first paragraph. If redirect only take first
+                                contextAddFn( normalizedText, destination.namespace.toString, destination.decoded.toString, inFirstSection )
+                            }
+                            case _ =>
+                            {
+                            }
+                        }
+                    }
+                }
+                case TextNode( text, line ) =>
+                {
+                    // Nothing for now
+                    linkRegex.findFirstIn(text) match
+                    {
+                        case None =>
+                        case _ => inFirstSection = false
+                    }
+                }
+            }
+        }
+        
+        def run( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
+        {
+            traverseWikiTree( element, node => visitNode(node, contextAddFn) )
+        }
+    }
+   
+    
+    class LinkExtractorOld
     {
         var inFirstSection = true
         val linkRegex = new Regex( "[=]+[^=]+[=]+" )

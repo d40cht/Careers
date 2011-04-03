@@ -33,6 +33,7 @@ object WikiBatch
         //       specify relevance to be used in all the jobs below.
 
         WordInTopicMembership.run( conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         ComprehensiveLinkParser.run( conf, inputFile, outputPathBase + "/links", numReduces )
    
         //CategoryMembership.run( conf, inputFile, outputPathBase + "/categoryMembership", numReduces )

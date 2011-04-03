@@ -21,6 +21,7 @@ import java.io.{DataInput, DataOutput}
 
 import Utils._
 
+
 class LinkData( var surfaceForm : String, var namespace : String, var destination : String, var firstSection : Boolean ) extends Writable
 {
     def this() = this(null, null, null, false)
@@ -66,7 +67,7 @@ class ComprehensiveLinkMapper extends Mapper[Text, Text, Text, LinkData]
             val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
             val parsed = markupParser( page )
             val extractor = new LinkExtractor()
-            extractor.extractLinks( parsed, (surfaceForm, namespace, Topic, firstSection) =>
+            extractor.run( parsed, (surfaceForm, namespace, Topic, firstSection) =>
             {
                 context.write( new Text(topicTitle), new LinkData( surfaceForm, namespace, Topic, firstSection ) )
             } )
