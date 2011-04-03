@@ -23,13 +23,17 @@ import edu.umd.cloud9.io.JSONObjectWritable
 // TODO:
 // Sanity check text to remove junk
 
-object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, IntWritable, Text, IntWritable]
+object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, Text]
 {
-    override def mapfn( topicTitle : Text, topicText : Text, outputFn : (Text, IntWritable) => Unit )
+    override def mapfn( topicTitle : Text, topicText : Text, outputFn : (Text, Text) => Unit )
     {
+        val markupParser = WikiParser()
+        val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
+        val parsed = markupParser( page )
+        
     }
     
-    override def reducefn( word : Text, values: java.lang.Iterable[IntWritable], outputFn : (Text, IntWritable) => Unit )
+    override def reducefn( word : Text, values: java.lang.Iterable[Text], outputFn : (Text, Text) => Unit )
     {
     }
 }
