@@ -10,6 +10,7 @@ import com.almworks.sqlite4java._
 // To add: link counts - forward and backwards.
 // Additionally include contexts ala microsoft research paper.
 
+
 object WikiBatch
 {
     def main(args:Array[String]) : Unit =
@@ -32,10 +33,11 @@ object WikiBatch
         // TODO: An additional parse run that runs over all the topics of relevance, and a fn in Utils to
         //       specify relevance to be used in all the jobs below.
 
-        (new WordInTopicCounter).run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        //WordInTopicMembership.run( conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
-        ComprehensiveLinkParser.run( conf, inputFile, outputPathBase + "/links", numReduces )
+        WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
+        RedirectParser.run( "RedirectParser", conf, inputFile, outputPathBase + "/redirects", numReduces )
+        //SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
+        //ComprehensiveLinkParser.run( conf, inputFile, outputPathBase + "/links", numReduces )
    
         //CategoryMembership.run( conf, inputFile, outputPathBase + "/categoryMembership", numReduces )
         //RedirectParser.run( conf, inputFile, outputPathBase + "/redirects", numReduces)

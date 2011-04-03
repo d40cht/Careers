@@ -14,114 +14,93 @@ import scala.collection.JavaConversions._
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.{Node}
+import org.apache.hadoop.io.{Writable}
 
 import scala.collection.mutable.HashSet
 
 import org.json.JSONArray
-import edu.umd.cloud9.io.JSONObjectWritable
 
 import Utils._
+import java.io.{DataInput, DataOutput}
 
 // TODO:
 // Sanity check text to remove junk
 
-
-class SurfaceFormsMapper extends Mapper[Text, Text, Text, Text]
+class TextArrayWritable extends Writable
 {
-    val markupParser = WikiParser()
-
-    override def map( key : Text, value : Text, context : Mapper[Text, Text, Text, Text]#Context ) =
+    var elements : List[String] = Nil
+    var count = 0
+    
+    def append( value : String )
     {
-        val topicTitle = key
-        val topicText = value
-        
-        try
+        elements = value :: elements
+        count += 1
+    }
+    
+    override def write( out : DataOutput )
+    {
+        out.writeInt( count )
+        for ( el <- elements ) out.writeUTF( el )
+    }
+    
+    override def readFields( in : DataInput )
+    {
+        count = in.readInt
+        elements = Nil
+        for ( i <- 0 to (count-1) )
         {
-            val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
-            val parsed = markupParser( page )
-            val extractor = new LinkExtractor()
-            extractor.run( parsed, (surfaceForm, namespace, Topic, firstSection) => context.write( new Text(surfaceForm), new Text(Topic) ) )
-        }
-        catch
-        {
-            case e : WikiParserException =>
-            {
-                println( "Bad parse: " + topicTitle )
-            }
+            elements = in.readUTF :: elements
         }
     }
 }
 
-class SurfaceFormsReducer extends Reducer[Text, Text, Text, JSONObjectWritable]
-{
-    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, JSONObjectWritable]#Context)
+object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, TextArrayWritable]
+{    
+    override def mapfn( topicTitle : Text, topicText : Text, outputFn : (Text, Text) => Unit )
+    {
+        val markupParser = WikiParser()
+        val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
+        val parsed = markupParser( page )
+        
+        traverseWikiTree( parsed, element =>
+        {
+            element match
+            {
+                case InternalLinkNode( destination, children, line ) =>
+                {
+                    if ( children.length != 0 &&
+                        (destination.namespace.toString() == "Main" ||
+                         destination.namespace.toString() == "Category") )
+                    {
+                        children(0) match
+                        {
+                            case TextNode( surfaceForm, line ) =>
+                            {
+                                outputFn( new Text(normalize( surfaceForm )), new Text(destination.namespace.toString +  ":" + destination.decoded.toString) )
+                            }
+                            case _ =>
+                        }
+                    }
+                }
+            }
+        } )
+    }
+    
+    override def reducefn( word : Text, values: java.lang.Iterable[Text], outputFn : (Text, TextArrayWritable) => Unit )
     {
         val seen = new HashSet[Text]
-        val outValues = new JSONObjectWritable()
+        val outValues = new TextArrayWritable()
         var count = 0
         for ( value <- values )
         {
             if ( !seen.contains(value) )
             {
-                //context.write( key, value )
-                outValues.put( count.toString(), value.toString() )
-                seen += value
+                outValues.append( value.toString() )
                 count += 1
             }
-            
-            if ( count > 1000 )
-            {
-                return Unit
-            }
+            if ( count > 1000 ) return Unit
         }
-        context.write( key, outValues )
-    }
-}
-
-
-object SurfaceForms
-{
-    def main(args:Array[String]) : Unit =
-    {
-        val conf = new Configuration()
-        val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
-        
-        if ( otherArgs.length != 3 )
-        {
-            println( "Usage: surfaceforms <in> <out> <num reduces>")
-            for ( arg <- otherArgs )
-            {
-                println( "  " + arg )
-            }
-            return 2
-        }
-        
-        run( conf, args(0), args(1), args(2).toInt )
-    }
-    
-    def run( conf : Configuration, inputFileName : String, outputFilePath : String, numReduces : Int )
-    {
-        val job = new Job(conf, "Surface forms")
-        
-        job.setJarByClass(classOf[SurfaceFormsMapper])
-        job.setMapperClass(classOf[SurfaceFormsMapper])
-        //job.setCombinerClass(classOf[SurfaceFormsReducer])
-        job.setReducerClass(classOf[SurfaceFormsReducer])
-        job.setNumReduceTasks( numReduces )
-        
-        job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
-        job.setMapOutputKeyClass(classOf[Text])
-        job.setMapOutputValueClass(classOf[Text])
-        
-        job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[JSONObjectWritable])
-        
-        
-                
-        FileInputFormat.addInputPath(job, new Path(inputFileName))
-        FileOutputFormat.setOutputPath(job, new Path(outputFilePath))
-        
-        if ( job.waitForCompletion(true) ) 0 else 1
+        outputFn( word, outValues )
     }
 }
 

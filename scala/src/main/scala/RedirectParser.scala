@@ -17,93 +17,35 @@ import org.dbpedia.extraction.wikiparser.{Node}
 
 import scala.collection.immutable.TreeSet
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
+import Utils._
 
-class RedirectMapper extends Mapper[Text, Text, Text, Text]
+object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
 {
-    val markupParser = WikiParser()
-                
-    override def map( key : Text, value : Text, context : Mapper[Text, Text, Text, Text]#Context ) =
+    override def mapfn( topicTitle : Text, topicText : Text, outputFn : (Text, Text) => Unit )
     {
-        val topicTitle = key
-        val topicText = value
-        try
-        {
-            val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
-            val parsed = markupParser( page )
-            
-            if ( parsed.isRedirect )
-            {
-                context.write( new Text(topicTitle), new Text( value ) )
-            }
-        }
-        catch
-        {
-            case e : WikiParserException =>
-            {
-                println( "Bad parse: " + topicTitle )
-            }
-        }
-    }
-}
-
-class RedirectReducer extends Reducer[Text, Text, Text, Text]
-{
-    override def reduce(key : Text, values : java.lang.Iterable[Text], context : Reducer[Text, Text, Text, Text]#Context)
-    {
-        var count = 0
-        for ( value <- values )
-        {
-            context.write( key, value )
-            count += 1
-            //require( count <= 1 )
-        }
-    }
-}
-
-
-object RedirectParser
-{
-    def main(args:Array[String]) : Unit =
-    {
-        val conf = new Configuration()
-        val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
+        val markupParser = WikiParser()
+        val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
+        val parsed = markupParser( page )
         
-        if ( otherArgs.length != 3 )
+        if ( parsed.isRedirect )
         {
-            println( "Usage: redirect parser <in> <out> <num reduces>")
-            for ( arg <- otherArgs )
+            traverseWikiTree( parsed, element =>
             {
-                println( "  " + arg )
-            }
-            return 2
+                element match
+                {
+                    case InternalLinkNode(destination, children, line) =>
+                    {
+                        outputFn( topicTitle, new Text( destination.namespace + ":" + destination.decoded ) )
+                    }
+                    case _ =>
+                }
+            } )
         }
-        
-        run( conf, args(0), args(1), args(2).toInt )
     }
     
-    def run( conf : Configuration, inputFileName : String, outputFilePath : String, numReduces : Int )
+    override def reducefn( word : Text, values: java.lang.Iterable[Text], outputFn : (Text, Text) => Unit )
     {
-        val job = new Job(conf, "Redirect parser")
-        
-        job.setJarByClass(classOf[RedirectMapper])
-        job.setMapperClass(classOf[RedirectMapper])
-        job.setReducerClass(classOf[RedirectReducer])
-        job.setNumReduceTasks( numReduces )
-        
-        job.setInputFormatClass(classOf[SequenceFileInputFormat[Text, Text] ])
-        job.setMapOutputKeyClass(classOf[Text])
-        job.setMapOutputValueClass(classOf[Text])
-        
-        job.setOutputKeyClass(classOf[Text])
-        job.setOutputValueClass(classOf[Text])
-        
-        
-                
-        FileInputFormat.addInputPath(job, new Path(inputFileName))
-        FileOutputFormat.setOutputPath(job, new Path(outputFilePath))
-        
-        if ( job.waitForCompletion(true) ) 0 else 1
+        for ( value <- values ) outputFn( word, value )
     }
 }
-
 

@@ -23,6 +23,16 @@ import edu.umd.cloud9.io.JSONObjectWritable
 // TODO:
 // Sanity check text to remove junk
 
+object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, IntWritable, Text, IntWritable]
+{
+    override def mapfn( topicTitle : Text, topicText : Text, outputFn : (Text, IntWritable) => Unit )
+    {
+    }
+    
+    override def reducefn( word : Text, values: java.lang.Iterable[IntWritable], outputFn : (Text, IntWritable) => Unit )
+    {
+    }
+}
 
 class CategoryMembershipMapper extends Mapper[Text, Text, Text, Text]
 {
