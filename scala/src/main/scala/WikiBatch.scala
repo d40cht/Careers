@@ -32,7 +32,8 @@ object WikiBatch
         // TODO: An additional parse run that runs over all the topics of relevance, and a fn in Utils to
         //       specify relevance to be used in all the jobs below.
 
-        WordInTopicMembership.run( conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        (new WordInTopicCounter).run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        //WordInTopicMembership.run( conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
         SurfaceForms.run( conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         ComprehensiveLinkParser.run( conf, inputFile, outputPathBase + "/links", numReduces )
    
