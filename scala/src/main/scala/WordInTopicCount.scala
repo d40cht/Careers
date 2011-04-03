@@ -24,6 +24,49 @@ import scala.collection.immutable.TreeSet
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 
 import Utils._
+//import MapReduceJob._
+
+class WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, IntWritable]
+{    
+    override def mapfn( topicTitle : Text, topicText : Text, outputFn : (Text, IntWritable) => Unit )
+    {
+        class WordCounter
+        {
+            var uniqueWords = TreeSet[String]()
+            
+            def apply( element : Node )
+            {
+                element match
+                {
+                    case TextNode( text, line ) =>
+                    {
+                        val words = luceneTextTokenizer( text )
+                        words.foreach( x => uniqueWords = uniqueWords + x.toLowerCase )
+                    }
+                    case _  =>
+                }
+            }
+        }
+        
+        val markupParser = WikiParser()
+        val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
+        val parsed = markupParser( page )
+        val wc = new WordCounter()
+        
+        traverseWikiTree( parsed, wc.apply )
+        for ( word <- wc.uniqueWords ) outputFn( new Text(word), new IntWritable(1) )
+    }
+    
+    override def reducefn( word : Text, values: java.lang.Iterable[IntWritable], outputFn : (Text, IntWritable) => Unit )
+    {
+        var count = 0
+        for ( value <- values )
+        {
+            count += 1
+        }
+        outputFn( word, new IntWritable(count) )
+    }
+}
 
 class WordInTopicMembershipMapper extends Mapper[Text, Text, Text, IntWritable]
 {
