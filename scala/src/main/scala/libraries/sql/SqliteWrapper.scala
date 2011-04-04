@@ -1,3 +1,4 @@
+package org.seacourt.sql
 
 import java.io.File
 import com.almworks.sqlite4java._

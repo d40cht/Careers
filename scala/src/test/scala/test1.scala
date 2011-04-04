@@ -9,11 +9,10 @@ import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.{Node}
 
 import java.io.File
-import com.almworks.sqlite4java._
-
-import SqliteWrapper._
 import scala.io.Source._
-import Utils._
+
+import org.seacourt.sql.SqliteWrapper._
+import org.seacourt.utility._
  
 class VariousDbpediaParseTests extends FunSuite
 {
@@ -38,7 +37,7 @@ class VariousDbpediaParseTests extends FunSuite
         val page = new WikiPage( WikiTitle.parse( "Test" ), 0, 0, text )
         val parsed = markupParser( page )
         val extractor = new LinkExtractor()
-        extractor.extractLinks( parsed, (surfaceForm, namespace, Topic, firstSection) => println( surfaceForm, namespace, Topic, firstSection ) )
+        extractor.run( parsed, (surfaceForm, namespace, Topic, firstSection) => println( surfaceForm, namespace, Topic, firstSection ) )
     }
 }
  
@@ -101,70 +100,6 @@ class BasicTestSuite1 extends FunSuite
         val parsed = markupParser( page )
         
         //println( parsed.toString() )
-    }
-    
-    test("Simple sqlite test")
-    {
-        //val db = new SQLiteConnection( new File( "test.sqlite3" ) )
-        val db = new SQLiteConnection()
-        db.open()
-        
-        db.exec( "CREATE TABLE surfaceForms( form TEXT, topic TEXT )" )
-        db.exec( """INSERT INTO surfaceForms VALUES( "hello", "world" )""" )
-        //val st = db.prepare( "CREATE TABLE  
-    }
-    
-    class TestTreeClass( fileName : String )
-    {
-        val db = new SQLiteConnection( new File( fileName ) )
-        //val db = new SQLiteConnection()
-        db.open()
-        // 200Mb page cache
-        db.exec( "PRAGMA cache_size=512000" )
-        db.exec( "PRAGMA journal_mode=off" )
-        db.exec( "PRAGMA synchronous=off" )
-        db.exec( "CREATE TABLE testTree( id INTEGER PRIMARY KEY AUTOINCREMENT, parentId INTEGER, value INTEGER, FOREIGN KEY(parentId) REFERENCES testTree(id), UNIQUE(parentId, value) )" )
-        db.exec( "BEGIN" )
-        
-        val addTreeNode = db.prepare( "INSERT INTO testTree VALUES( NULL, ?, ? )" )
-        val getExistingTreeNode = db.prepare( "SELECT id FROM testTree WHERE parentId=? AND value=?" )
-        var count = 0
-        var checkTime = currentTime
-        
-        def addLink( parentId : Long, value : Int ) : Long =
-        {
-            //println( "++ " + parentId + " " + value )
-            var treeNodeId = 0L
-            
-            getExistingTreeNode.reset()
-            getExistingTreeNode.bind(1, parentId)
-            getExistingTreeNode.bind(2, value)
-            if ( getExistingTreeNode.step() )
-            {
-                treeNodeId = getExistingTreeNode.columnInt(0)
-            }
-            else
-            {
-                addTreeNode.reset()
-                addTreeNode.bind(1, parentId)
-                addTreeNode.bind(2, value)
-                addTreeNode.step()
-                treeNodeId = db.getLastInsertId()
-            }
-            getExistingTreeNode.reset()
-
-            
-            count += 1
-            if ( (count % 100000) == 0 )
-            {
-                println( "Check " + count + ": " + (currentTime-checkTime) )
-                checkTime = currentTime
-                db.exec( "COMMIT" )
-                db.exec( "BEGIN" )
-            }
-            
-            return treeNodeId
-        }
     }
 }
 

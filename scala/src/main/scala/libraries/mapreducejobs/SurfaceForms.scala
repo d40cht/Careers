@@ -1,3 +1,5 @@
+package org.seacourt.mapreducejobs
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.IntWritable
@@ -20,39 +22,11 @@ import scala.collection.mutable.HashSet
 
 import org.json.JSONArray
 
-import Utils._
-import java.io.{DataInput, DataOutput}
+import org.seacourt.mapreduce._
+import org.seacourt.utility._
 
 // TODO:
 // Sanity check text to remove junk
-
-class TextArrayWritable extends Writable
-{
-    var elements : List[String] = Nil
-    var count = 0
-    
-    def append( value : String )
-    {
-        elements = value :: elements
-        count += 1
-    }
-    
-    override def write( out : DataOutput )
-    {
-        out.writeInt( count )
-        for ( el <- elements ) out.writeUTF( el )
-    }
-    
-    override def readFields( in : DataInput )
-    {
-        count = in.readInt
-        elements = Nil
-        for ( i <- 0 to (count-1) )
-        {
-            elements = in.readUTF :: elements
-        }
-    }
-}
 
 object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, TextArrayWritable]
 {    
@@ -62,7 +36,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
         val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
         val parsed = markupParser( page )
         
-        traverseWikiTree( parsed, element =>
+        Utils.traverseWikiTree( parsed, element =>
         {
             element match
             {
@@ -76,7 +50,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                         {
                             case TextNode( surfaceForm, line ) =>
                             {
-                                outputFn( new Text(normalize( surfaceForm )), new Text(destination.namespace.toString +  ":" + destination.decoded.toString) )
+                                outputFn( new Text(Utils.normalize( surfaceForm )), new Text(destination.namespace.toString +  ":" + destination.decoded.toString) )
                             }
                             case _ =>
                         }

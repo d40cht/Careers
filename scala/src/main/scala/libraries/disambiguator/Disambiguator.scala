@@ -1,10 +1,12 @@
+package org.seacourt.disambiguator
+
 import scala.collection.immutable.TreeSet
 import java.util.TreeMap
 
 import scala.util.matching.Regex
 
-import SqliteWrapper._
-import StopWords.stopWordSet
+import org.seacourt.sql.SqliteWrapper._
+import org.seacourt.utility.StopWords.stopWordSet
 
 object Disambiguator
 {

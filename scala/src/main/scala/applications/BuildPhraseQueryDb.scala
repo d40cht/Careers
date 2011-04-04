@@ -7,7 +7,6 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.SequenceFile.{createWriter, Reader => HadoopReader}
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 import java.util.{TreeMap, HashMap, HashSet}
-import butter4s.json.Parser
 
 import java.io.File
 
@@ -16,8 +15,8 @@ import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
-import SqliteWrapper._
-//import ComprehensiveLinkParser.LinkData
+import org.seacourt.utility._
+import org.seacourt.sql.SqliteWrapper._
 
 object PhraseMap
 {
@@ -50,7 +49,8 @@ object PhraseMap
             val surfaceForm = new String(line.substring(0,firstTabIndex))
             val references = new String(line.substring(firstTabIndex+1))
             
-            try
+            // TODO: JSON is out. Use Writable derived objects in utility
+            /*try
             {
                 val parsed = Parser.parse( references )
                 parsed match
@@ -84,7 +84,7 @@ object PhraseMap
                 {
                     println( "General exception: " + e.toString )
                 }
-            }
+            }*/
         }
         reader.close()
     }
@@ -250,7 +250,7 @@ object PhraseMap
         run( conf, args(0), args(1) )
     }
     
-    def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
+    /*def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
     {
         conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"))
         conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
@@ -332,9 +332,9 @@ object PhraseMap
         }
         db.exec( "COMMIT" )
         println( "  complete." )
-    }
+    }*/
     
-    def run2( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
+    def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
     {
         conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"));
         conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"));

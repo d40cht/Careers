@@ -1,3 +1,4 @@
+package org.seacourt.utility
 
 import scala.collection.immutable.TreeSet
 

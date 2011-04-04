@@ -11,8 +11,8 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 import scala.xml.XML
 
 
-import SqliteWrapper._
-import Disambiguator._
+import org.seacourt.sql.SqliteWrapper._
+import org.seacourt.disambiguator.Disambiguator._
 
 class DisambiguatorTest extends FunSuite
 {

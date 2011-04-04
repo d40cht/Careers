@@ -1,3 +1,5 @@
+package org.seacourt.utility
+
 /*
 * Copyright 2009-2010 WorldWide Conferencing, LLC
 * Copyright 2010 Vladimir Kirichenko <vladimir.kirichenko@gmail.com>

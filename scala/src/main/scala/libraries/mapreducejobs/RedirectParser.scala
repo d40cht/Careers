@@ -1,3 +1,5 @@
+package org.seacourt.mapreducejobs
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.IntWritable
@@ -17,7 +19,9 @@ import org.dbpedia.extraction.wikiparser.{Node}
 
 import scala.collection.immutable.TreeSet
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
-import Utils._
+
+import org.seacourt.mapreduce._
+import org.seacourt.utility._
 
 object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
 {
@@ -29,7 +33,7 @@ object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
         
         if ( parsed.isRedirect )
         {
-            traverseWikiTree( parsed, element =>
+            Utils.traverseWikiTree( parsed, element =>
             {
                 element match
                 {

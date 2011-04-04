@@ -1,3 +1,5 @@
+package org.seacourt.mapreducejobs
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.IntWritable
@@ -23,7 +25,8 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 import scala.collection.immutable.TreeSet
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 
-import Utils._
+import org.seacourt.utility.Utils._
+import org.seacourt.mapreduce._
 
 object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, IntWritable]
 {    

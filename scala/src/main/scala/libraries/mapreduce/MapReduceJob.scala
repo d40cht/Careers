@@ -1,3 +1,5 @@
+package org.seacourt.mapreduce
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{Writable,IntWritable}
@@ -19,7 +21,7 @@ import scala.collection.immutable.TreeSet
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 import java.io.{DataInput, DataOutput}
 
-import Utils._
+import org.seacourt.utility.Utils._
 
 
 abstract class MapReduceJob[MapKeyType : Manifest, MapValueType : Manifest, ReduceKeyType : Manifest, ReduceValueType : Manifest, OutputKeyType : Manifest, OutputValueType : Manifest]

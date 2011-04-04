@@ -1,3 +1,5 @@
+package org.seacourt.utility
+
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
@@ -7,6 +9,36 @@ import java.io.StringReader
 import org.dbpedia.extraction.wikiparser._
 
 import scala.util.matching.Regex
+import org.apache.hadoop.io.{Writable}
+import java.io.{DataInput, DataOutput}
+
+class TextArrayWritable extends Writable
+{
+    var elements : List[String] = Nil
+    var count = 0
+    
+    def append( value : String )
+    {
+        elements = value :: elements
+        count += 1
+    }
+    
+    override def write( out : DataOutput )
+    {
+        out.writeInt( count )
+        for ( el <- elements ) out.writeUTF( el )
+    }
+    
+    override def readFields( in : DataInput )
+    {
+        count = in.readInt
+        elements = Nil
+        for ( i <- 0 to (count-1) )
+        {
+            elements = in.readUTF :: elements
+        }
+    }
+}
 
 object Utils
 {
@@ -55,56 +87,58 @@ object Utils
             case _ =>
         }
     }
-    
-    class LinkExtractor
-    {
-        var inFirstSection = true
-        val linkRegex = new Regex( "[=]+[^=]+[=]+" )
-        
-        private def visitNode( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
-        {
-            element match
-            {
-                case InternalLinkNode( destination, children, line ) =>
-                {
-                    if ( children.length != 0 &&
-                        (destination.namespace.toString() == "Main" ||
-                         destination.namespace.toString() == "Category") )
-                    {
-                        val destinationTopic = destination.decoded
-                        
-                        val first = children(0)
-                        first match
-                        {
-                            case TextNode( surfaceForm, line ) =>
-                            {
-                                val normalizedText = normalize( surfaceForm )
+}
 
-                                // TODO: Annotate if in first paragraph. If redirect only take first
-                                contextAddFn( normalizedText, destination.namespace.toString, destination.decoded.toString, inFirstSection )
-                            }
-                            case _ =>
-                            {
-                            }
+class LinkExtractor
+{
+    var inFirstSection = true
+    val linkRegex = new Regex( "[=]+[^=]+[=]+" )
+    
+    private def visitNode( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
+    {
+        element match
+        {
+            case InternalLinkNode( destination, children, line ) =>
+            {
+                if ( children.length != 0 &&
+                    (destination.namespace.toString() == "Main" ||
+                     destination.namespace.toString() == "Category") )
+                {
+                    val destinationTopic = destination.decoded
+                    
+                    val first = children(0)
+                    first match
+                    {
+                        case TextNode( surfaceForm, line ) =>
+                        {
+                            val normalizedText = Utils.normalize( surfaceForm )
+
+                            // TODO: Annotate if in first paragraph. If redirect only take first
+                            contextAddFn( normalizedText, destination.namespace.toString, destination.decoded.toString, inFirstSection )
+                        }
+                        case _ =>
+                        {
                         }
                     }
                 }
-                case TextNode( text, line ) =>
+            }
+            case TextNode( text, line ) =>
+            {
+                // Nothing for now
+                linkRegex.findFirstIn(text) match
                 {
-                    // Nothing for now
-                    linkRegex.findFirstIn(text) match
-                    {
-                        case None =>
-                        case _ => inFirstSection = false
-                    }
+                    case None =>
+                    case _ => inFirstSection = false
                 }
             }
         }
-        
-        def run( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
-        {
-            traverseWikiTree( element, node => visitNode(node, contextAddFn) )
-        }
+    }
+    
+    def run( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
+    {
+        Utils.traverseWikiTree( element, node => visitNode(node, contextAddFn) )
     }
 }
+
+
 
