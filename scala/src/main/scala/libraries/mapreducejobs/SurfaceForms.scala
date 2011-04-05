@@ -43,6 +43,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                             }
                         }
                     }
+                    case _ =>
                 }
             } )
         }
