@@ -70,11 +70,20 @@ object Utils
     }
     
     def wikiParse( pageName : String, pageText : String ) : PageNode =
-    {       
+    {
         val markupParser = WikiParser()
-        val page = new WikiPage( WikiTitle.parse( pageName ), 0, 0, pageText )
+        val title = WikiTitle.parse( pageName )
+        val page = new WikiPage( title, 0, 0, pageText )
         
-        markupParser( page )
+        try
+        {
+            markupParser( page )
+        }
+        catch
+        {
+            case e : WikiParserException => new PageNode( title, 0, 0, false, false, Nil )
+            case _ => null
+        }
     }
     
     def foldlWikiTree[T]( element : Node, startValue : T, fn : (Node, T) => T ) : T =
