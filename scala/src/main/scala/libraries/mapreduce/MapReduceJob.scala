@@ -4,7 +4,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{Writable,IntWritable}
 import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.Job
+import org.apache.hadoop.mapreduce.{Job => MRJob }
 import org.apache.hadoop.mapreduce.Mapper
 import org.apache.hadoop.mapreduce.Reducer
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
@@ -24,40 +24,23 @@ import java.io.{DataInput, DataOutput}
 import org.seacourt.utility.Utils._
 
 
-abstract class MapReduceJob[MapKeyType : Manifest, MapValueType : Manifest, ReduceKeyType : Manifest, ReduceValueType : Manifest, OutputKeyType : Manifest, OutputValueType : Manifest]
+abstract class MapReduceJob[MapKeyType <: Writable : Manifest, MapValueType <: Writable : Manifest, ReduceKeyType <: Writable : Manifest, ReduceValueType <: Writable : Manifest, OutputKeyType <: Writable : Manifest, OutputValueType <: Writable : Manifest]
 {
+    type MapperType = Mapper[MapKeyType, MapValueType, ReduceKeyType, ReduceValueType]
+    type ReducerType = Reducer[ReduceKeyType, ReduceValueType, OutputKeyType, OutputValueType]
+    type Job = MRJob
     
-    def mapfn( key : MapKeyType, value : MapValueType, outputFn : (ReduceKeyType, ReduceValueType) => Unit )
-    def reducefn( key : ReduceKeyType, values : java.lang.Iterable[ReduceValueType], outputFn : (OutputKeyType, OutputValueType) => Unit )
-    
-    class JobMapper extends Mapper[MapKeyType, MapValueType, ReduceKeyType, ReduceValueType]
-    {
-        type contextType = Mapper[MapKeyType, MapValueType, ReduceKeyType, ReduceValueType]#Context
-        override def map( key : MapKeyType, value : MapValueType, context : contextType )
-        {
-            mapfn( key, value, (k : ReduceKeyType, v : ReduceValueType) => context.write(k, v) )
-        }
-    }
-    
-    class JobReducer extends Reducer[ReduceKeyType, ReduceValueType, OutputKeyType, OutputValueType]
-    {
-        type contextType = Reducer[ReduceKeyType, ReduceValueType, OutputKeyType, OutputValueType]#Context
-        override def reduce( key : ReduceKeyType, values : java.lang.Iterable[ReduceValueType], context : contextType )
-        {
-            reducefn( key, values, (k : OutputKeyType, v : OutputValueType) => context.write(k, v) )
-        }
-    }
+    def register( job : Job )
     
     def run( jobName : String, conf : Configuration, inputFileName : String, outputFilePath : String, numReduces : Int )
     {
-        val job = new Job(conf, jobName)
+        val job = new MRJob(conf, jobName)
         
-        job.setJarByClass(classOf[JobMapper])
-        job.setMapperClass(classOf[JobMapper])
-        job.setReducerClass(classOf[JobReducer])
+        job.setJarByClass(classOf[MapReduceJob[_,_,_,_,_,_]])
+        
+        register( job )
+        
         job.setNumReduceTasks( numReduces )
-        
-        job.setInputFormatClass(classOf[SequenceFileInputFormat[MapKeyType, MapValueType] ])
         
         job.setMapOutputKeyClass(manifest[ReduceKeyType].erasure)
         job.setMapOutputValueClass(manifest[ReduceValueType].erasure)
@@ -65,7 +48,8 @@ abstract class MapReduceJob[MapKeyType : Manifest, MapValueType : Manifest, Redu
         job.setOutputValueClass(manifest[OutputValueType].erasure)
         
         // Output needs to be sequence file otherwise toString is called on LinkData losing information
-        job.setOutputFormatClass(classOf[SequenceFileOutputFormat[OutputKeyType, OutputValueType] ])
+        job.setInputFormatClass(classOf[SequenceFileInputFormat[_, _] ])
+        job.setOutputFormatClass(classOf[SequenceFileOutputFormat[_, _] ])
         
         FileInputFormat.addInputPath(job, new Path(inputFileName))
         FileOutputFormat.setOutputPath(job, new Path(outputFilePath))

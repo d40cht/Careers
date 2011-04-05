@@ -7,6 +7,7 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 
 import java.io.StringReader
 import org.dbpedia.extraction.wikiparser._
+import org.dbpedia.extraction.sources.WikiPage
 
 import scala.util.matching.Regex
 import org.apache.hadoop.io.{Writable}
@@ -66,6 +67,45 @@ object Utils
         }
         tokenizer.close()
         return wordList.reverse
+    }
+    
+    def wikiParse( pageName : String, pageText : String ) : PageNode =
+    {       
+        val markupParser = WikiParser()
+        val page = new WikiPage( WikiTitle.parse( pageName ), 0, 0, pageText )
+        
+        markupParser( page )
+    }
+    
+    def foldlWikiTree[T]( element : Node, startValue : T, fn : (Node, T) => T ) : T =
+    {
+        class FoldHelper( var iter : T, fn : (Node, T) => T )
+        {
+            def apply( element : Node ) : T =
+            {
+                iter = fn( element, iter )
+                
+                element match
+                {
+                    case InternalLinkNode(destination, children, line) => for ( child <- children ) apply( child )
+                    case PageNode( title, id, revision, isRedirect, isDisambig, children ) => for ( child <- children ) apply( child )
+                    case SectionNode( name, level, children, line ) => for ( child <- children ) apply( child )
+                    case TemplateNode( title, children, line ) => for ( child <- children ) apply( child )
+                    case TableNode( caption, children, line ) => for ( child <- children ) apply( child )
+                    case TableRowNode( children, line ) => for ( child <- children ) apply( child )
+                    case TableCellNode( children, line ) => for ( child <- children ) apply( child )
+                    case PropertyNode( value, children, line ) => for ( child <- children ) apply( child )
+                    case TextNode( text, line ) =>
+                    
+                    case _ =>
+                }
+                
+                return iter
+            }
+        }
+        
+        val fh = new FoldHelper( startValue, fn )
+        fh.apply( element )
     }
     
 

@@ -1,26 +1,13 @@
 package org.seacourt.mapreducejobs
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.IntWritable
+
 import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.Job
-import org.apache.hadoop.mapreduce.Mapper
-import org.apache.hadoop.mapreduce.Reducer
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
-import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
-import org.apache.hadoop.util.GenericOptionsParser
+
 import scala.collection.JavaConversions._
 
 import org.dbpedia.extraction.wikiparser._
-import org.dbpedia.extraction.sources.WikiPage
-import org.dbpedia.extraction.wikiparser.{Node}
-import org.apache.hadoop.io.{Writable}
 
 import scala.collection.mutable.HashSet
-
-import org.json.JSONArray
 
 import org.seacourt.mapreduce._
 import org.seacourt.utility._
@@ -29,52 +16,62 @@ import org.seacourt.utility._
 // Sanity check text to remove junk
 
 object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, TextArrayWritable]
-{    
-    override def mapfn( topicTitle : Text, topicText : Text, outputFn : (Text, Text) => Unit )
+{
+    class JobMapper extends MapperType
     {
-        val markupParser = WikiParser()
-        val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
-        val parsed = markupParser( page )
-        
-        Utils.traverseWikiTree( parsed, element =>
+        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
         {
-            element match
+            val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
+            
+            Utils.traverseWikiTree( parsed, element =>
             {
-                case InternalLinkNode( destination, children, line ) =>
+                element match
                 {
-                    if ( children.length != 0 &&
-                        (destination.namespace.toString() == "Main" ||
-                         destination.namespace.toString() == "Category") )
+                    case InternalLinkNode( destination, children, line ) =>
                     {
-                        children(0) match
+                        if ( children.length != 0 &&
+                            (destination.namespace.toString() == "Main" ||
+                             destination.namespace.toString() == "Category") )
                         {
-                            case TextNode( surfaceForm, line ) =>
+                            children(0) match
                             {
-                                outputFn( new Text(Utils.normalize( surfaceForm )), new Text(destination.namespace.toString +  ":" + destination.decoded.toString) )
+                                case TextNode( surfaceForm, line ) =>
+                                {
+                                    output.write( new Text(Utils.normalize( surfaceForm )), new Text(destination.namespace.toString +  ":" + destination.decoded.toString) )
+                                }
+                                case _ =>
                             }
-                            case _ =>
                         }
                     }
                 }
+            } )
+        }
+    }
+     
+    class JobReducer extends ReducerType
+    {
+        override def reduce( word : Text, values: java.lang.Iterable[Text], output : ReducerType#Context )
+        {
+            val seen = new HashSet[Text]
+            val outValues = new TextArrayWritable()
+            var count = 0
+            for ( value <- values )
+            {
+                if ( !seen.contains(value) )
+                {
+                    outValues.append( value.toString() )
+                    count += 1
+                }
+                if ( count > 1000 ) return Unit
             }
-        } )
+            output.write( word, outValues )
+        }
     }
     
-    override def reducefn( word : Text, values: java.lang.Iterable[Text], outputFn : (Text, TextArrayWritable) => Unit )
+    override def register( job : Job )
     {
-        val seen = new HashSet[Text]
-        val outValues = new TextArrayWritable()
-        var count = 0
-        for ( value <- values )
-        {
-            if ( !seen.contains(value) )
-            {
-                outValues.append( value.toString() )
-                count += 1
-            }
-            if ( count > 1000 ) return Unit
-        }
-        outputFn( word, outValues )
+        job.setMapperClass(classOf[JobMapper])
+        job.setReducerClass(classOf[JobReducer])
     }
 }
 

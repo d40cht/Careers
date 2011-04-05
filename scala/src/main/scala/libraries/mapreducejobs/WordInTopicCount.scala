@@ -1,68 +1,64 @@
 package org.seacourt.mapreducejobs
 
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.IntWritable
-import org.apache.hadoop.io.Text
-import org.apache.hadoop.mapreduce.Job
-import org.apache.hadoop.mapreduce.Mapper
-import org.apache.hadoop.mapreduce.Reducer
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
-import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
-import org.apache.hadoop.util.GenericOptionsParser
+
+import org.apache.hadoop.io.{Text, IntWritable}
+
 import scala.collection.JavaConversions._
 
 import org.dbpedia.extraction.wikiparser._
-import org.dbpedia.extraction.sources.WikiPage
-import org.dbpedia.extraction.wikiparser.{Node}
-
-import org.apache.lucene.util.Version.LUCENE_30
-import org.apache.lucene.analysis.Token
-import org.apache.lucene.analysis.tokenattributes.TermAttribute
-import org.apache.lucene.analysis.standard.StandardTokenizer
 
 import scala.collection.immutable.TreeSet
-import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 
-import org.seacourt.utility.Utils._
+import org.seacourt.utility._
 import org.seacourt.mapreduce._
 
 object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, IntWritable]
-{    
-    override def mapfn( topicTitle : Text, topicText : Text, outputFn : (Text, IntWritable) => Unit )
+{
+    class JobMapper extends MapperType
     {
-        class WordCounter
+        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
         {
-            var uniqueWords = TreeSet[String]()
+            val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
             
-            def apply( element : Node )
+            Utils.foldlWikiTree( parsed, TreeSet[String](), (element : Node, seenSet : TreeSet[String]) =>
             {
+                var newSet = seenSet
                 element match
                 {
-                    case TextNode( text, line ) => luceneTextTokenizer( text ).foreach( x => uniqueWords = uniqueWords + x.toLowerCase )
+                    case TextNode( text, line ) => Utils.luceneTextTokenizer( text ).foreach( x =>
+                    {
+                        val lc = x.toLowerCase
+                        if ( !seenSet.contains(element) )
+                        {
+                            output.write( new Text(lc), new IntWritable(1) )
+                            newSet = seenSet + lc
+                        }
+                    } )
                     case _  =>
                 }
-            }
+                
+                newSet
+            } )
         }
-        
-        val markupParser = WikiParser()
-        val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
-        val parsed = markupParser( page )
-        val wc = new WordCounter()
-        
-        traverseWikiTree( parsed, wc.apply )
-        for ( word <- wc.uniqueWords ) outputFn( new Text(word), new IntWritable(1) )
     }
     
-    override def reducefn( word : Text, values: java.lang.Iterable[IntWritable], outputFn : (Text, IntWritable) => Unit )
+    class JobReducer extends ReducerType
     {
-        var count = 0
-        for ( value <- values )
+        override def reduce( word : Text, values: java.lang.Iterable[IntWritable], output : ReducerType#Context )
         {
-            count += 1
+            var count = 0
+            for ( value <- values )
+            {
+                count += 1
+            }
+            output.write( word, new IntWritable(count) )
         }
-        outputFn( word, new IntWritable(count) )
+    }
+    
+    override def register( job : Job )
+    {
+        job.setMapperClass(classOf[JobMapper])
+        job.setReducerClass(classOf[JobReducer])
     }
 }
 
