@@ -18,27 +18,35 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
     {
         override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
         {
-            val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
-            
-            Utils.foldlWikiTree( parsed, TreeSet[String](), (element : Node, seenSet : TreeSet[String]) =>
+            try
             {
-                var newSet = seenSet
-                element match
-                {
-                    case TextNode( text, line ) => Utils.luceneTextTokenizer( text ).foreach( x =>
-                    {
-                        val lc = x.toLowerCase
-                        if ( !seenSet.contains(lc) )
-                        {
-                            output.write( new Text(lc), new IntWritable(1) )
-                            newSet = seenSet + lc
-                        }
-                    } )
-                    case _  =>
-                }
+                val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
                 
-                newSet
-            } )
+                Utils.foldlWikiTree( parsed, TreeSet[String](), (element : Node, seenSet : TreeSet[String]) =>
+                {
+                    var newSet = seenSet
+                    element match
+                    {
+                        case TextNode( text, line ) => Utils.luceneTextTokenizer( text ).foreach( x =>
+                        {
+                            val lc = x.toLowerCase
+                            if ( !seenSet.contains(lc) )
+                            {
+                                output.write( new Text(lc), new IntWritable(1) )
+                                newSet = seenSet + lc
+                            }
+                        } )
+                        case _  =>
+                    }
+                    
+                    newSet
+                } )
+            }
+            catch
+            {
+                case e : WikiParserException =>
+                case _ => 
+            }
         }
     }
     

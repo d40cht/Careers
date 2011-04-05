@@ -21,31 +21,39 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
     {
         override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
         {
-            val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
-            
-            Utils.traverseWikiTree( parsed, element =>
+            try
             {
-                element match
+                val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
+                
+                Utils.traverseWikiTree( parsed, element =>
                 {
-                    case InternalLinkNode( destination, children, line ) =>
+                    element match
                     {
-                        if ( children.length != 0 &&
-                            (destination.namespace.toString() == "Main" ||
-                             destination.namespace.toString() == "Category") )
+                        case InternalLinkNode( destination, children, line ) =>
                         {
-                            children(0) match
+                            if ( children.length != 0 &&
+                                (destination.namespace.toString() == "Main" ||
+                                 destination.namespace.toString() == "Category") )
                             {
-                                case TextNode( surfaceForm, line ) =>
+                                children(0) match
                                 {
-                                    output.write( new Text(Utils.normalize( surfaceForm )), new Text(destination.namespace.toString +  ":" + destination.decoded.toString) )
+                                    case TextNode( surfaceForm, line ) =>
+                                    {
+                                        output.write( new Text(Utils.normalize( surfaceForm )), new Text(destination.namespace.toString +  ":" + destination.decoded.toString) )
+                                    }
+                                    case _ =>
                                 }
-                                case _ =>
                             }
                         }
+                        case _ =>
                     }
-                    case _ =>
-                }
-            } )
+                } )
+            }
+            catch
+            {
+                case e : WikiParserException =>
+                case _ => 
+            }
         }
     }
      

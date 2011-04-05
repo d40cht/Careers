@@ -15,21 +15,29 @@ object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
     {
         override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
         {
-            val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
-            
-            if ( parsed.isRedirect )
+            try
             {
-                Utils.traverseWikiTree( parsed, element =>
+                val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
+                
+                if ( parsed.isRedirect )
                 {
-                    element match
+                    Utils.traverseWikiTree( parsed, element =>
                     {
-                        case InternalLinkNode(destination, children, line) =>
+                        element match
                         {
-                            output.write( topicTitle, new Text( destination.namespace + ":" + destination.decoded ) )
+                            case InternalLinkNode(destination, children, line) =>
+                            {
+                                output.write( topicTitle, new Text( destination.namespace + ":" + destination.decoded ) )
+                            }
+                            case _ =>
                         }
-                        case _ =>
-                    }
-                } )
+                    } )
+                }
+            }
+            catch
+            {
+                case e : WikiParserException =>
+                case _ => 
             }
         }
     }

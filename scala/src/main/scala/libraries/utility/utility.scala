@@ -74,16 +74,7 @@ object Utils
         val markupParser = WikiParser()
         val title = WikiTitle.parse( pageName )
         val page = new WikiPage( title, 0, 0, pageText )
-        
-        try
-        {
-            markupParser( page )
-        }
-        catch
-        {
-            case e : WikiParserException => new PageNode( title, 0, 0, false, false, Nil )
-            case _ => null
-        }
+        markupParser( page )
     }
     
     def foldlWikiTree[T]( element : Node, startValue : T, fn : (Node, T) => T ) : T =
