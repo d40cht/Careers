@@ -28,7 +28,7 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
                     case TextNode( text, line ) => Utils.luceneTextTokenizer( text ).foreach( x =>
                     {
                         val lc = x.toLowerCase
-                        if ( !seenSet.contains(element) )
+                        if ( !seenSet.contains(lc) )
                         {
                             output.write( new Text(lc), new IntWritable(1) )
                             newSet = seenSet + lc

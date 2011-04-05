@@ -50,6 +50,7 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                             case _ => newInFirstSection = false
                         }
                     }
+                    case _ =>
                 }
                 
                 newInFirstSection
