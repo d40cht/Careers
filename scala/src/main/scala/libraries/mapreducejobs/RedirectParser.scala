@@ -27,7 +27,8 @@ object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
                         {
                             case InternalLinkNode(destination, children, line) =>
                             {
-                                output.write( topicTitle, new Text( destination.namespace + ":" + destination.decoded ) )
+                                val qualifiedTopicTitle = if (topicTitle.toString.contains(":")) topicTitle.toString else "Main:" + topicTitle
+                                output.write( new Text(qualifiedTopicTitle), new Text( destination.namespace + ":" + destination.decoded ) )
                             }
                             case _ =>
                         }

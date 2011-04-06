@@ -41,7 +41,8 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                             val namespace = destination.namespace.toString
                             if ( namespace == "Category" || (namespace == "Main" && inFirstSection) )
                             {
-                                output.write( topicTitle, new Text(namespace + ":" + destination.decoded.toString) )
+                                val qualifiedTopicTitle = if (topicTitle.toString.contains(":")) topicTitle.toString else "Main:" + topicTitle
+                                output.write( new Text(qualifiedTopicTitle), new Text(namespace + ":" + destination.decoded.toString) )
                             }
                         }
                         case TextNode( text, line ) =>

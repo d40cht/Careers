@@ -31,7 +31,7 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
                     }
                 } )
                 
-                val words = Utils.luceneTextTokenizer( text.mkString( " " ).toLowerCase() )
+                val words = Utils.luceneTextTokenizer( Utils.normalize( text.mkString( " " ) ) )
                 var seenSet = TreeSet[String]()
                 for (word <- words )
                 {   

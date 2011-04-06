@@ -48,7 +48,7 @@ object Utils
         // Deal with: double/triple spaces, embedded xml tags
         return raw.toLowerCase().filter(_ != '\'' )
     }
-    
+        
     def luceneTextTokenizer( page : String ) : List[String] =
     {
     	val textSource = new StringReader( page )

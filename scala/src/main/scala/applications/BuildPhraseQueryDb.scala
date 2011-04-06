@@ -259,18 +259,6 @@ object PhraseMap
         fileList.map( _.getPath ).filter( !_.toString.endsWith( "_SUCCESS" ) )
     }
     
-    private def canonicalLinkText( linkText : String ) =
-    {
-        if ( linkText.startsWith( "Main:" ) )
-        {
-            linkText.drop(5)
-        }
-        else
-        {
-            linkText
-        }
-    }
-    
     def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
     {
         conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"));
@@ -317,7 +305,7 @@ object PhraseMap
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( fromTopic, toTopic ) )
                 {
-                    insertRedirect.exec( fromTopic.toString, canonicalLinkText( toTopic.toString ) )
+                    insertRedirect.exec( fromTopic.toString, toTopic.toString )
                     sql.manageTransactions()
                 }
             }
@@ -374,7 +362,7 @@ object PhraseMap
             {
                 for ( linkTo <- links.elements )
                 {
-                    insertContext.exec( topic.toString, canonicalLinkText( linkTo.toString ) )
+                    insertContext.exec( topic.toString, linkTo.toString )
                     sql.manageTransactions()
                 }
             }
@@ -442,7 +430,7 @@ object PhraseMap
                         // Add all topics against phrase map terminal id
                         for ( topic <- topics.elements )
                         {
-                            addTopicToPhrase.exec( parentId, canonicalLinkText(topic.toString) )
+                            addTopicToPhrase.exec( parentId, topic.toString )
                             sql.manageTransactions()
                         }
                     }
