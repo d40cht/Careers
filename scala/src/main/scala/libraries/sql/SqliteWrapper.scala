@@ -51,6 +51,12 @@ object SqliteWrapper
 		def assign( res : SQLiteStatement, index : Int ) { v = Some( res.columnInt(index) ) }
 		def copy = new IntCol( v match { case Some(x) => Some(x); case None => None } )
 	}
+	
+	final class LongCol( var v : Option[Long] = None ) extends TypedCol[Long]
+	{
+		def assign( res : SQLiteStatement, index : Int ) { v = Some( res.columnInt(index) ) }
+		def copy = new LongCol( v match { case Some(x) => Some(x); case None => None } )
+	}
 
 	final class DoubleCol( var v : Option[Double] = None ) extends TypedCol[Double]
 	{
@@ -80,6 +86,10 @@ object SqliteWrapper
 		implicit object IntColMaker extends TypedColMaker[Int]
 		{
 		    def build() : TypedCol[Int] = new IntCol()
+		}
+		implicit object LongColMaker extends TypedColMaker[Long]
+		{
+		    def build() : TypedCol[Long] = new LongCol()
 		}
 		implicit object DoubleColMaker extends TypedColMaker[Double]
 		{
@@ -148,6 +158,7 @@ object SqliteWrapper
                 params.head match
                 {
                     case v : Int => statement.bind( index, v )
+                    case v : Long => statement.bind( index, v )
                     case v : String => statement.bind( index, v )
                     case v : Double => statement.bind( index, v )
                     case v : Boolean => statement.bind( index, if (v==true) 1 else 0 )

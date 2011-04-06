@@ -41,26 +41,6 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
                         output.write( new Text(word), new IntWritable(1) )
                     }
                 }
-                
-                /*Utils.foldlWikiTree( parsed, TreeSet[String](), (element : Node, seenSet : TreeSet[String]) =>
-                {
-                    var newSet = seenSet
-                    element match
-                    {
-                        case TextNode( text, line ) => Utils.luceneTextTokenizer( text ).foreach( x =>
-                        {
-                            val lc = x.toLowerCase
-                            if ( !seenSet.contains(lc) )
-                            {
-                                output.write( new Text(lc), new IntWritable(1) )
-                                newSet = seenSet + lc
-                            }
-                        } )
-                        case _  =>
-                    }
-                    
-                    newSet
-                } )*/
             }
             catch
             {

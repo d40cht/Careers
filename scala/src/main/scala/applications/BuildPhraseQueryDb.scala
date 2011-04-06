@@ -1,6 +1,6 @@
 import java.io.{BufferedReader, InputStreamReader}
 
-import org.apache.hadoop.io.Text
+import org.apache.hadoop.io.{Text, IntWritable}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 
@@ -100,8 +100,9 @@ object PhraseMap
         db.exec( "PRAGMA cache_size=512000" )
         db.exec( "PRAGMA journal_mode=off" )
         db.exec( "PRAGMA synchronous=off" )
-        db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
-        db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
+        db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
+        db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
+        db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER, UNIQUE(name))" )
         db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
         db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id) )" )
         db.exec( "CREATE TABLE categories( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
@@ -109,7 +110,7 @@ object PhraseMap
         
         val addTopic = db.prepare( "INSERT INTO topics VALUES( NULL, ? )", HNil )
         //val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
-        val addWord = db.prepare( "INSERT OR IGNORE INTO words VALUES(NULL, ?)", HNil )
+        val addWord = db.prepare( "INSERT OR IGNORE INTO words VALUES(NULL, ?, 0)", HNil )
         
         val getExistingTreeNode = db.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=(SELECT id FROM words WHERE name=?)", Col[Int]::HNil )
         val addTreeNode = db.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, (SELECT id FROM words WHERE name=?) )", HNil )
@@ -127,16 +128,25 @@ object PhraseMap
             db.exec( stmt )
         }
         
-        private def manageTransactions()
+        def prepare[T <: HList]( query : String, row : T ) = db.prepare( query, row )
+        
+        def sync()
+        {
+            println( "Committing " + count )
+            db.exec( "COMMIT" )
+            db.exec( "BEGIN" )
+        }
+        
+        def manageTransactions()
         {
             count += 1
             if ( (count % 100000) == 0 )
             {
-                println( "Committing " + count )
-                db.exec( "COMMIT" )
-                db.exec( "BEGIN" )
+                sync()
             }
         }
+        
+        def getLastInsertId() = db.getLastInsertId()
         
         def clearTopicMap()
         {
@@ -241,13 +251,24 @@ object PhraseMap
             db.exec( "COMMIT" )
         }
     }
-
-    def main( args : Array[String] )
+    
+    private def getJobFiles( fs : FileSystem, basePath : String, directory : String ) =
     {
-        println( "Here1" )
-        val conf = new Configuration()
-        println( "Here2" )
-        run( conf, args(0), args(1) )
+        val fileList = fs.listStatus( new Path( basePath + "/" + directory ) )
+        
+        fileList.map( _.getPath ).filter( !_.toString.endsWith( "_SUCCESS" ) )
+    }
+    
+    private def canonicalLinkText( linkText : String ) =
+    {
+        if ( linkText.startsWith( "Main:" ) )
+        {
+            linkText.drop(5)
+        }
+        else
+        {
+            linkText
+        }
     }
     
     def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
@@ -261,8 +282,182 @@ object PhraseMap
         val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
         
         {
+            println( "Building topic index" )
+            val insertTopic = sql.prepare( "INSERT INTO topics VALUES( NULL, ? )", HNil )
+            
+            val fileList = getJobFiles( fs, basePath, "categoriesAndContexts" )
+            for ( filePath <- fileList )
+            {
+                println( "  " + filePath )
+                
+                val topic = new Text()
+                val links = new TextArrayWritable()
+                
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( topic, links ) )
+                {
+                    insertTopic.exec( topic.toString )
+                    sql.manageTransactions()
+                }
+            }
+        }
+        
+        {
+            println( "Parsing redirects" )
+            val insertRedirect = sql.prepare( "INSERT OR IGNORE INTO redirects VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?) )", HNil )
+            
+            val fileList = getJobFiles( fs, basePath, "redirects" )
+            for ( filePath <- fileList )
+            {
+                println( "  " + filePath )
+                
+                val fromTopic = new Text()
+                val toTopic = new Text()
+                
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( fromTopic, toTopic ) )
+                {
+                    insertRedirect.exec( fromTopic.toString, canonicalLinkText( toTopic.toString ) )
+                    sql.manageTransactions()
+                }
+            }
+            
+            println( "Tidying redirects" )
+            sql.sync()
+            sql.exec( "DELETE FROM redirects WHERE toId IS NULL" )
+            sql.exec( "DELETE FROM redirects WHERE fromId=toId" )
+            // Now need to sanitise redirects. I.e. if a toTopic refers to a fromTopic elsewhere,
+            // redirect again. Although experimentation suggest there may only be a few.
+            
+            println( "Building redirect aware topic id lookup" )
+            sql.exec( "CREATE TABLE topicNameToId (name TEXT, id INTEGER, FOREIGN KEY(id) REFERENCES topic(id), UNIQUE(name))" )
+            sql.exec( "INSERT INTO topicNameToId SELECT t1.name, case WHEN t2.toId IS NULL THEN t1.id ELSE t2.toId END FROM topics AS t1 LEFT JOIN redirects AS t2 ON t1.id=t2.fromId" )
+            sql.sync()
+        }
+        
+        {
+            println( "Adding words" )
+            val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
+        
+            val wordInsert = sql.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
+            //id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER
+            for ( filePath <- fileList )
+            {
+                println( "  " + filePath )
+                val word = new Text()
+                val count = new IntWritable()
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( word, count ) )
+                {
+                    if ( count.get > 4 )
+                    {
+                        wordInsert.exec( word.toString, count.get )
+                        sql.manageTransactions()
+                    }
+                }
+            }
+        }
+        
+        println( "Adding categories and contexts" )
+        sql.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics))" )
+        val fileList = getJobFiles( fs, basePath, "categoriesAndContexts" )
+        val insertContext = sql.prepare( "INSERT INTO categoriesAndContexts VALUES ((SELECT id FROM topicNameToId WHERE name=?), (SELECT id FROM topicNameToId WHERE name=?))", HNil )
+        for ( filePath <- fileList )
+        {
+            println( "  " + filePath )
+            
+            val topic = new Text()
+            val links = new TextArrayWritable()
+            
+            val file = new HadoopReader( fs, filePath, conf )
+            while ( file.next( topic, links ) )
+            {
+                for ( linkTo <- links.elements )
+                {
+                    insertContext.exec( topic.toString, canonicalLinkText( linkTo.toString ) )
+                    sql.manageTransactions()
+                }
+            }
+        }
+        
+        {
+            println( "Adding surface forms" )
+            val fileList = getJobFiles( fs, basePath, "surfaceForms" )
+        
+            //val wordInsert = sql.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
+            //id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER
+            for ( filePath <- fileList )
+            {
+                println( "  " + filePath )
+                
+                val surfaceForm = new Text()
+                val topics = new TextArrayWritable()
+                
+                val surfaceFormWords = Utils.luceneTextTokenizer( surfaceForm.toString )
+                val getWordId = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
+                val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
+                val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
+                val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
+                
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( surfaceForm, topics ) )
+                {
+                    var parentId = -1L
+                    
+                    class WordNotFoundException extends Exception
+                    
+                    try
+                    {
+                        // Add phrase to phrase map
+                        for ( word <- surfaceFormWords )
+                        {
+                            getWordId.bind( word )
+                            val ids = getWordId.toList
+                            if ( ids == Nil )
+                            {
+                                println( "Word in phrase missing from lookup: " + word )
+                                throw new WordNotFoundException()
+                            }
+                            else
+                            {
+                                assert( ids.length == 1 )
+                                val wordId = ids.head
+                                getPhraseTreeNodeId.bind( parentId, wordId )
+                                val ptnIds = getPhraseTreeNodeId.toList
+                                
+                                if ( ptnIds == Nil )
+                                {
+                                    assert( ptnIds.length == 1 )
+                                    parentId = _1(ptnIds.head).get
+                                }
+                                else
+                                {
+                                    addPhraseTreeNodeId.exec( parentId, wordId )
+                                    parentId = sql.getLastInsertId()
+                                }
+                            }
+                            sql.manageTransactions()
+                        }
+                        
+                        // Add all topics against phrase map terminal id
+                        for ( topic <- topics.elements )
+                        {
+                            addTopicToPhrase.exec( parentId, canonicalLinkText(topic.toString) )
+                            sql.manageTransactions()
+                        }
+                    }
+                    catch
+                    {
+                        case e : WordNotFoundException =>
+                    }
+                }
+            }
+        }
+/*
+        
+        {
             println( "Adding topics..." )
-            val fileList = fs.listStatus( new Path( basePath + "/surfaceforms" ) )
+            val fileList = fs.listStatus( new Path( basePath + "/surfaceForms" ) )
             
             for ( fileStatus <- fileList )
             {
@@ -324,9 +519,15 @@ object PhraseMap
             println( "Building category membership index..." )
             sql.exec( "CREATE INDEX categoryMembershipIndex ON categoryMembership(topicId)" )
         }
-        
+*/
         sql.close()
         println( "*** Parse complete ***" )
+    }
+    
+    def main( args : Array[String] )
+    {
+        val conf = new Configuration()
+        run( conf, args(0), args(1) )
     }
 }
 
