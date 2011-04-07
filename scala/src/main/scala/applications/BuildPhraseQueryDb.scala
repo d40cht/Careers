@@ -401,6 +401,7 @@ object PhraseMap
                         {
                             getWordId.bind( word )
                             val ids = getWordId.toList
+                            getWordId.reset()
                             if ( ids == Nil )
                             {
                                 println( "Word in phrase missing from lookup: " + word )
@@ -412,6 +413,7 @@ object PhraseMap
                                 val wordId = _1(ids.head).get
                                 getPhraseTreeNodeId.bind( parentId, wordId )
                                 val ptnIds = getPhraseTreeNodeId.toList
+                                getPhraseTreeNodeId.reset()
                                 
                                 if ( ptnIds == Nil )
                                 {
@@ -423,9 +425,7 @@ object PhraseMap
                                     addPhraseTreeNodeId.exec( parentId, wordId )
                                     parentId = sql.getLastInsertId()
                                 }
-                                getPhraseTreeNodeId.reset()
                             }
-                            getWordId.reset()
                             sql.manageTransactions()
                         }
                         
