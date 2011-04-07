@@ -346,24 +346,27 @@ object PhraseMap
             }
         }
         
-        println( "Adding categories and contexts" )
-        sql.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
-        val fileList = getJobFiles( fs, basePath, "categoriesAndContexts" )
-        val insertContext = sql.prepare( "INSERT OR IGNORE INTO categoriesAndContexts VALUES ((SELECT id FROM topicNameToId WHERE name=?), (SELECT id FROM topicNameToId WHERE name=?))", HNil )
-        for ( filePath <- fileList )
+        if ( false )
         {
-            println( "  " + filePath )
-            
-            val topic = new Text()
-            val links = new TextArrayWritable()
-            
-            val file = new HadoopReader( fs, filePath, conf )
-            while ( file.next( topic, links ) )
+            println( "Adding categories and contexts" )
+            sql.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
+            val fileList = getJobFiles( fs, basePath, "categoriesAndContexts" )
+            val insertContext = sql.prepare( "INSERT OR IGNORE INTO categoriesAndContexts VALUES ((SELECT id FROM topicNameToId WHERE name=?), (SELECT id FROM topicNameToId WHERE name=?))", HNil )
+            for ( filePath <- fileList )
             {
-                for ( linkTo <- links.elements )
+                println( "  " + filePath )
+                
+                val topic = new Text()
+                val links = new TextArrayWritable()
+                
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( topic, links ) )
                 {
-                    insertContext.exec( topic.toString, linkTo.toString )
-                    sql.manageTransactions()
+                    for ( linkTo <- links.elements )
+                    {
+                        insertContext.exec( topic.toString, linkTo.toString )
+                        sql.manageTransactions()
+                    }
                 }
             }
         }
