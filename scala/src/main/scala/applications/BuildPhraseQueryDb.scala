@@ -414,6 +414,7 @@ object PhraseMap
                             {
                                 assert( ids.length == 1 )
                                 val wordId = _1(ids.head).get
+                                println( "Found word " + word + " " + wordId )
                                 getPhraseTreeNodeId.bind( parentId, wordId )
                                 val ptnIds = getPhraseTreeNodeId.toList
                                 getPhraseTreeNodeId.reset()
