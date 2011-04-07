@@ -413,7 +413,7 @@ object PhraseMap
                                 getPhraseTreeNodeId.bind( parentId, wordId )
                                 val ptnIds = getPhraseTreeNodeId.toList
                                 
-                                if ( ptnIds == Nil )
+                                if ( ptnIds != Nil )
                                 {
                                     assert( ptnIds.length == 1 )
                                     parentId = _1(ptnIds.head).get
