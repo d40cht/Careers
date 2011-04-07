@@ -13,6 +13,8 @@ import scala.io.Source._
 
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility._
+
+import scala.util.matching.Regex
  
 class VariousDbpediaParseTests extends FunSuite
 {
@@ -32,12 +34,46 @@ class VariousDbpediaParseTests extends FunSuite
     test("Page parsing")
     {
         val testFileName = "./src/test/scala/data/parsetest.txt"
+        val topicTitle="Test title"
         val text = fromFile(testFileName).getLines.mkString
         
-        val page = new WikiPage( WikiTitle.parse( "Test" ), 0, 0, text )
-        val parsed = markupParser( page )
-        val extractor = new LinkExtractor()
-        extractor.run( parsed, (surfaceForm, namespace, Topic, firstSection) => println( surfaceForm, namespace, Topic, firstSection ) )
+        val parsed = Utils.wikiParse( topicTitle, text )
+             
+                // Don't bother with list-of and table-of links atm because it's hard to work
+                // out which links in the page are part of the list and which are context
+        val linkRegex = new Regex( "[=]+[^=]+[=]+" )
+        
+        Utils.foldlWikiTree( parsed, true, (element : Node, inFirstSection : Boolean) =>
+        {
+            var newInFirstSection = inFirstSection
+            
+            element match
+            {
+                case InternalLinkNode( destination, children, line ) =>
+                {
+                    // Contexts are: any link to a category or any link in the first section
+                    // (also could be any links to topics that are reciprocated)
+                    val namespace = destination.namespace.toString
+                    if ( namespace == "Category" || (namespace == "Main" && inFirstSection) )
+                    {
+                        val qualifiedTopicTitle = if (topicTitle.toString.contains(":")) topicTitle.toString else "Main:" + topicTitle
+                        println( qualifiedTopicTitle, namespace + ":" + destination.decoded.toString )
+                        //output.write( new Text(qualifiedTopicTitle), new Text(namespace + ":" + destination.decoded.toString) )
+                    }
+                }
+                case TextNode( text, line ) =>
+                {
+                    linkRegex.findFirstIn(text) match
+                    {
+                        case None =>
+                        case _ => newInFirstSection = false
+                    }
+                }
+                case _ =>
+            }
+            
+            newInFirstSection
+        } )
     }
 }
  

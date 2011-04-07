@@ -347,9 +347,9 @@ object PhraseMap
         }
         
         println( "Adding categories and contexts" )
-        sql.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics))" )
+        sql.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
         val fileList = getJobFiles( fs, basePath, "categoriesAndContexts" )
-        val insertContext = sql.prepare( "INSERT INTO categoriesAndContexts VALUES ((SELECT id FROM topicNameToId WHERE name=?), (SELECT id FROM topicNameToId WHERE name=?))", HNil )
+        val insertContext = sql.prepare( "INSERT OR IGNORE INTO categoriesAndContexts VALUES ((SELECT id FROM topicNameToId WHERE name=?), (SELECT id FROM topicNameToId WHERE name=?))", HNil )
         for ( filePath <- fileList )
         {
             println( "  " + filePath )
@@ -381,7 +381,6 @@ object PhraseMap
                 val surfaceForm = new Text()
                 val topics = new TextArrayWritable()
                 
-                val surfaceFormWords = Utils.luceneTextTokenizer( surfaceForm.toString )
                 val getWordId = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
                 val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
                 val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
@@ -394,6 +393,7 @@ object PhraseMap
                     
                     class WordNotFoundException extends Exception
                     
+                    val surfaceFormWords = Utils.luceneTextTokenizer( surfaceForm.toString )
                     try
                     {
                         // Add phrase to phrase map

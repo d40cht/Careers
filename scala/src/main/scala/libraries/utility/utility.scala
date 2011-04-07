@@ -100,7 +100,7 @@ object Utils
                     case _ =>
                 }
                 
-                return iter
+                iter
             }
         }
         
