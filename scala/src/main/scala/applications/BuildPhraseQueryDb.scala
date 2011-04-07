@@ -409,7 +409,7 @@ object PhraseMap
                             else
                             {
                                 assert( ids.length == 1 )
-                                val wordId = ids.head
+                                val wordId = _1(ids.head).get
                                 getPhraseTreeNodeId.bind( parentId, wordId )
                                 val ptnIds = getPhraseTreeNodeId.toList
                                 
