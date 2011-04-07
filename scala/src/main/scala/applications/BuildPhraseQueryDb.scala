@@ -423,7 +423,9 @@ object PhraseMap
                                     addPhraseTreeNodeId.exec( parentId, wordId )
                                     parentId = sql.getLastInsertId()
                                 }
+                                getPhraseTreeNodeId.reset()
                             }
+                            getWordId.reset()
                             sql.manageTransactions()
                         }
                         
