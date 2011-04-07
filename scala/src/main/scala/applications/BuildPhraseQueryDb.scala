@@ -214,9 +214,7 @@ object PhraseMap
                 {
                     addTreeNode.exec(parentId, word)
                     treeNodeId = db.getLastInsertId()
-                    //addTreeNode.reset()
                 }
-                getExistingTreeNode.reset()
                 parentId = treeNodeId
                 count += 1
             }
@@ -344,6 +342,7 @@ object PhraseMap
                     }
                 }
             }
+            sql.sync()
         }
         
         if ( false )
@@ -369,6 +368,7 @@ object PhraseMap
                     }
                 }
             }
+            sql.sync()
         }
         
         {
@@ -404,7 +404,6 @@ object PhraseMap
                         {
                             getWordId.bind( word )
                             val ids = getWordId.toList
-                            getWordId.reset()
                             if ( ids == Nil )
                             {
                                 println( "Word in phrase missing from lookup: " + word )
@@ -417,7 +416,6 @@ object PhraseMap
                                 println( "Found word " + word + " " + wordId )
                                 getPhraseTreeNodeId.bind( parentId, wordId )
                                 val ptnIds = getPhraseTreeNodeId.toList
-                                getPhraseTreeNodeId.reset()
                                 
                                 if ( ptnIds != Nil )
                                 {
