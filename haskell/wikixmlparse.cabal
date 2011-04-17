@@ -1,0 +1,14 @@
+Name:               wikixmlparse
+Version:            0.0
+Description:        Haskell mediawiki parser
+License:            GPL
+Author:             Alex Wilson
+Maintainer:         alex_wilson@pobox.com
+Build-Type:         Simple
+Cabal-Version:      >=1.2
+Executable wikixmlparse
+  Main-is:          wikixmlparse.hs
+  Build-Depends:    base > 3 && < 5
+  Build-Depends:    hexpat
+  Build-Depends:    bzlib
+  Build-Depends:    bytestring
