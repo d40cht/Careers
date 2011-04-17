@@ -8,36 +8,40 @@ import Text.XML.Expat.Proc
 import Text.XML.Expat.Tree
 import Text.XML.Expat.Format
 
--- Build: ghc --make -fglasgow-exts test
+-- Build: ghc -O2 --make -fglasgow-exts test
 
--- HXT for XML parsing, wikimediaparser for MediaWiki
-
--- putStrLn (show (1 + 1)) == putStrLn $ show (1 + 1) = putStrLn $ show $ 1 + 1
--- ($ makes everything on the right higher precedence than on the left. Used for avoiding brackets).
+-- Hexpat for XML parsing, wikimediaparser for MediaWiki
 
 testFile = "../data/Wikipedia-small-snapshot.xml.bz2"
 
 
+validPage pageData = case pageData of
+    (Just _, Just _) -> True
+    (_, _) -> False
+
+rawData t = ((textContent.fromJust.fst) t, (textContent.fromJust.snd) t)
+
+-- The maybe monad!
+extractText page = do
+    revision <- findChild "revision" page
+    text <- findChild "text" revision
+    return text
+
 pageDetails tree =
     let pageNodes = filterChildren relevantChildren tree in
-    pageNodes
+    let getPageData page = (findChild "title" page, extractText page) in
+    map rawData $ filter validPage $ map getPageData pageNodes
     where
         relevantChildren node = case node of
             (Element name attributes children) -> name == "page"
             (Text _) -> False
-
 
 main :: IO ()
 main = do
     rawContent <- fmap BZip.decompress (LazyStr.readFile testFile)
     let (tree, mErr) = parse defaultParseOptions rawContent :: (UNode String, Maybe XMLParseError)
     let pages = pageDetails tree
-    --let pages = filterChildren relevantChildren tree
-    -- <page> <title>Boo</title> <text>Some wikipedia wisdom</text>
-    --let relevantChildren node cheitherildren tag text = tag == "
-    -- pages <- filterChildren \
-    let titles = mapMaybe (findChild "title") pages
-    print titles
+    print pages
     putStrLn "Complete!"
     exitWith ExitSuccess
 
