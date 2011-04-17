@@ -1,5 +1,6 @@
 import System.Exit
 import Data.Maybe
+import Data.List
 
 import qualified Data.ByteString.Lazy as LazyStr
 import qualified Codec.Compression.BZip as BZip
@@ -8,12 +9,16 @@ import Text.XML.Expat.Proc
 import Text.XML.Expat.Tree
 import Text.XML.Expat.Format
 
+-- cabal build: cabal install --prefix=/home/alex/Devel/AW/optimal/haskell --user
+-- cabal configure for profiling: cabal configure --enable-executable-profiling
+
 -- Build: ghc -O2 --make -fglasgow-exts test
+-- Run time stats: ./test +RTS --sstderr
+-- Profiling: ghc -O2 --make -fglasgow-exts -prof -auto-all -caf-all test
 
 -- Hexpat for XML parsing, wikimediaparser for MediaWiki
 
 testFile = "../data/Wikipedia-small-snapshot.xml.bz2"
-
 
 validPage pageData = case pageData of
     (Just _, Just _) -> True
@@ -36,12 +41,12 @@ pageDetails tree =
             (Element name attributes children) -> name == "page"
             (Text _) -> False
 
-main :: IO ()
 main = do
     rawContent <- fmap BZip.decompress (LazyStr.readFile testFile)
     let (tree, mErr) = parse defaultParseOptions rawContent :: (UNode String, Maybe XMLParseError)
     let pages = pageDetails tree
-    print pages
+    putStr.(intercalate "\n") $ map snd pages
     putStrLn "Complete!"
     exitWith ExitSuccess
+
 
