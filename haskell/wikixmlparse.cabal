@@ -10,5 +10,6 @@ Executable wikixmlparse
   Main-is:          wikixmlparse.hs
   Build-Depends:    base > 3 && < 5
   Build-Depends:    hexpat
+  Build-Depends:    dlist
   Build-Depends:    bzlib
   Build-Depends:    bytestring

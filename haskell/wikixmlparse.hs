@@ -1,6 +1,8 @@
 import System.Exit
 import Data.Maybe
 import Data.List
+import Data.DList (DList)
+import qualified Data.DList as DList
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
@@ -21,14 +23,27 @@ import Text.XML.Expat.Format
 
 -- Hexpat for XML parsing, custom parsec (or attoparsec) parser for MediaWiki
 
-testFile = "../data/Wikipedia-small-snapshot.xml.bz2"
--- testFile = "../data/enwiki-latest-pages-articles.xml.bz2"
+--testFile = "../data/Wikipedia-small-snapshot.xml.bz2"
+testFile = "../data/enwiki-latest-pages-articles.xml.bz2"
 
 validPage pageData = case pageData of
     (Just _, Just _) -> True
     (_, _) -> False
+    
+--getContent treeElement = textContent treeElement
 
-rawData t = ((textContent.fromJust.fst) t, (textContent.fromJust.snd) t)
+scanChildren :: [UNode ByteString] -> DList ByteString
+scanChildren c = case c of
+    h:t -> DList.append (getContent h) (scanChildren t)
+    []  -> DList.fromList []
+
+getContent :: UNode ByteString -> DList ByteString
+getContent treeElement =
+    case treeElement of
+        (Element name attributes children)  -> scanChildren children
+        (Text text)                         -> DList.fromList [text]
+
+rawData t = ((getContent.fromJust.fst) t, (getContent.fromJust.snd) t)
 
 --testValue :: Char8
 --testValue = BS.pack "Boo!"
@@ -54,7 +69,10 @@ main = do
     let (tree, mErr) = parse defaultParseOptions rawContent :: (UNode ByteString, Maybe XMLParseError)
     --let (tree, mErr) = parse defaultParseOptions rawContent :: (UNode String, Maybe XMLParseError)
     let pages = pageDetails tree
-    BS.putStr.(BS.intercalate (BS.pack "\n")) $ map snd pages
+    --BS.putStr.(BS.intercalate (BS.pack "\n")) $ map snd pages
+    let blah = map snd pages
+    let flattenedPages = map DList.toList blah
+    mapM_ (mapM_ BS.putStr) flattenedPages
     putStrLn "Complete!"
     exitWith ExitSuccess
 
