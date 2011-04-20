@@ -27,8 +27,11 @@ import Text.XML.Expat.Format
 -- Hexpat for XML parsing, custom parsec (or attoparsec) parser for MediaWiki
 
 --testFile = "../data/Wikipedia-small-snapshot.xml.bz2"
-testFile = "../data/enwiki-latest-pages-articles.xml.bz2"
 --testFile = "../data/enwikiquote-20110414-pages-articles.xml.bz2"
+
+testFile = "../data/enwiki-latest-pages-articles.xml.bz2"
+
+-- Serialize out to lots of binary files using Data.Binary via BZip.compress
 
 -- PROFILING: Check just bzip, then just title parsing
 
