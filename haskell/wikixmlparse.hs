@@ -2,7 +2,10 @@ import System.Exit
 import Data.Maybe
 import Data.List
 import Data.DList (DList)
+import Debug.Trace
 import qualified Data.DList as DList
+import Control.Monad
+import System.IO
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
@@ -25,12 +28,13 @@ import Text.XML.Expat.Format
 
 --testFile = "../data/Wikipedia-small-snapshot.xml.bz2"
 testFile = "../data/enwiki-latest-pages-articles.xml.bz2"
+--testFile = "../data/enwikiquote-20110414-pages-articles.xml.bz2"
+
+-- PROFILING: Check just bzip, then just title parsing
 
 validPage pageData = case pageData of
     (Just _, Just _) -> True
     (_, _) -> False
-    
---getContent treeElement = textContent treeElement
 
 scanChildren :: [UNode ByteString] -> DList ByteString
 scanChildren c = case c of
@@ -45,10 +49,6 @@ getContent treeElement =
 
 rawData t = ((getContent.fromJust.fst) t, (getContent.fromJust.snd) t)
 
---testValue :: Char8
---testValue = BS.pack "Boo!"
-
--- The maybe monad!
 extractText page = do
     revision <- findChild (BS.pack "revision") page
     text <- findChild (BS.pack "text") revision
@@ -62,17 +62,29 @@ pageDetails tree =
         relevantChildren node = case node of
             (Element name attributes children) -> name == (BS.pack "page")
             (Text _) -> False
+            
+foreachPage pages count = case pages of
+    h:t     -> do
+        (mapM_ BS.putStr h)
+        when ((mod count 1000) == 0) $ hPutStrLn stderr ("Count: " ++ (show count))
+        foreachPage t $ count+1
+    []      -> return []
+
+outputPages pagesText = do
+    let flattenedPages = map DList.toList pagesText
+    --mapM_ (mapM_ BS.putStr) flattenedPages
+    foreachPage flattenedPages 0
+
+lazyRead fileName = LazyByteString.readFile fileName
+readCompressed fileName = fmap BZip.decompress $ lazyRead fileName
+parseXml byteStream = parse defaultParseOptions byteStream :: (UNode ByteString, Maybe XMLParseError)
 
 main = do
-    rawContent <- fmap BZip.decompress (LazyByteString.readFile testFile)
-    -- Perhaps the UNode String bit below should be UNode LazyStr
-    let (tree, mErr) = parse defaultParseOptions rawContent :: (UNode ByteString, Maybe XMLParseError)
-    --let (tree, mErr) = parse defaultParseOptions rawContent :: (UNode String, Maybe XMLParseError)
+    rawContent <- readCompressed testFile
+    let (tree, mErr) = parseXml rawContent
     let pages = pageDetails tree
-    --BS.putStr.(BS.intercalate (BS.pack "\n")) $ map snd pages
-    let blah = map snd pages
-    let flattenedPages = map DList.toList blah
-    mapM_ (mapM_ BS.putStr) flattenedPages
+    let pagesText = map snd pages
+    outputPages pagesText
     putStrLn "Complete!"
     exitWith ExitSuccess
 
