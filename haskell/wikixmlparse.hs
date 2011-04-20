@@ -6,6 +6,7 @@ import Debug.Trace
 import qualified Data.DList as DList
 import Control.Monad
 import System.IO
+import Data.Binary
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
@@ -27,9 +28,8 @@ import Text.XML.Expat.Format
 -- Hexpat for XML parsing, custom parsec (or attoparsec) parser for MediaWiki
 
 --testFile = "../data/Wikipedia-small-snapshot.xml.bz2"
---testFile = "../data/enwikiquote-20110414-pages-articles.xml.bz2"
-
-testFile = "../data/enwiki-latest-pages-articles.xml.bz2"
+testFile = "../data/enwikiquote-20110414-pages-articles.xml.bz2"
+--testFile = "../data/enwiki-latest-pages-articles.xml.bz2"
 
 -- Serialize out to lots of binary files using Data.Binary via BZip.compress
 
@@ -82,12 +82,23 @@ lazyRead fileName = LazyByteString.readFile fileName
 readCompressed fileName = fmap BZip.decompress $ lazyRead fileName
 parseXml byteStream = parse defaultParseOptions byteStream :: (UNode ByteString, Maybe XMLParseError)
 
+outFile = "./out.gz"
+
+--instance Binary DList (ByteStream, ByteStream) where
+--    put (DList 
+
 main = do
     rawContent <- readCompressed testFile
     let (tree, mErr) = parseXml rawContent
     let pages = pageDetails tree
-    let pagesText = map snd pages
-    outputPages pagesText
+    --encodeFile outFile $ map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
+    --encodeFile
+    let flattenedPages = map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
+    let serializable = encode flattenedPages
+    let compressed = BZip.compress serializable
+    LazyByteString.writeFile outFile compressed
+    --let pagesText = map snd pages
+    --outputPages pagesText
     putStrLn "Complete!"
     exitWith ExitSuccess
 
