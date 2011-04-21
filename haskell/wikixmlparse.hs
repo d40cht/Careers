@@ -108,10 +108,10 @@ incrementalPut list chunkSize =
 --        else
 --            incrementalGet ++ 
 
-instance Binary a => Binary (LazySerializingList a) where
-    put l   = incrementalPut l 256
-    get     = do
-        return []
+--instance Binary a => Binary (LazySerializingList a) where
+--    put l   = incrementalPut l 256
+--    get     = do
+--        return []
         
 
 main = do
@@ -120,7 +120,8 @@ main = do
     let pages = pageDetails tree
     let flattenedPages = map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
     let lazySerializingList = LazySerializingList flattenedPages
-    let serializable = encode lazySerializingList
+    --let serializable = encode lazySerializingList
+    let serializable = encode flattenedPages
     let compressed = BZip.compress serializable
     LazyByteString.writeFile outFile compressed
     --let pagesText = map snd pages
