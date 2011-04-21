@@ -87,14 +87,40 @@ outFile = "./out.gz"
 --instance Binary DList (ByteStream, ByteStream) where
 --    put (DList 
 
+newtype LazySerializingList a = LazySerializingList [a]
+
+chunkList list chunkSize =
+    let soFar = take chunkSize list in
+    let size = length soFar in
+    if (size == 0) then
+        [(0, [])]
+    else
+        (size, soFar) : chunkList (drop size list) chunkSize
+
+incrementalPut list chunkSize =
+    mapM_ (\x -> put (fst x) >> put (snd x)) $ chunkList list chunkSize
+
+--incrementalGet =
+--    do
+--        length <- get :: Get Int
+--        if length == 0 then
+--            return []
+--        else
+--            incrementalGet ++ 
+
+instance Binary a => Binary (LazySerializingList a) where
+    put l   = incrementalPut l 256
+    get     = do
+        return []
+        
+
 main = do
     rawContent <- readCompressed testFile
     let (tree, mErr) = parseXml rawContent
     let pages = pageDetails tree
-    --encodeFile outFile $ map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
-    --encodeFile
     let flattenedPages = map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
-    let serializable = encode flattenedPages
+    let lazySerializingList = LazySerializingList flattenedPages
+    let serializable = encode lazySerializingList
     let compressed = BZip.compress serializable
     LazyByteString.writeFile outFile compressed
     --let pagesText = map snd pages
