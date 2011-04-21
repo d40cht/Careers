@@ -7,6 +7,8 @@ import qualified Data.DList as DList
 import Control.Monad
 import System.IO
 import Data.Binary
+import Data.Binary.Put
+import Data.Binary.Get
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
@@ -86,8 +88,8 @@ outFile = "./out.gz"
 
 --instance Binary DList (ByteStream, ByteStream) where
 --    put (DList 
-
-newtype LazySerializingList a = LazySerializingList [a]
+    
+data LazySerializingList a = LazySerializingList [a]
 
 chunkList list chunkSize =
     let soFar = take chunkSize list in
@@ -100,28 +102,38 @@ chunkList list chunkSize =
 incrementalPut list chunkSize =
     mapM_ (\x -> put (fst x) >> put (snd x)) $ chunkList list chunkSize
 
---incrementalGet =
---    do
---        length <- get :: Get Int
---        if length == 0 then
---            return []
---        else
---            incrementalGet ++ 
+--incrementalGet :: a => () -> Binary (LazySerializingList a)
+incrementalGet :: Get [a]
+incrementalGet =
+    do
+        length <- get :: Get Int
+        --headChunk <- replicateM length (get :: Get a)
+        el <- get :: Get a
+        let headChunk = [el]
+        if (length == 0)
+            then do
+                return []
+            else do
+                restChunk <- incrementalGet
+                return $ headChunk ++ restChunk
 
---instance Binary a => Binary (LazySerializingList a) where
---    put l   = incrementalPut l 256
---    get     = do
---        return []
-        
+instance (Binary a) => Binary (LazySerializingList a) where
+    put (LazySerializingList l) = incrementalPut l 256
+    get = do
+        resValue <- incrementalGet
+        return $ LazySerializingList resValue
+
+
+
+blah = [1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9]
 
 main = do
     rawContent <- readCompressed testFile
     let (tree, mErr) = parseXml rawContent
     let pages = pageDetails tree
     let flattenedPages = map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
-    let lazySerializingList = LazySerializingList flattenedPages
-    --let serializable = encode lazySerializingList
-    let serializable = encode flattenedPages
+    let chunkedList = LazySerializingList $ flattenedPages
+    let serializable = encode chunkedList
     let compressed = BZip.compress serializable
     LazyByteString.writeFile outFile compressed
     --let pagesText = map snd pages
