@@ -16,11 +16,11 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
 {
     class JobMapper extends MapperType
     {
-        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
+        def mapWork( topicTitle : String, topicText : String, output : (String, Int) => Unit )
         {
             try
             {
-                val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
+                val parsed = Utils.wikiParse( topicTitle, topicText )
                 
                 val text = Utils.foldlWikiTree( parsed, List[String](), (element : Node, stringList : List[String] ) =>
                 {
@@ -38,7 +38,7 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
                     if ( !seenSet.contains( word ) )
                     {
                         seenSet = seenSet + word
-                        output.write( new Text(word), new IntWritable(1) )
+                        output( word, 1 )
                     }
                 }
             }
@@ -47,6 +47,11 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
                 case e : WikiParserException =>
                 case _ => 
             }
+        }
+        
+        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
+        {
+            mapWork( topicTitle.toString, topicText.toString, (key, value) => output.write( new Text(key), new IntWritable(value) ) )
         }
     }
     

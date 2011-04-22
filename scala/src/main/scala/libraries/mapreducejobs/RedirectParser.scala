@@ -13,11 +13,11 @@ object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
 {
     class JobMapper extends MapperType
     {
-        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
+        def mapWork( topicTitle : String, topicText : String, output : (String, String) => Unit )
         {
             try
             {
-                val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
+                val parsed = Utils.wikiParse( topicTitle, topicText )
                 
                 if ( parsed.isRedirect )
                 {
@@ -27,8 +27,7 @@ object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
                         {
                             case InternalLinkNode(destination, children, line) =>
                             {
-                                val qualifiedTopicTitle = if (topicTitle.toString.contains(":")) topicTitle.toString else "Main:" + topicTitle
-                                output.write( new Text(qualifiedTopicTitle), new Text( destination.namespace + ":" + destination.decoded ) )
+                                output( Utils.normalizeTopicTitle( topicTitle ), Utils.normalizeLink( destination ) )
                             }
                             case _ =>
                         }
@@ -40,6 +39,11 @@ object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
                 case e : WikiParserException =>
                 case _ => 
             }
+        }
+        
+        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
+        {
+            mapWork( topicTitle.toString, topicText.toString, (key, value) => output.write( new Text(key), new Text(value) ) )
         }
     }
     

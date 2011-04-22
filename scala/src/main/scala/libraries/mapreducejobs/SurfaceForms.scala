@@ -19,11 +19,11 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
 {
     class JobMapper extends MapperType
     {
-        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
+        def mapWork( topicTitle : String, topicText : String, output : (String, String) => Unit )
         {
             try
             {
-                val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
+                val parsed = Utils.wikiParse( topicTitle, topicText )
                 
                 Utils.traverseWikiTree( parsed, element =>
                 {
@@ -39,7 +39,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                                 {
                                     case TextNode( surfaceForm, line ) =>
                                     {
-                                        output.write( new Text(Utils.normalize( surfaceForm )), new Text(destination.namespace.toString +  ":" + destination.decoded.toString) )
+                                        output( Utils.normalize( surfaceForm ), Utils.normalizeLink( destination ) )
                                     }
                                     case _ =>
                                 }
@@ -54,6 +54,11 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                 case e : WikiParserException =>
                 case _ => 
             }
+        }
+        
+        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
+        {
+            mapWork( topicTitle.toString, topicText.toString, (key, value) => output.write( new Text(key), new Text(value) ) )
         }
     }
      

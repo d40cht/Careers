@@ -7,7 +7,7 @@ class CategoryMembershipTest extends FunSuite
 {
     val parseTestFile = "./src/test/scala/data/parsetest.txt"
     
-    test("test1")
+    test("Test category and context parsing")
     {
         val expectedResults =
             "Category:2003 soundtracks" ::
@@ -49,5 +49,17 @@ class CategoryMembershipTest extends FunSuite
             assert( "Main:Test title" == res._1 )
             assert( exp === res._2 )
         }
+    }
+    
+    test("Test redirect parsing")
+    {
+    }
+    
+    test("Test surface form parsing")
+    {
+    }
+    
+    test("Test counting words in topics")
+    {
     }
 }

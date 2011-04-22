@@ -46,7 +46,19 @@ object Utils
     def normalize( raw : String ) : String =
     {
         // Deal with: double/triple spaces, embedded xml tags
-        return raw.toLowerCase().filter(_ != '\'' )
+        raw.toLowerCase().filter(_ != '\'' )
+    }
+    
+    def normalizeTopicTitle( topicTitle : String ) : String =
+    {
+        if (topicTitle.contains(":")) topicTitle else "Main:" + topicTitle
+    }
+    
+    def normalizeLink( destination : WikiTitle ) : String =
+    {
+        val namespace = destination.namespace.toString
+        val destWithoutAnchor = destination.decoded.toString.split('#')(0)
+        namespace + ":" + destWithoutAnchor
     }
         
     def luceneTextTokenizer( page : String ) : List[String] =
