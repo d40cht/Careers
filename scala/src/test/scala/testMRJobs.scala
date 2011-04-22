@@ -53,13 +53,35 @@ class CategoryMembershipTest extends FunSuite
     
     test("Test redirect parsing")
     {
+        val v = new RedirectParser.JobMapper()
+        
+        val topicTitle = "Test title"
+        val topicText = fromFile(parseTestFile).getLines.mkString
+        
+        var results : List[(String, String)] = Nil
+        v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
+        
     }
     
     test("Test surface form parsing")
     {
+        val v = new SurfaceFormsGleaner.JobMapper()
+        
+        val topicTitle = "Test title"
+        val topicText = fromFile(parseTestFile).getLines.mkString
+        
+        var results : List[(String, String)] = Nil
+        v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
     }
     
     test("Test counting words in topics")
     {
+        val v = new WordInTopicCounter.JobMapper()
+        
+        val topicTitle = "Test title"
+        val topicText = fromFile(parseTestFile).getLines.mkString
+        
+        var results : List[(String, Int)] = Nil
+        v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
     }
 }
