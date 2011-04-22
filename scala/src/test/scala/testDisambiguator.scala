@@ -18,31 +18,34 @@ class DisambiguatorTest extends FunSuite
 {
     test("Efficient disambiguator test")
     {
-        val testFileName = "./src/test/scala/data/simpleTest.txt"
-        val testDbName = "disambig.sqlite3"
-        
-        val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
-        var run = true
-        val wordList = new ArrayBuffer[String]
-        
-        while ( run )
+        if ( false )
         {
-            val term = tokenizer.getAttribute(classOf[TermAttribute]).term()
-            if ( term != "" )
+            val testFileName = "./src/test/scala/data/simpleTest.txt"
+            val testDbName = "disambig.sqlite3"
+            
+            val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
+            var run = true
+            val wordList = new ArrayBuffer[String]
+            
+            while ( run )
             {
-                wordList.append( term.toLowerCase() )
+                val term = tokenizer.getAttribute(classOf[TermAttribute]).term()
+                if ( term != "" )
+                {
+                    wordList.append( term.toLowerCase() )
+                }
+                run = tokenizer.incrementToken()
             }
-            run = tokenizer.incrementToken()
+            tokenizer.close()
+            
+            //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::"partridge"::"in"::"a"::"pear"::"tree"::Nil
+            //var wordList = "george" :: "bush" :: "rice" :: "blair" :: "iraq" :: "saddam" :: Nil
+            //var wordList = "george" :: "bush" :: "john" :: "major" :: "iraq" :: "saddam" :: "invasion" :: "of" :: "kuwait" :: Nil
+            
+            val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
+            disambiguator.build()
+            disambiguator.resolve()
         }
-        tokenizer.close()
-        
-        //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::"partridge"::"in"::"a"::"pear"::"tree"::Nil
-        //var wordList = "george" :: "bush" :: "rice" :: "blair" :: "iraq" :: "saddam" :: Nil
-        //var wordList = "george" :: "bush" :: "john" :: "major" :: "iraq" :: "saddam" :: "invasion" :: "of" :: "kuwait" :: Nil
-        
-        val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
-        disambiguator.build()
-        disambiguator.resolve()
     }
     
     /*

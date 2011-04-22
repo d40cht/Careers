@@ -18,11 +18,11 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
 {
     class JobMapper extends MapperType
     {
-        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
+        def mapWork( topicTitle : String, topicText : String, output : (String, String) => Unit )
         {
             try
             {
-                val parsed = Utils.wikiParse( topicTitle.toString, topicText.toString )
+                val parsed = Utils.wikiParse( topicTitle, topicText )
              
                 // Don't bother with list-of and table-of links atm because it's hard to work
                 // out which links in the page are part of the list and which are context
@@ -42,7 +42,8 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                             if ( namespace == "Category" || (namespace == "Main" && inFirstSection) )
                             {
                                 val qualifiedTopicTitle = if (topicTitle.toString.contains(":")) topicTitle.toString else "Main:" + topicTitle
-                                output.write( new Text(qualifiedTopicTitle), new Text(namespace + ":" + destination.decoded.toString) )
+                                val destWithoutAnchor = destination.decoded.toString.split('#')(0)
+                                output( qualifiedTopicTitle, namespace + ":" + destWithoutAnchor )
                             }
                         }
                         case TextNode( text, line ) =>
@@ -65,6 +66,11 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                 case _ => 
             }
         }
+        
+        override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
+        {
+            mapWork( topicTitle.toString, topicText.toString, (key, value) => output.write( new Text(key), new Text(value) ) )
+        }
     }
     
     class JobReducer extends ReducerType
@@ -83,6 +89,10 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
         job.setReducerClass(classOf[JobReducer])
     }
 }
+
+
+
+
 
 
 
