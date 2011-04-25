@@ -2,6 +2,7 @@ package org.seacourt.mapreducejobs
 
 import org.apache.hadoop.io.Text
 import scala.collection.JavaConversions._
+import scala.collection.immutable.TreeSet
 
 import org.dbpedia.extraction.wikiparser._
 
@@ -28,6 +29,7 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                 // out which links in the page are part of the list and which are context
                 val linkRegex = new Regex( "[=]+[^=]+[=]+" )
                 
+                var linkSet = new TreeSet[String]
                 Utils.foldlWikiTree( parsed, true, (element : Node, inFirstSection : Boolean) =>
                 {
                     var newInFirstSection = inFirstSection
@@ -41,7 +43,7 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                             val namespace = destination.namespace.toString
                             if ( namespace == "Category" || (namespace == "Main" && inFirstSection) )
                             {
-                                output( Utils.normalizeTopicTitle( topicTitle ), Utils.normalizeLink( destination ) )
+                                linkSet = linkSet + Utils.normalizeLink( destination )
                             }
                         }
                         case TextNode( text, line ) =>
@@ -57,6 +59,8 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                     
                     newInFirstSection
                 } )
+                
+                for ( linkTo <- linkSet ) output( Utils.normalizeTopicTitle( topicTitle ), linkTo )
             }
             catch
             {

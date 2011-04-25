@@ -1,13 +1,12 @@
 package org.seacourt.mapreducejobs
 
-
 import org.apache.hadoop.io.Text
-
-import scala.collection.JavaConversions._
 
 import org.dbpedia.extraction.wikiparser._
 
+import scala.collection.JavaConversions._
 import scala.collection.mutable.HashSet
+import scala.collection.immutable.TreeSet
 
 import org.seacourt.mapreduce._
 import org.seacourt.utility._
@@ -25,6 +24,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
             {
                 val parsed = Utils.wikiParse( topicTitle, topicText )
                 
+                var resSet = new TreeSet[(String, String)]
                 Utils.traverseWikiTree( parsed, element =>
                 {
                     element match
@@ -32,14 +32,17 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                         case InternalLinkNode( destination, children, line ) =>
                         {
                             if ( children.length != 0 &&
-                                (destination.namespace.toString() == "Main" ||
-                                 destination.namespace.toString() == "Category") )
+                                (destination.namespace.toString() == "Main" /*||
+                                 destination.namespace.toString() == "Category"*/) )
                             {
                                 children(0) match
                                 {
                                     case TextNode( surfaceForm, line ) =>
                                     {
-                                        output( Utils.normalize( surfaceForm ), Utils.normalizeLink( destination ) )
+                                        val sf = Utils.normalize( surfaceForm )
+                                        val dest = Utils.normalizeLink( destination )
+                                        val newSF = (sf, dest)
+                                        resSet = resSet + newSF
                                     }
                                     case _ =>
                                 }
@@ -48,6 +51,11 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                         case _ =>
                     }
                 } )
+                
+                for ( (sf, dest) <- resSet )
+                {
+                    output( sf, dest )
+                }
             }
             catch
             {

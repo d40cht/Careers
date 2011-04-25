@@ -1,4 +1,5 @@
 import org.scalatest.FunSuite
+import scala.collection.immutable.TreeSet
 import scala.io.Source._
 
 import org.seacourt.mapreducejobs._
@@ -9,7 +10,8 @@ class CategoryMembershipTest extends FunSuite
     
     test("Test category and context parsing")
     {
-        val expectedResults =
+        // Remove duplicates!
+        val expectedResultsL =
             "Category:2003 soundtracks" ::
             "Category:Albums by British artists" ::
             "Category:Film soundtracks" ::
@@ -19,7 +21,6 @@ class CategoryMembershipTest extends FunSuite
             "Main:Blue States (band)" ::
             "Main:Grandaddy" ::
             "Main:Brian Eno" ::
-            "Main:John Murphy (composer)" ::
             "Main:Film score" ::
             "Main:28 Days Later" ::
             "Main:2002 in film" ::
@@ -36,6 +37,9 @@ class CategoryMembershipTest extends FunSuite
             "Main:Rock music" ::
             "Main:John Murphy (composer)" :: Nil
             
+        var expectedResults = new TreeSet[String]
+        for ( e <- expectedResultsL ) expectedResults = expectedResults + e
+            
         val topicTitle = "Test title"
         val topicText = fromFile(parseTestFile).getLines.mkString
         
@@ -44,7 +48,7 @@ class CategoryMembershipTest extends FunSuite
         var results : List[(String, String)] = Nil
         v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
         
-        for ( (exp, res) <- expectedResults.zip( results) )
+        for ( (exp, res) <- expectedResults.zip( results.reverse ) )
         {
             assert( "Main:Test title" == res._1 )
             assert( exp === res._2 )
@@ -53,18 +57,76 @@ class CategoryMembershipTest extends FunSuite
     
     test("Test redirect parsing")
     {
-        val v = new RedirectParser.JobMapper()
+        // Not a redirect page. Should not add to the list
+        {
+            val v = new RedirectParser.JobMapper()
+            
+            val topicTitle = "Test title"
+            val topicText = fromFile(parseTestFile).getLines.mkString
+            
+            var results : List[(String, String)] = Nil
+            v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
+            
+            assert( results === Nil )
+        }
         
-        val topicTitle = "Test title"
-        val topicText = fromFile(parseTestFile).getLines.mkString
-        
-        var results : List[(String, String)] = Nil
-        v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
-        
+        // A redirect page. Expect it to show up
+        {
+            val v = new RedirectParser.JobMapper()
+            
+            val topicTitle = "Test title"
+            val topicText = "#REDIRECT [[Academic acceleration]] {{R from other capitalisation}}"
+            
+            var results : List[(String, String)] = Nil
+            v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
+            
+            println( results(0) )
+            
+            assert( results(0)._1 == ("Main:Test title") )
+            assert( results(0)._2 == ("Main:Academic acceleration") )
+        }
     }
     
     test("Test surface form parsing")
     {
+        val expectedResults =
+            ("the rotted", "Main:The Rotted") ::
+            ("the beach", "Main:The Beach (film)") ::
+            ("sputnikmusic", "Main:Sputnikmusic") ::
+            ("soundtrack", "Main:Soundtrack album") ::
+            ("rock", "Main:Rock music") ::
+            ("richard marlow", "Main:Richard Marlow") ::
+            ("post-rock", "Main:Post-rock") ::
+            ("post-rock", "Main:Post-Rock") ::
+            ("perri alleyne", "Main:Perri Alleyne") ::
+            ("original score", "Main:Film score") ::
+            ("millions", "Main:Millions") ::
+            ("metro 2033", "Main:Metro 2033") ::
+            ("kick-ass", "Main:Kick-Ass (film)") ::
+            ("john murphy", "Main:John Murphy (composer)") ::
+            ("jacknife lee", "Main:Jacknife Lee") ::
+            ("instrumental", "Main:Instrumental") ::
+            ("grandaddy", "Main:Grandaddy") ::
+            ("godspeed you! black emperor", "Main:Godspeed You! Black Emperor") ::
+            ("faures requiem in d minor", "Main:Requiem (Faure)") ::
+            ("electronica", "Main:Electronica") ::
+            ("east hastings", "Main:East Hastings") ::
+            ("death metal", "Main:Death Metal") ::
+            ("danny boyle", "Main:Danny Boyle") ::
+            ("classical", "Main:Classical music") ::
+            ("brian eno", "Main:Brian Eno") ::
+            ("blue states", "Main:Blue States (band)") ::
+            ("ave maria", "Main:Ave Maria (Gounod)") ::
+            ("ambient music", "Main:Ambient Music") ::
+            ("allmusic", "Main:Allmusic") ::
+            ("abide with me", "Main:Abide With Me") ::
+            ("a.m. 180", "Main:A.M. 180") ::
+            ("28 weeks later", "Main:28 Weeks Later") ::
+            ("28 days later", "Main:28 Days Later") ::
+            ("2002 film", "Main:2002 in film") :: Nil
+
+
+        // TODO: Remove duplicates in mapper
         val v = new SurfaceFormsGleaner.JobMapper()
         
         val topicTitle = "Test title"
@@ -72,6 +134,13 @@ class CategoryMembershipTest extends FunSuite
         
         var results : List[(String, String)] = Nil
         v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
+        
+        //println( results )
+        for ( (result, expected) <- results.zip(expectedResults))
+        {
+            assert( result._1 === expected._1 )
+            assert( result._2 === expected._2 )
+        }
     }
     
     test("Test counting words in topics")
@@ -81,7 +150,16 @@ class CategoryMembershipTest extends FunSuite
         val topicTitle = "Test title"
         val topicText = fromFile(parseTestFile).getLines.mkString
         
-        var results : List[(String, Int)] = Nil
-        v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
+        //var results : List[(String, Int)] = Nil
+        var words = new TreeSet[String]
+        v.mapWork( topicTitle, topicText, (word, count) =>
+        {
+            assert( count === 1 )
+            words = words + word
+        } )
+        
+        assert( words.contains( "parents" ) )
+        assert( words.contains( "there" ) )
+        assert( words.contains( "alleyne" ) )
     }
 }
