@@ -4,9 +4,84 @@ import scala.io.Source._
 
 import org.seacourt.mapreducejobs._
 
+import org.apache.hadoop.io.SequenceFile.{createWriter, Reader}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.io.Text
+
 class CategoryMembershipTest extends FunSuite
 {
     val parseTestFile = "./src/test/scala/data/parsetest.txt"
+    
+    /*test("Temp test")
+    {
+        val runtime = Runtime.getRuntime
+        
+        val conf = new Configuration()
+        val fs = FileSystem.get(conf)
+        
+        val reader = new Reader(fs, new Path("./enwikifull.seq"), conf)
+        
+        val title = new Text()
+        val topic = new Text()
+        
+        var done = false
+        var count = 0
+        while ( !done && reader.next( title, topic ) )
+        {
+            if ( title.toString.startsWith("28") ) println( title.toString )
+            if ( title.toString == "28 Days Later: The Soundtrack Album" ) 
+            {
+                println( count )
+                done = true
+                
+                val expectedResultsL =
+                    "Category:2003 soundtracks" ::
+                    "Category:Albums by British artists" ::
+                    "Category:Film soundtracks" ::
+                    "Main:Godspeed You! Black Emperor" ::
+                    "Main:Post-rock" ::
+                    "Main:East Hastings" ::
+                    "Main:Blue States (band)" ::
+                    "Main:Grandaddy" ::
+                    "Main:Brian Eno" ::
+                    "Main:Film score" ::
+                    "Main:28 Days Later" ::
+                    "Main:2002 in film" ::
+                    "Main:Soundtrack album" ::
+                    "Main:Millions" ::
+                    "Main:The Beach (film)" ::
+                    "Main:Danny Boyle" ::
+                    "Main:Sputnikmusic" ::
+                    "Main:Allmusic" ::
+                    "Main:Classical music" ::
+                    "Main:Electronica" ::
+                    "Main:Ambient Music" ::
+                    "Main:Post-Rock" ::
+                    "Main:Rock music" ::
+                    "Main:John Murphy (composer)" :: Nil
+                    
+                var expectedResults = new TreeSet[String]
+                for ( e <- expectedResultsL ) expectedResults = expectedResults + e
+                    
+                val topicTitle = "Test title"
+                val topicText = fromFile(parseTestFile).getLines.mkString
+                
+                val v = new CategoriesAndContexts.JobMapper()
+                
+                var results : List[(String, String)] = Nil
+                v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
+                
+                for ( (exp, res) <- expectedResults.zip( results.reverse ) )
+                {
+                    assert( "Main:Test title" == res._1 )
+                    assert( exp === res._2 )
+                }
+            }
+            count = count +1
+            if ( (count % 10000) == 0 ) println( count )
+        }
+    }*/
     
     test("Test category and context parsing")
     {
