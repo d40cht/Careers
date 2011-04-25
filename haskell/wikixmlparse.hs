@@ -35,7 +35,6 @@ testFile = "../data/enwikiquote-20110414-pages-articles.xml.bz2"
 
 -- Serialize out to lots of binary files using Data.Binary via BZip.compress
 
--- PROFILING: Check just bzip, then just title parsing
 
 validPage pageData = case pageData of
     (Just _, Just _) -> True
@@ -89,7 +88,7 @@ outFile = "./out.gz"
 --instance Binary DList (ByteStream, ByteStream) where
 --    put (DList 
     
-data LazySerializingList a = LazySerializingList [a]
+data LazySerializingList a = LazySerializingList [a] deriving (Eq)
 
 chunkList list chunkSize =
     let soFar = take chunkSize list in
@@ -102,42 +101,48 @@ chunkList list chunkSize =
 incrementalPut list chunkSize =
     mapM_ (\x -> put (fst x) >> put (snd x)) $ chunkList list chunkSize
 
---incrementalGet :: a => () -> Binary (LazySerializingList a)
-incrementalGet :: Get [a]
-incrementalGet =
-    do
-        length <- get :: Get Int
-        --headChunk <- replicateM length (get :: Get a)
-        el <- get :: Get a
-        let headChunk = [el]
-        if (length == 0)
-            then do
-                return []
-            else do
-                restChunk <- incrementalGet
-                return $ headChunk ++ restChunk
-
 instance (Binary a) => Binary (LazySerializingList a) where
-    put (LazySerializingList l) = incrementalPut l 256
+    put (LazySerializingList l) = incrementalPut l 8
     get = do
-        resValue <- incrementalGet
-        return $ LazySerializingList resValue
+        --resValue <- incrementalGet
+        length <- get :: Get Int
+        headChunk <- replicateM length get
+        tailChunk <- if (length==0) then do
+                return []
+                else do
+                    value <- get
+                    return value
+        return $ LazySerializingList $ headChunk ++ tailChunk
 
 
 
-blah = [1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9]
+--blah = LazySerializingList [1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9,1,2,3,4,5,6,7,8,9]
+
+blah2 = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
+
+blah = LazySerializingList ["1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 main = do
+    -- Quick check of encode functionality
+    let res = encode blah
+    print res
+    let res2 = decode res
+    print (blah == res2)
+
+    {-
     rawContent <- readCompressed testFile
     let (tree, mErr) = parseXml rawContent
     let pages = pageDetails tree
     let flattenedPages = map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
-    let chunkedList = LazySerializingList $ flattenedPages
+    let chunkedList = LazySerializingList flattenedPages
     let serializable = encode chunkedList
     let compressed = BZip.compress serializable
     LazyByteString.writeFile outFile compressed
+    
     --let pagesText = map snd pages
     --outputPages pagesText
+    -}
     putStrLn "Complete!"
     exitWith ExitSuccess
 
