@@ -134,24 +134,20 @@ data Options = Options {
 
 defaultOptions = Options { inputFile = "", outputBase = "", recordsPerFile = 100000 }
 
+saveRecords :: Binary a => Int -> String -> [a] -> Int -> IO ()
 saveRecords splitSize fileBase l index = do
-    if (index == 5)
-        then do
-            exitWith ExitSuccess
-        else do
-            let head = take splitSize l
-            case head of
-                []          -> do
-                    return ()
-                _         -> do
-                    let chunkedList = LazySerializingList head
-                    let serializable = encode chunkedList
-                    let compressed = BZip.compress serializable
-                    let currentChunkName = fileBase ++ "." ++ (show index) ++ ".gz"
-                    print $ "Current chunk name: " ++ currentChunkName
-                    --LazyByteString.writeFile currentChunkName compressed
-                    print "  .. complete"
-                    saveRecords splitSize fileBase (drop splitSize l) (index+1)
+    let head = take splitSize l
+    case head of
+        []          -> do
+            return ()
+        _         -> do
+            let chunkedList = LazySerializingList head
+            let serializable = encode chunkedList
+            let compressed = BZip.compress serializable
+            let currentChunkName = fileBase ++ "." ++ (show index) ++ ".bz"
+            print $ "Current chunk name: " ++ currentChunkName
+            LazyByteString.writeFile currentChunkName compressed
+            --saveRecords splitSize fileBase (drop splitSize l) (index+1)
 
 blah = LazySerializingList ["1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
