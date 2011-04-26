@@ -138,7 +138,7 @@ saveRecords :: Binary a => Int -> String -> [a] -> Int -> IO ()
 saveRecords splitSize fileBase l index = do
     let head = take splitSize l
     case head of
-        []          -> do
+        []        -> do
             return ()
         _         -> do
             let chunkedList = LazySerializingList head
@@ -147,7 +147,8 @@ saveRecords splitSize fileBase l index = do
             let currentChunkName = fileBase ++ "." ++ (show index) ++ ".bz"
             print $ "Current chunk name: " ++ currentChunkName
             LazyByteString.writeFile currentChunkName compressed
-            --saveRecords splitSize fileBase (drop splitSize l) (index+1)
+            -- Comment the next line out to re-instate laziness!
+            saveRecords splitSize fileBase (drop splitSize l) (index+1)
 
 blah = LazySerializingList ["1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
