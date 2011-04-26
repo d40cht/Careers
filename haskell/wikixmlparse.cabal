@@ -14,3 +14,4 @@ Executable wikixmlparse
   Build-Depends:    bzlib
   Build-Depends:    bytestring
   Build-Depends:    binary
+  Build-Depends:    cmdargs

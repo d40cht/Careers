@@ -1,3 +1,7 @@
+{-# LANGUAGE DeriveDataTypeable #-}
+
+import System.Console.CmdArgs
+import System.Environment
 import System.Exit
 import Data.Maybe
 import Data.List
@@ -9,6 +13,7 @@ import System.IO
 import Data.Binary
 import Data.Binary.Put
 import Data.Binary.Get
+import Control.Exception
 
 import Data.ByteString.Char8 (ByteString)
 import qualified Data.ByteString.Char8 as BS
@@ -31,7 +36,7 @@ import Text.XML.Expat.Format
 
 --testFile = "../data/Wikipedia-small-snapshot.xml.bz2"
 --testFile = "../data/enwikiquote-20110414-pages-articles.xml.bz2"
-testFile = "../data/enwiki-latest-pages-articles.xml.bz2"
+
 
 -- Serialize out to lots of binary files using Data.Binary via BZip.compress
 
@@ -66,7 +71,8 @@ pageDetails tree =
         relevantChildren node = case node of
             (Element name attributes children) -> name == (BS.pack "page")
             (Text _) -> False
-            
+
+{-
 foreachPage pages count = case pages of
     h:t     -> do
         (mapM_ BS.putStr h)
@@ -78,16 +84,8 @@ outputPages pagesText = do
     let flattenedPages = map DList.toList pagesText
     --mapM_ (mapM_ BS.putStr) flattenedPages
     foreachPage flattenedPages 0
+-}
 
-lazyRead fileName = LazyByteString.readFile fileName
-readCompressed fileName = fmap BZip.decompress $ lazyRead fileName
-parseXml byteStream = parse defaultParseOptions byteStream :: (UNode ByteString, Maybe XMLParseError)
-
-outFile = "./out.gz"
-
---instance Binary DList (ByteStream, ByteStream) where
---    put (DList 
-    
 data LazySerializingList a = LazySerializingList [a] deriving (Eq)
 
 chunkList list chunkSize =
@@ -128,27 +126,60 @@ instance (Binary a) => Binary (LazySerializingList a) where
         listData <- getLazySerializingList
         return $ LazySerializingList listData
 
+data Options = Options {
+    inputFile       :: String,
+    outputBase      :: String,
+    recordsPerFile  :: Int  
+} deriving (Eq, Show, Data, Typeable)
 
+defaultOptions = Options { inputFile = "", outputBase = "", recordsPerFile = 100000 }
+
+saveRecords splitSize fileBase l index = do
+    if (index == 5)
+        then do
+            exitWith ExitSuccess
+        else do
+            let head = take splitSize l
+            case head of
+                []          -> do
+                    return ()
+                _         -> do
+                    let chunkedList = LazySerializingList head
+                    let serializable = encode chunkedList
+                    let compressed = BZip.compress serializable
+                    let currentChunkName = fileBase ++ "." ++ (show index) ++ ".gz"
+                    print $ "Current chunk name: " ++ currentChunkName
+                    --LazyByteString.writeFile currentChunkName compressed
+                    print "  .. complete"
+                    saveRecords splitSize fileBase (drop splitSize l) (index+1)
 
 blah = LazySerializingList ["1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
 
 main = do
     -- Quick check of encode functionality
     let res = encode blah
     let res2 = decode res
     print (blah == res2)
+    --assert (blah == res2)
 
+    opts <- cmdArgs defaultOptions
     
+    let testFile = inputFile opts
+    let outBase = outputBase opts
+    let rpf = recordsPerFile opts
+    
+    let lazyRead fileName = LazyByteString.readFile fileName
+    let readCompressed fileName = fmap BZip.decompress $ lazyRead fileName
+    let parseXml byteStream = parse defaultParseOptions byteStream :: (UNode ByteString, Maybe XMLParseError)
+
     rawContent <- readCompressed testFile
     let (tree, mErr) = parseXml rawContent
     let pages = pageDetails tree
     let flattenedPages = map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
-    let chunkedList = LazySerializingList flattenedPages
-    let serializable = encode chunkedList
-    let compressed = BZip.compress serializable
-    LazyByteString.writeFile outFile compressed
     
-    
+    saveRecords rpf outBase flattenedPages 0
+
     putStrLn "Complete!"
     exitWith ExitSuccess
 
