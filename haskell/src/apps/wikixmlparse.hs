@@ -24,6 +24,8 @@ import Text.XML.Expat.Proc
 import Text.XML.Expat.Tree
 import Text.XML.Expat.Format
 
+import WikiMunge.Utils
+
 -- cabal build: cabal install --prefix=/home/alex/Devel/AW/optimal/haskell --user
 -- cabal configure for profiling: cabal configure --enable-executable-profiling --ghc-option=-auto-all --ghc-option=-caf-all
 -- To rebuild core libraries with profiling enabled:
@@ -56,13 +58,15 @@ getContent treeElement =
         (Element name attributes children)  -> scanChildren children
         (Text text)                         -> DList.fromList [text]
 
-rawData t = ((getContent.fromJust.fst) t, (getContent.fromJust.snd) t)
-
 extractText page = do
     revision <- findChild (BS.pack "revision") page
     text <- findChild (BS.pack "text") revision
     return text
+    
+rawData t = ((getContent.fromJust.fst) t, (getContent.fromJust.snd) t)
 
+-- A list of (title text, page text) pairs
+pageDetails :: UNode ByteString -> [(DList ByteString, DList ByteString)]
 pageDetails tree =
     let pageNodes = filterChildren relevantChildren tree in
     let getPageData page = (findChild (BS.pack "title") page, extractText page) in
@@ -86,45 +90,6 @@ outputPages pagesText = do
     foreachPage flattenedPages 0
 -}
 
-data LazySerializingList a = LazySerializingList [a] deriving (Eq)
-
-chunkList list chunkSize =
-    let soFar = take chunkSize list in
-    let size = length soFar in
-    if (size == 0) then
-        [(0, [])]
-    else
-        (size, soFar) : chunkList (drop size list) chunkSize
-
-incrementalPut list chunkSize =
-    mapM_ (\x -> put (fst x) >> put (snd x)) $ chunkList list chunkSize
-
-{-
--- The type signature below means that for a Binary serializable object 'a' ('Binary a =>'),
--- this instance will serialize a list of [a] (Binary [a])
-
-instance Binary a => Binary [a] where
-    put l  = put (length l) >> mapM_ put l
-    get    = do n <- get :: Get Int
-                replicateM n get
--}
-
-getLazySerializingList :: Binary a => Get [a]
-getLazySerializingList = do
-    length <- get :: Get Int
-    headChunk <- get
-    tailChunk <- if (length==0) then do
-        return []
-        else do
-            tailData <- getLazySerializingList
-            return tailData
-    return $ headChunk ++ tailChunk
-
-instance (Binary a) => Binary (LazySerializingList a) where
-    put (LazySerializingList l) = incrementalPut l 255
-    get = do
-        listData <- getLazySerializingList
-        return $ LazySerializingList listData
 
 data Options = Options {
     inputFile       :: String,
@@ -134,32 +99,35 @@ data Options = Options {
 
 defaultOptions = Options { inputFile = "", outputBase = "", recordsPerFile = 100000 }
 
-saveRecords :: Binary a => Int -> String -> [a] -> Int -> IO ()
-saveRecords splitSize fileBase l index = do
-    let head = take splitSize l
-    case head of
-        []        -> do
-            return ()
-        _         -> do
-            let chunkedList = LazySerializingList head
-            let serializable = encode chunkedList
-            let compressed = BZip.compress serializable
+splitList :: [a] -> Int -> [[a]]
+splitList l splitSize =
+    let front = take splitSize l in
+    let rest  = drop splitSize l in
+    case front of
+        []      -> []
+        _       -> front : splitList rest splitSize
+        
+saveRecord :: String -> [(ByteString, ByteString)] -> IO()
+saveRecord fileName l = do
+    let chunkedList = LazySerializingList l
+    let serializable = encode chunkedList
+    let compressed = BZip.compress serializable
+    print $ "Saving chunk: " ++ fileName
+    LazyByteString.writeFile fileName compressed
+        
+saveRecords :: String -> [[(ByteString, ByteString)]] -> Int -> IO()
+saveRecords fileBase lists index =
+    case lists of 
+        []      -> return ()
+        h:t     -> do
             let currentChunkName = fileBase ++ "." ++ (show index) ++ ".bz"
-            print $ "Current chunk name: " ++ currentChunkName
-            LazyByteString.writeFile currentChunkName compressed
-            -- Comment the next line out to re-instate laziness!
-            saveRecords splitSize fileBase (drop splitSize l) (index+1)
+            saveRecord currentChunkName h
+            --saveRecords fileBase t (index+1)
 
-blah = LazySerializingList ["1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9", "1", "2", "3", "4", "5", "6", "7", "8", "9"]
+
 
 
 main = do
-    -- Quick check of encode functionality
-    let res = encode blah
-    let res2 = decode res
-    print (blah == res2)
-    --assert (blah == res2)
-
     opts <- cmdArgs defaultOptions
     
     let testFile = inputFile opts
@@ -173,9 +141,9 @@ main = do
     rawContent <- readCompressed testFile
     let (tree, mErr) = parseXml rawContent
     let pages = pageDetails tree
-    let flattenedPages = map (\x -> (DList.toList $ fst x, DList.toList $ snd x)) pages
+    let flattenedPages = map (\x -> ((BS.concat.DList.toList) $ fst x, (BS.concat.DList.toList) $ snd x)) pages
     
-    saveRecords rpf outBase flattenedPages 0
+    saveRecords outBase (splitList flattenedPages rpf) 0
 
     putStrLn "Complete!"
     exitWith ExitSuccess
