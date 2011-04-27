@@ -28,6 +28,7 @@ Executable wikimungetest
   Build-Depends:    bytestring
   Build-Depends:    binary
   Build-Depends:    cmdargs
+  Build-Depends:    parsec
 
 test-suite unittests
   hs-source-dirs:   src

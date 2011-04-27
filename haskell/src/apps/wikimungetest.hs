@@ -10,6 +10,7 @@ import qualified Data.ByteString.Char8 as BS
 
 
 import WikiMunge.Utils
+import Text.WikimediaParser
 
 data Options = Options {
     inputFiles      :: [String]
@@ -17,13 +18,22 @@ data Options = Options {
 
 defaultOptions = Options { inputFiles = [] }
 
+parsePage :: (ByteString, ByteString) -> IO ()
+parsePage pageData = do
+    let title = (BS.unpack.fst) pageData
+    let article = (BS.unpack.snd) pageData
+    let els = runWikiParse article
+    putStrLn title
+    mapM_ (putStrLn.show) els
+    --putStrLn els
+
 dumpTitles :: String -> IO ()
 dumpTitles fileName = do
     print fileName
     raw <- fmap BZip.decompress (LazyByteString.readFile fileName)
     let decoded = decode raw :: (LazySerializingList (ByteString, ByteString))
     case decoded of
-        (LazySerializingList l)     -> mapM_ (putStrLn.BS.unpack.fst) l
+        (LazySerializingList l)     -> mapM_ parsePage l
         _                           -> return ()
         
 
