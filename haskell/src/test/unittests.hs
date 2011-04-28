@@ -58,9 +58,8 @@ parensParser = do
     some <|> return 0
 
 parsecSimpleTest = do
-    let res = parse parensParser "test" "(())())"
-    print res
-    True @?= True
+    let res = parse parensParser "test" "(())(())"
+    res @?= (Right 4)
     
 
 
