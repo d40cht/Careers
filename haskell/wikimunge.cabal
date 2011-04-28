@@ -30,11 +30,16 @@ Executable wikimungetest
   Build-Depends:    cmdargs
   Build-Depends:    parsec
 
-test-suite unittests
+Executable unittests
+--test-suite unittests
   hs-source-dirs:   src
-  type:             exitcode-stdio-1.0
+--  type:             exitcode-stdio-1.0
   Main-is:          test/unittests.hs
   Build-Depends:    base > 3 && < 5
   Build-Depends:    HUnit
   Build-Depends:    binary
+  Build-Depends:    test-framework
+  Build-Depends:    test-framework-hunit
+  Build-Depends:    test-framework-quickcheck
+  Build-Depends:    parsec
   
