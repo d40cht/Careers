@@ -98,11 +98,11 @@ object PhraseMap
         
         // Various options, inc. 2Gb page cache and no journal to massively speed up creation of this db
         
+        db.exec( "PRAGMA cache_size=512000" )
+        db.exec( "PRAGMA journal_mode=off" )
+        db.exec( "PRAGMA synchronous=off" )
         if ( false )
         {
-            db.exec( "PRAGMA cache_size=512000" )
-            db.exec( "PRAGMA journal_mode=off" )
-            db.exec( "PRAGMA synchronous=off" )
             db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
             db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
             db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER, UNIQUE(name))" )
@@ -432,21 +432,21 @@ object PhraseMap
                     try
                     {
                         // Add phrase to phrase map
-                        println( "Adding surface forms" )
+                        //println( "Adding surface forms" )
                         for ( word <- surfaceFormWords )
                         {
                             getWordId.bind( word )
                             val ids = getWordId.toList
                             if ( ids == Nil )
                             {
-                                println( "Word in phrase missing from lookup: '" + word +"'" )
+                                //println( "Word in phrase missing from lookup: '" + word +"'" )
                                 throw new WordNotFoundException()
                             }
                             else
                             {
                                 assert( ids.length == 1 )
                                 val wordId = _1(ids.head).get
-                                println( "Found word " + word + " " + wordId )
+                                //println( "Found word " + word + " " + wordId )
                                 getPhraseTreeNodeId.bind( parentId, wordId )
                                 val ptnIds = getPhraseTreeNodeId.toList
                                 
@@ -464,7 +464,7 @@ object PhraseMap
                             sql.manageTransactions()
                         }
                         
-                        println( "Adding topics against phrase map" )
+                        //println( "Adding topics against phrase map" )
                         // Add all topics against phrase map terminal id
                         for ( topic <- topics.elements )
                         {
