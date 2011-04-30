@@ -395,9 +395,9 @@ object PhraseMap
                 val topics = new TextArrayWritable()
                 
                 val getWordId = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
-                val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
-                val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
-                val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
+                //val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
+                //val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
+                //val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
                 
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( surfaceForm, topics ) )
