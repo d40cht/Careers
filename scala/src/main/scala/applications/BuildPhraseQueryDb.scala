@@ -269,6 +269,27 @@ object PhraseMap
         
         val sql = new SQLiteWriter( outputFilePath )
         
+        {
+            val getWordIdO = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
+            getWordIdO.bind( "auer" )
+            assert( getWordIdO.toList.length == 1 )
+            
+            getWordIdO.bind( "battle" )
+            assert( getWordIdO.toList.length == 1 )
+            
+            getWordIdO.bind( "gilliam" )
+            assert( getWordIdO.toList.length == 1 )
+            
+            getWordIdO.bind( "makut" )
+            assert( getWordIdO.toList.length == 1 )
+            
+            getWordIdO.bind( "morning" )
+            assert( getWordIdO.toList.length == 1 )
+            
+            getWordIdO.bind( "pelorous" )
+            assert( getWordIdO.toList.length == 1 )
+        }
+        
         val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
         
         if ( false )
@@ -394,30 +415,11 @@ object PhraseMap
                 val surfaceForm = new Text()
                 val topics = new TextArrayWritable()
                 
+                
                 val getWordId = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
                 //val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
                 //val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
                 //val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
-                
-                {
-                    getWordId.bind( "auer" )
-                    assert( getWordId.toList.length == 1 )
-                    
-                    getWordId.bind( "battle" )
-                    assert( getWordId.toList.length == 1 )
-                    
-                    getWordId.bind( "gilliam" )
-                    assert( getWordId.toList.length == 1 )
-                    
-                    getWordId.bind( "makut" )
-                    assert( getWordId.toList.length == 1 )
-                    
-                    getWordId.bind( "morning" )
-                    assert( getWordId.toList.length == 1 )
-                    
-                    getWordId.bind( "pelorous" )
-                    assert( getWordId.toList.length == 1 )
-                }
                 
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( surfaceForm, topics ) )
