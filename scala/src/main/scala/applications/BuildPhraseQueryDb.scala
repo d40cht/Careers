@@ -399,6 +399,26 @@ object PhraseMap
                 val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
                 val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
                 
+                {
+                    getWordId.bind( "auer" )
+                    assert( getWordId.toList.length == 1 )
+                    
+                    getWordId.bind( "battle" )
+                    assert( getWordId.toList.length == 1 )
+                    
+                    getWordId.bind( "gilliam" )
+                    assert( getWordId.toList.length == 1 )
+                    
+                    getWordId.bind( "makut" )
+                    assert( getWordId.toList.length == 1 )
+                    
+                    getWordId.bind( "morning" )
+                    assert( getWordId.toList.length == 1 )
+                    
+                    getWordId.bind( "pelorous" )
+                    assert( getWordId.toList.length == 1 )
+                }
+                
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( surfaceForm, topics ) )
                 {
