@@ -417,9 +417,9 @@ object PhraseMap
                 
                 
                 val getWordId = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
-                val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
-                val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
-                val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
+                //val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
+                //val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
+                //val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
                 
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( surfaceForm, topics ) )
@@ -432,13 +432,14 @@ object PhraseMap
                     try
                     {
                         // Add phrase to phrase map
+                        println( "Adding surface forms" )
                         for ( word <- surfaceFormWords )
                         {
                             getWordId.bind( word )
                             val ids = getWordId.toList
                             if ( ids == Nil )
                             {
-                                println( "Word in phrase missing from lookup: " + word )
+                                println( "Word in phrase missing from lookup: '" + word +"'" )
                                 throw new WordNotFoundException()
                             }
                             else
@@ -460,15 +461,16 @@ object PhraseMap
                                     parentId = sql.getLastInsertId()
                                 }
                             }
-                            sql.manageTransactions()
+                            //sql.manageTransactions()
                         }
                         
+                        /*println( "Adding topics against phrase map" )
                         // Add all topics against phrase map terminal id
                         for ( topic <- topics.elements )
                         {
                             addTopicToPhrase.exec( parentId, topic.toString )
                             sql.manageTransactions()
-                        }
+                        }*/
                     }
                     catch
                     {
