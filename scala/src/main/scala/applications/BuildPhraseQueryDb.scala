@@ -400,13 +400,14 @@ object PhraseMap
                     try
                     {
                         // Add phrase to phrase map
+                        println( "Adding surface forms" )
                         for ( word <- surfaceFormWords )
                         {
                             getWordId.bind( word )
                             val ids = getWordId.toList
                             if ( ids == Nil )
                             {
-                                println( "Word in phrase missing from lookup: " + word )
+                                println( "Word in phrase missing from lookup: '" + word +"'" )
                                 throw new WordNotFoundException()
                             }
                             else
@@ -414,7 +415,7 @@ object PhraseMap
                                 assert( ids.length == 1 )
                                 val wordId = _1(ids.head).get
                                 println( "Found word " + word + " " + wordId )
-                                getPhraseTreeNodeId.bind( parentId, wordId )
+                                /*getPhraseTreeNodeId.bind( parentId, wordId )
                                 val ptnIds = getPhraseTreeNodeId.toList
                                 
                                 if ( ptnIds != Nil )
@@ -426,17 +427,18 @@ object PhraseMap
                                 {
                                     addPhraseTreeNodeId.exec( parentId, wordId )
                                     parentId = sql.getLastInsertId()
-                                }
+                                }*/
                             }
-                            sql.manageTransactions()
+                            //sql.manageTransactions()
                         }
                         
+                        /*println( "Adding topics against phrase map" )
                         // Add all topics against phrase map terminal id
                         for ( topic <- topics.elements )
                         {
                             addTopicToPhrase.exec( parentId, topic.toString )
                             sql.manageTransactions()
-                        }
+                        }*/
                     }
                     catch
                     {
