@@ -98,19 +98,16 @@ object PhraseMap
         
         // Various options, inc. 2Gb page cache and no journal to massively speed up creation of this db
         
-        if ( false )
-        {
-            db.exec( "PRAGMA cache_size=512000" )
-            db.exec( "PRAGMA journal_mode=off" )
-            db.exec( "PRAGMA synchronous=off" )
-            db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
-            db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
-            db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER, UNIQUE(name))" )
-            db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
-            db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id) )" )
-            db.exec( "CREATE TABLE categories( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
-            db.exec( "CREATE TABLE categoryMembership( topicId INTEGER, categoryId INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id), FOREIGN KEY(categoryId) REFERENCES topics(id) )" )
-        }
+        db.exec( "PRAGMA cache_size=512000" )
+        db.exec( "PRAGMA journal_mode=off" )
+        db.exec( "PRAGMA synchronous=off" )
+        db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
+        db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
+        db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER, UNIQUE(name))" )
+        db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
+        db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id) )" )
+        db.exec( "CREATE TABLE categories( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)" )
+        db.exec( "CREATE TABLE categoryMembership( topicId INTEGER, categoryId INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id), FOREIGN KEY(categoryId) REFERENCES topics(id) )" )
         
         val addTopic = db.prepare( "INSERT INTO topics VALUES( NULL, ? )", HNil )
         //val addSurfaceForm = db.prepare( "INSERT INTO surfaceForms SELECT ?, id FROM topics WHERE topics.name=?" )
@@ -269,30 +266,8 @@ object PhraseMap
         
         val sql = new SQLiteWriter( outputFilePath )
         
-        {
-            val getWordIdO = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
-            getWordIdO.bind( "auer" )
-            assert( getWordIdO.toList.length == 1 )
-            
-            getWordIdO.bind( "battle" )
-            assert( getWordIdO.toList.length == 1 )
-            
-            getWordIdO.bind( "gilliam" )
-            assert( getWordIdO.toList.length == 1 )
-            
-            getWordIdO.bind( "makut" )
-            assert( getWordIdO.toList.length == 1 )
-            
-            getWordIdO.bind( "morning" )
-            assert( getWordIdO.toList.length == 1 )
-            
-            getWordIdO.bind( "pelorous" )
-            assert( getWordIdO.toList.length == 1 )
-        }
         
         val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
-        
-        if ( false )
         {
             println( "Building topic index" )
             val insertTopic = sql.prepare( "INSERT INTO topics VALUES( NULL, ? )", HNil )
@@ -314,7 +289,6 @@ object PhraseMap
             }
         }
         
-        if ( false )
         {
             println( "Parsing redirects" )
             val insertRedirect = sql.prepare( "INSERT OR IGNORE INTO redirects VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?) )", HNil )
@@ -348,7 +322,6 @@ object PhraseMap
             sql.sync()
         }
         
-        if ( false )
         {
             println( "Adding words" )
             val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
@@ -373,7 +346,6 @@ object PhraseMap
             sql.sync()
         }
         
-        if ( false )
         {
             println( "Adding categories and contexts" )
             sql.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
