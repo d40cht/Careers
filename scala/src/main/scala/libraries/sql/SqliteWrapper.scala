@@ -151,6 +151,7 @@ object SqliteWrapper
         sealed class PreparedStatementBase[T <: HList]( query : String, var row : T )
         {
             protected val statement = conn.prepare( query )
+            var init = true
             
             private def bindRec( index : Int, params : List[Any] )
             {
@@ -183,6 +184,7 @@ object SqliteWrapper
             
             def bind( args : Any* )
             {
+                init = true
                 bindRec( 1, args.toList )
             }
             
@@ -202,8 +204,7 @@ object SqliteWrapper
         final class PreparedStatement[T <: HList]( query : String, row : T ) extends PreparedStatementBase( query, row ) with Iterator[T]
         {
         	var nextRow : Option[T] = None
-        	var currRow : Option[T] = None
-        	var init = true
+        	var currRow : Option[T] = None        	
         	
         	private def advance()
         	{

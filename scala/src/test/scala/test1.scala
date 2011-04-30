@@ -50,6 +50,7 @@ class ResTupleTestSuite extends FunSuite
         val getStatement = db.prepare( "SELECT * from test ORDER BY NUMBER ASC", Col[Int]::Col[Double]::Col[String]::HNil )
 	    for ( (row, expected) <- getStatement.zip(data.iterator) )
         {
+            println( ":__: " + _1(row).get )
         	assert( expected._1 === _1(row).get )
         	assert( expected._2 === _2(row).get )
         	assert( expected._3 === _3(row).get )
