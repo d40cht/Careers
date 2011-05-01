@@ -123,9 +123,10 @@ class CategoryMembershipTest extends FunSuite
         var results : List[(String, String)] = Nil
         v.mapWork( topicTitle, topicText, (x, y) => results = (x,y) :: results )
         
+        assert( results.length === expectedResults.size )
         for ( (exp, res) <- expectedResults.zip( results.reverse ) )
         {
-            assert( "Main:Test title" == res._1 )
+            assert( "Main:Test title" === res._1 )
             assert( exp === res._2 )
         }
     }
