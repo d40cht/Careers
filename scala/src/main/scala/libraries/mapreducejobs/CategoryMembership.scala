@@ -90,7 +90,16 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
         override def reduce( word : Text, values: java.lang.Iterable[Text], output : ReducerType#Context )
         {
             val outValues = new TextArrayWritable()
-            for ( value <- values ) outValues.append( value.toString() )
+            var seenAlready = new TreeSet[String]
+            for ( value <- values )
+            {
+                val s = value.toString
+                if ( !seenAlready.contains( s ) )
+                {
+                    outValues.append( s )
+                    seenAlready = seenAlready + s
+                }
+            }
             output.write( word, outValues )
         }
     }
