@@ -262,8 +262,8 @@ object PhraseMap
     
     def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
     {
-        conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"));
-        conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"));
+        conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"))
+        conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
         val fs = FileSystem.get(conf)   
         
         val sql = new SQLiteWriter( outputFilePath )

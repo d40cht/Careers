@@ -18,6 +18,8 @@ class CategoryMembershipTest extends FunSuite
         val runtime = Runtime.getRuntime
         
         val conf = new Configuration()
+        conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"))
+        conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
         val fs = FileSystem.get(conf)
         
         val reader = new Reader(fs, new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/enwikifull.seq"), conf)
