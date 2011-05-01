@@ -55,6 +55,9 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                                     linkSet = linkSet + Utils.normalizeLink( destination )
                                 }
                             }
+                            // One wouldn't expect to need both of these, but I'm seeing
+                            // some instances of sections remaining as text and some being
+                            // turned into section nodes. No idea why...
                             case TextNode( text, line ) =>
                             {
                                 linkRegex.findFirstIn(text) match
@@ -62,6 +65,10 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                                     case None =>
                                     case _ => newInFirstSection = false
                                 }
+                            }
+                            case SectionNode( name, level, children, line ) =>
+                            {
+                                newInFirstSection = false
                             }
                             case _ =>
                         }
