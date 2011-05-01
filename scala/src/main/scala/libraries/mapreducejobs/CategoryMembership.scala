@@ -23,53 +23,58 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
         {
             if ( topicTitle.toString == "28 Days Later: The Soundtrack Album" )
             {
-                println( topicText )
+                //println( topicText )
+                output( topicTitle.toString, topicText.toString )
             }
-            try
+            
+            if ( false )
             {
-                val parsed = Utils.wikiParse( topicTitle, topicText )
-             
-                // Don't bother with list-of and table-of links atm because it's hard to work
-                // out which links in the page are part of the list and which are context
-                val linkRegex = new Regex( "[=]+[^=]+[=]+" )
-                
-                var linkSet = new TreeSet[String]
-                Utils.foldlWikiTree( parsed, true, (element : Node, inFirstSection : Boolean) =>
+                try
                 {
-                    var newInFirstSection = inFirstSection
+                    val parsed = Utils.wikiParse( topicTitle, topicText )
+                 
+                    // Don't bother with list-of and table-of links atm because it's hard to work
+                    // out which links in the page are part of the list and which are context
+                    val linkRegex = new Regex( "[=]+[^=]+[=]+" )
                     
-                    element match
+                    var linkSet = new TreeSet[String]
+                    Utils.foldlWikiTree( parsed, true, (element : Node, inFirstSection : Boolean) =>
                     {
-                        case InternalLinkNode( destination, children, line ) =>
+                        var newInFirstSection = inFirstSection
+                        
+                        element match
                         {
-                            // Contexts are: any link to a category or any link in the first section
-                            // (also could be any links to topics that are reciprocated)
-                            val namespace = destination.namespace.toString
-                            if ( namespace == "Category" || (namespace == "Main" && inFirstSection) )
+                            case InternalLinkNode( destination, children, line ) =>
                             {
-                                linkSet = linkSet + Utils.normalizeLink( destination )
+                                // Contexts are: any link to a category or any link in the first section
+                                // (also could be any links to topics that are reciprocated)
+                                val namespace = destination.namespace.toString
+                                if ( namespace == "Category" || (namespace == "Main" && inFirstSection) )
+                                {
+                                    linkSet = linkSet + Utils.normalizeLink( destination )
+                                }
                             }
-                        }
-                        case TextNode( text, line ) =>
-                        {
-                            linkRegex.findFirstIn(text) match
+                            case TextNode( text, line ) =>
                             {
-                                case None =>
-                                case _ => newInFirstSection = false
+                                linkRegex.findFirstIn(text) match
+                                {
+                                    case None =>
+                                    case _ => newInFirstSection = false
+                                }
                             }
+                            case _ =>
                         }
-                        case _ =>
-                    }
+                        
+                        newInFirstSection
+                    } )
                     
-                    newInFirstSection
-                } )
-                
-                for ( linkTo <- linkSet ) output( Utils.normalizeTopicTitle( topicTitle ), linkTo )
-            }
-            catch
-            {
-                case e : WikiParserException =>
-                case _ => 
+                    for ( linkTo <- linkSet ) output( Utils.normalizeTopicTitle( topicTitle ), linkTo )
+                }
+                catch
+                {
+                    case e : WikiParserException =>
+                    case _ => 
+                }
             }
         }
         
