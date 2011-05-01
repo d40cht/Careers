@@ -13,7 +13,7 @@ class CategoryMembershipTest extends FunSuite
 {
     val parseTestFile = "./src/test/scala/data/parsetest.txt"
     
-    test("Temp test")
+    /*test("Temp test")
     {
         val runtime = Runtime.getRuntime
         
@@ -84,7 +84,7 @@ class CategoryMembershipTest extends FunSuite
             count = count +1
             if ( (count % 10000) == 0 ) println( count )
         }
-    }
+    }*/
     
     test("Test category and context parsing")
     {

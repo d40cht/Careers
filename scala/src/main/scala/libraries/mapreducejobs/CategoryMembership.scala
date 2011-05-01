@@ -21,7 +21,7 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
     {
         def mapWork( topicTitle : String, topicText : String, output : (String, String) => Unit )
         {
-            if ( topicTitle.toString == "28 Days Later: The Soundtrack Album" )
+            //if ( topicTitle.toString == "28 Days Later: The Soundtrack Album" )
             {
                 try
                 {
