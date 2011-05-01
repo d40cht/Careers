@@ -13,14 +13,15 @@ class CategoryMembershipTest extends FunSuite
 {
     val parseTestFile = "./src/test/scala/data/parsetest.txt"
     
-    /*test("Temp test")
+    test("Temp test")
     {
         val runtime = Runtime.getRuntime
         
         val conf = new Configuration()
         val fs = FileSystem.get(conf)
         
-        val reader = new Reader(fs, new Path("./enwikifull.seq"), conf)
+        val reader = new Reader(fs, new Path("hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/enwikifull.seq"), conf)
+        //val reader = new Reader(fs, new Path("./enwikifull.seq"), conf)
         
         val title = new Text()
         val topic = new Text()
@@ -81,7 +82,7 @@ class CategoryMembershipTest extends FunSuite
             count = count +1
             if ( (count % 10000) == 0 ) println( count )
         }
-    }*/
+    }
     
     test("Test category and context parsing")
     {
