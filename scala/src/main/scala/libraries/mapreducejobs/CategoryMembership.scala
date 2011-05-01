@@ -24,7 +24,8 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
             if ( topicTitle.toString == "28 Days Later: The Soundtrack Album" )
             {
                 //println( topicText )
-                output( topicTitle.toString, topicText.toString )
+                val parsed = Utils.wikiParse( topicTitle, topicText )
+                output( topicTitle.toString, topicText.toString + (parsed.toString) )
             }
             
             if ( false )
