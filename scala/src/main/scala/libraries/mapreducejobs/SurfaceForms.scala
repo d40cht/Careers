@@ -6,7 +6,7 @@ import org.dbpedia.extraction.wikiparser._
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.HashSet
-import scala.collection.immutable.TreeSet
+import scala.collection.immutable.{TreeSet, TreeMap}
 
 import org.seacourt.mapreduce._
 import org.seacourt.utility._
@@ -14,7 +14,7 @@ import org.seacourt.utility._
 // TODO:
 // Sanity check text to remove junk
 
-object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, TextArrayWritable]
+object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, TextArrayCountWritable]
 {
     class JobMapper extends MapperType
     {
@@ -76,9 +76,10 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
         override def reduce( surfaceForm : Text, targets: java.lang.Iterable[Text], output : ReducerType#Context )
         {
             // TODO: COUNT THE NUMBER OF TOPICS FOR EACH SURFACE FORM -> TOPIC PAIR
-            var targetCounts = new TreeMap[Text, Int]
-            for ( target <- targets )
+            var targetCounts = new TreeMap[String, Int]
+            for ( targetAsText <- targets )
             {
+                val target = targetAsText.toString
                 var currCount = 0
                 if ( targetCounts.contains( target ) )
                 {
@@ -90,10 +91,10 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
             
             if ( targetCounts.size < 1000 )
             {
-                val outValues = new TextArrayWritable()
+                val outValues = new TextArrayCountWritable()
                 for ( (target, count) <- targetCounts )
                 {
-                    outValues.append( target.toString() )
+                    outValues.append( target, count )
                 }
                 output.write( surfaceForm, outValues )
             }

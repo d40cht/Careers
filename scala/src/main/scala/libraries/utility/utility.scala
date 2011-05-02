@@ -41,6 +41,38 @@ class TextArrayWritable extends Writable
     }
 }
 
+class TextArrayCountWritable extends Writable
+{
+    var elements : List[(String, Int)] = Nil
+    var count = 0
+    
+    def append( value : String, number : Int )
+    {
+        elements = (value, number)::elements
+        count += 1
+    }
+    
+    override def write( out : DataOutput )
+    {
+        out.writeInt( count )
+        for ( (value, number) <- elements )
+        {
+            out.writeUTF(value)
+            out.writeInt(number)
+        }
+    }
+    
+    override def readFields( in : DataInput )
+    {
+        count = in.readInt
+        elements = Nil
+        for ( i <- 0 to (count-1) )
+        {
+            elements = (in.readUTF, in.readInt) :: elements
+        }
+    }
+}
+
 object Utils
 {
     def normalize( raw : String ) : String =
