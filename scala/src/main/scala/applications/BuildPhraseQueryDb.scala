@@ -106,7 +106,7 @@ object PhraseMap
         db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
         db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER, UNIQUE(name))" )
         db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
-        db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
+        db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, count INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
         db.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
         
         var count = 0
@@ -285,13 +285,14 @@ object PhraseMap
                 println( "  " + filePath )
                 
                 val surfaceForm = new Text()
-                val topics = new TextArrayWritable()
+                val topics = new TextArrayCountWritable()
                 
                 
                 val getWordId = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
                 val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
                 val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
-                val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
+                //val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
+                val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?), ? )", HNil )
                 
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( surfaceForm, topics ) )
@@ -338,9 +339,9 @@ object PhraseMap
                         
                         //println( "Adding topics against phrase map" )
                         // Add all topics against phrase map terminal id
-                        for ( topic <- topics.elements )
+                        for ( (topic, number) <- topics.elements )
                         {
-                            addTopicToPhrase.exec( parentId, topic.toString )
+                            addTopicToPhrase.exec( parentId, topic.toString, number )
                             sql.manageTransactions()
                         }
                     }
