@@ -18,7 +18,7 @@ class DisambiguatorTest extends FunSuite
 {
     test("Efficient disambiguator test")
     {
-        if ( false )
+        //if ( false )
         {
             val testFileName = "./src/test/scala/data/simpleTest.txt"
             val testDbName = "disambig.sqlite3"
@@ -39,7 +39,7 @@ class DisambiguatorTest extends FunSuite
             tokenizer.close()
             
             //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::"partridge"::"in"::"a"::"pear"::"tree"::Nil
-            //var wordList = "george" :: "bush" :: "rice" :: "blair" :: "iraq" :: "saddam" :: Nil
+            var wordList = "george" :: "bush" :: "rice" :: "blair" :: "iraq" :: "saddam" :: Nil
             //var wordList = "george" :: "bush" :: "john" :: "major" :: "iraq" :: "saddam" :: "invasion" :: "of" :: "kuwait" :: Nil
             
             val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
@@ -83,8 +83,6 @@ class DisambiguatorTest extends FunSuite
         //                  0      1       2       3      4        5        6       7       8      9      10    11
         val phrase = List( "on", "the", "first", "day", "of", "christmas", "my", "true", "love", "sent", "to", "me" )
         val topics = List( List(1,2,3), List(1,2,3,4,5), List(3,4,5), List(5), List(6,7,8), List(7,8) )
-        
-        
     }
 }
 

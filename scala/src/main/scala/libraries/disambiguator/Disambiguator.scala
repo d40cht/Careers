@@ -134,13 +134,13 @@ object Disambiguator
             db.exec( "BEGIN" )
             
             // Will need some indices
-            db.exec( "CREATE TEMPORARY TABLE textWords( id INTEGER PRIMARY KEY, wordId INTEGER )" )
+            db.exec( "CREATE TEMPORARY TABLE textWords( id INTEGER PRIMARY KEY, name TEXT, wordId INTEGER, inTopicCount INTEGER )" )
             db.exec( "CREATE TEMPORARY TABLE phraseLinks( level INTEGER, twId INTEGER, phraseTreeNodeId INTEGER )" )
             db.exec( "CREATE TEMPORARY TABLE phrasesAndTopics( startIndex INTEGER, endIndex INTEGER, topicId INTEGER )" )
             db.exec( "CREATE TEMPORARY TABLE topicCategories( topicId INTEGER, categoryId INTEGER, topicName TEXT, categoryName TEXT )" )
             db.exec( "CREATE INDEX phraseLinkLevel ON phraseLinks(level)" )
             
-            val insertQuery = db.prepare( "INSERT INTO textWords VALUES( NULL, (SELECT id FROM words WHERE name=?) )", HNil )
+            val insertQuery = db.prepare( "INSERT INTO textWords VALUES( NULL, ?, (SELECT id FROM words WHERE name=?), (SELECT count FROM words WHERE name=?) )", HNil )
             for ( word <- wordList )
             {
                 insertQuery.exec( word )
@@ -165,8 +165,19 @@ object Disambiguator
             
             println( "Crosslinking topics." )
             db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId ORDER BY t1.twId-t1.level, t1.twId" )
+            
+            // TODO: Refactor for new datastructure
             println( "Crosslinking categories." )
-            db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.categoryId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoryMembership AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 ON t1.topicId=t3.id INNER JOIN categories AS t4 on t2.categoryId=t4.id" )
+            //db.exec( "CREATE TEMPORARY TABLE phrasesAndTopics( startIndex INTEGER, endIndex INTEGER, topicId INTEGER )" )
+            //db.exec( "CREATE TEMPORARY TABLE topicCategories( topicId INTEGER, categoryId INTEGER, topicName TEXT, categoryName TEXT )" )
+            
+            //db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
+            //db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
+            //db.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
+            
+            db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.contextTopicId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 on t1.topicId=t3.id INNER JOIN topics AS t4 ON t2.contextTopicId=t4.id ORDER BY t1.topicId, t2.contextTopicId" )
+            
+            /*db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.categoryId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoryMembership AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 ON t1.topicId=t3.id INNER JOIN categories AS t4 on t2.categoryId=t4.id" )*/
             println( "Building index." )
             db.exec( "CREATE INDEX topicCategoriesIndex ON topicCategories(topicId)" )
             
