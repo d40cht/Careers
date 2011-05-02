@@ -146,6 +146,8 @@ object Disambiguator
                 insertQuery.exec( word )
             }
             
+            println( db.prepare( "SELECT * FROM textWords" ).toList )
+            
             println( "Building phrase table.")
             db.exec( "INSERT INTO phraseLinks SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1" )
             

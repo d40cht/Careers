@@ -52,6 +52,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                     }
                 } )
                 
+                output( Utils.normalize( topicTitle ), Utils.normalizeLink( topicTitle ) )
                 for ( (sf, dest) <- resSet )
                 {
                     output( sf, dest )
