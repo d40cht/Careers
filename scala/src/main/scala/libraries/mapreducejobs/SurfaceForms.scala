@@ -73,12 +73,36 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
      
     class JobReducer extends ReducerType
     {
-        override def reduce( word : Text, values: java.lang.Iterable[Text], output : ReducerType#Context )
+        override def reduce( surfaceForm : Text, targets: java.lang.Iterable[Text], output : ReducerType#Context )
         {
-            val seen = new HashSet[Text]
+            // TODO: COUNT THE NUMBER OF TOPICS FOR EACH SURFACE FORM -> TOPIC PAIR
+            var targetCounts = new TreeMap[Text, Int]
+            for ( target <- targets )
+            {
+                var currCount = 0
+                if ( targetCounts.contains( target ) )
+                {
+                    currCount = targetCounts(target)
+                }
+                
+                targetCounts = targetCounts.updated( target, currCount + 1 )
+            }
+            
+            if ( targetCounts.size < 1000 )
+            {
+                val outValues = new TextArrayWritable()
+                for ( (target, count) <- targetCounts )
+                {
+                    outValues.append( target.toString() )
+                }
+                output.write( surfaceForm, outValues )
+            }
+            
+            
+            /*val seen = new HashSet[Text]
             val outValues = new TextArrayWritable()
             var count = 0
-            for ( value <- values )
+            for ( target <- targets )
             {
                 if ( !seen.contains(value) )
                 {
@@ -87,7 +111,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                 }
                 if ( count > 1000 ) return Unit
             }
-            output.write( word, outValues )
+            output.write( surfaceForm, outValues )*/
         }
     }
     
