@@ -146,8 +146,6 @@ object Disambiguator
                 insertQuery.exec( word, word, word )
             }
             
-            for ( v <- db.prepare( "SELECT * FROM textWords", Col[Int]::Col[String]::Col[Int]::Col[Int]::HNil ).toList ) println( "++ " + _1(v).get + ", " + _2(v).get + ", " + _3(v).get + ", " + _4(v).get )
-
             println( "Building phrase table.")
             db.exec( "INSERT INTO phraseLinks SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1" )
             
