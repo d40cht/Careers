@@ -25,7 +25,7 @@ class DisambiguatorTest extends FunSuite
             
             val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
             var run = true
-            val wordList = new ArrayBuffer[String]
+            /*val wordList = new ArrayBuffer[String]
             
             while ( run )
             {
@@ -36,12 +36,13 @@ class DisambiguatorTest extends FunSuite
                 }
                 run = tokenizer.incrementToken()
             }
-            tokenizer.close()
+            tokenizer.close()*/
             
             //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::"partridge"::"in"::"a"::"pear"::"tree"::Nil
-            var wordList = "george" :: "bush" :: "rice" :: "blair" :: "iraq" :: "saddam" :: Nil
+            //var wordList = "george" :: "bush" :: "rice" :: "blair" :: "iraq" :: "saddam" :: Nil
             //var wordList = "george" :: "bush" :: "john" :: "major" :: "iraq" :: "saddam" :: "invasion" :: "of" :: "kuwait" :: Nil
-            
+            var wordList = "rna" :: "thermometer" :: Nil
+
             val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
             disambiguator.build()
             disambiguator.resolve()
