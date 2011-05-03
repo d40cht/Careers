@@ -35,60 +35,6 @@ object PhraseMap
         }
     }
     
-    
-    private def parseFile( consumeFn : (String, String) => Unit, fs : FileSystem, path : Path )
-    {
-        assert( fs.exists(path) )
-        val reader = new BufferedReader( new InputStreamReader( fs.open( path ) ) )
-        
-        var count = 0
-        var line : String = null
-        while ( {line = reader.readLine(); line != null} )
-        {
-            val firstTabIndex = line.indexOf( '\t' )
-            val surfaceForm = new String(line.substring(0,firstTabIndex))
-            val references = new String(line.substring(firstTabIndex+1))
-            
-            // TODO: JSON is out. Use Writable derived objects in utility
-            /*try
-            {
-                val parsed = Parser.parse( references )
-                parsed match
-                {
-                    case elMap : Map[Int, String] =>
-                    {
-                        for ( (index, value) <- elMap )
-                        {
-                            consumeFn( surfaceForm, value )
-                        }
-                        
-                        count += 1
-                        
-                        if ( count % 10000 == 0 )
-                        {
-                            //println( "    " + count + " " + surfaceForm )
-                        }
-                    }
-                    case _ =>
-                }
-                
-                
-            }
-            catch
-            {
-                case e : org.json.JSONException =>
-                {
-                    println( "JSON exception parsing: " + line )
-                }
-                case e : Exception =>
-                {
-                    println( "General exception: " + e.toString )
-                }
-            }*/
-        }
-        reader.close()
-    }
-    
     class SQLiteWriter( fileName : String )
     {
         //val db = new SQLiteConnection( new File(fileName) )
@@ -287,12 +233,16 @@ object PhraseMap
                 val surfaceForm = new Text()
                 val topics = new TextArrayCountWritable()
                 
+                // TODO: Get total number of topics, then additionally calculate word weight:
+                // word weight = (#topics / #topics this word is in)
+                // And surface form weight = log(sum(word weights))
+                
                 
                 val getWordId = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
                 val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
                 val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
                 //val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
-                val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?), ? )", HNil )
+                val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?), ? )", HNil )
                 
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( surfaceForm, topics ) )
@@ -341,6 +291,7 @@ object PhraseMap
                         // Add all topics against phrase map terminal id
                         for ( (topic, number) <- topics.elements )
                         {
+                            // TODO: Take number of times this surface form points to this target into account.
                             addTopicToPhrase.exec( parentId, topic.toString, number )
                             sql.manageTransactions()
                         }
@@ -367,4 +318,4 @@ object PhraseMap
         run( conf, args(0), args(1) )
     }
 }
-
+addTopicToPhrase

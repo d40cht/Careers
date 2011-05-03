@@ -71,7 +71,6 @@ class DisambiguatorTest extends FunSuite
         }
     }*/
     
-    
     test( "Disambiguation alternative test 1" )
     {
         val test = List( List(1), List(1,2), List(1,2,3) )
