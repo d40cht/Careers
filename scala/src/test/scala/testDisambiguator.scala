@@ -39,9 +39,11 @@ class DisambiguatorTest extends FunSuite
             tokenizer.close()*/
             
             //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::"partridge"::"in"::"a"::"pear"::"tree"::Nil
-            //var wordList = "george" :: "bush" :: "rice" :: "blair" :: "iraq" :: "saddam" :: Nil
+            //var wordList = "george" :: "bush" :: "rice" :: "tony" :: "blair" :: "iraq" :: "saddam" :: "gulf" :: "war" :: Nil
             //var wordList = "george" :: "bush" :: "john" :: "major" :: "iraq" :: "saddam" :: "invasion" :: "of" :: "kuwait" :: Nil
-            var wordList = "rna" :: "thermometer" :: Nil
+            //var wordList = "standing" :: "astride" :: "the" :: "river" :: "temperature" :: "gradient" :: Nil
+            //var wordList = "george" :: "bush" :: Nil
+            var wordList = "george" :: "bush" :: "tony" :: "blair" :: Nil
 
             val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
             disambiguator.build()

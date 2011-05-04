@@ -2,6 +2,7 @@ package org.seacourt.disambiguator
 
 import scala.collection.immutable.TreeSet
 import java.util.TreeMap
+import math.{max, log}
 
 import scala.util.matching.Regex
 
@@ -31,7 +32,7 @@ object Disambiguator
     {
     }
 
-    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, var topicDetails : List[TopicDetails], val validPhrase : Boolean )
+    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, var topicDetails : List[TopicDetails], val validPhrase : Boolean, val phraseWeight : Double )
     {
         var children = List[DisambiguationAlternative]()
         
@@ -71,6 +72,35 @@ object Disambiguator
             topicDetails ++ children.foldLeft(List[TopicDetails]())( _ ++ _.getTopicDetails() )
         }
         
+        def weightedCategories( weighted : TreeMap[Int, Double] )
+        {
+            val localWeights = new TreeMap[Int, Double]
+            for ( topicDetail <- topicDetails )
+            {
+                for ( categoryId <- topicDetail.categoryIds )
+                {
+                    val oldWeight = if (localWeights.containsKey(categoryId)) localWeights.get(categoryId) else 0.0
+                    localWeights.put( categoryId, max(oldWeight, phraseWeight) )
+                }
+            }
+
+            for ( child <- children )
+            {
+                child.weightedCategories( localWeights )
+            }
+            
+            val mapIt = localWeights.entrySet().iterator()
+            while ( mapIt.hasNext() )
+            {
+                val next = mapIt.next()
+                val categoryId = next.getKey()
+                val weight = next.getValue()
+                
+                val oldWeight = if (weighted.containsKey(categoryId)) weighted.get(categoryId) else 0.0
+                weighted.put( categoryId, weight+oldWeight )
+            }
+        }
+        
         def allCategoryIds() : TreeSet[Int] =
         {
             var categoryIds = TreeSet[Int]()
@@ -82,7 +112,7 @@ object Disambiguator
             {
                 categoryIds = categoryIds ++ child.allCategoryIds()
             }
-            return categoryIds
+            categoryIds
         }
         
         def containsCategory( categoryId : Int ) : Boolean =
@@ -146,6 +176,8 @@ object Disambiguator
                 insertQuery.exec( word, word, word )
             }
             
+            val wordWeights = db.prepare( "SELECT 10000000.0 / inTopicCount FROM textWords ORDER BY id", Col[Double]::HNil ).toList
+            
             println( "Building phrase table.")
             db.exec( "INSERT INTO phraseLinks SELECT 0, t1.id, t2.id FROM textWords AS t1 INNER JOIN phraseTreeNodes AS t2 ON t1.wordId=t2.wordId WHERE t2.parentId=-1" )
             
@@ -198,18 +230,23 @@ object Disambiguator
                 val topicName		= _5( row ).get
                 val categoryName    = _6( row ).get
                 
+                val phraseWords = wordList.slice( startIndex, endIndex+1 )
+                val phraseWeight = log( wordWeights.slice( startIndex, endIndex+1 ).foldLeft(0.0)( _ + _1( _ ).get ) )
+                //val phraseWeight = wordWeights.slice( startIndex, endIndex+1 ).foldLeft(0.0)( _ + _1( _ ).get )
+                println( "Site details: " + phraseWords + " (" + phraseWeight + ")" )
+                
                 if ( !categories.contains(categoryId) ) categories = categories + categoryId
                 
                 println( startIndex, endIndex, topicId, categoryId, topicName, categoryName )
                 
                 if ( currDA == null || currDA.startIndex != startIndex || currDA.endIndex != endIndex )
                 {
-                	val phraseWords = wordList.slice( startIndex, endIndex+1 )
-                    currDA = new DisambiguationAlternative( startIndex, endIndex, List[TopicDetails](), validPhrase(phraseWords) )
+                	
+                    currDA = new DisambiguationAlternative( startIndex, endIndex, List[TopicDetails](), validPhrase(phraseWords), phraseWeight )
                     
                     if ( daSites == Nil || !daSites.head.overlaps( currDA ) )
                     {
-                    	println( "Adding new site: " + wordList.slice(startIndex, endIndex+1) )
+                    	println( "Adding new site: " + phraseWords )
                         daSites = currDA :: daSites
                     }
                     else
@@ -248,9 +285,9 @@ object Disambiguator
             db.dispose()
         }
 
-        private def getCategoryCounts( daSites : List[DisambiguationAlternative] ) =
+        private def getCategoryCounts( daSites : List[DisambiguationAlternative] ) : TreeMap[Int, Double] =
         {
-            val categoryCount = new TreeMap[Int, Int]()
+            val categoryCount = new TreeMap[Int, Double]()
             var count = 0
             for ( alternatives <- daSites )
             {
@@ -265,18 +302,31 @@ object Disambiguator
                 {
                     if ( !categoryCount.containsKey(categoryId) )
                     {
-                        categoryCount.put(categoryId, 0)
+                        categoryCount.put(categoryId, 0.0)
                     }
-                    categoryCount.put(categoryId, categoryCount.get(categoryId) + 1 )
+                    categoryCount.put(categoryId, categoryCount.get(categoryId) + 1.0)
                 }
             }
             categoryCount
         }
         
+        private def getCategoryWeights( daSites : List[DisambiguationAlternative] ) : TreeMap[Int, Double] =
+        {
+            val categoryWeights = new TreeMap[Int, Double]()
+            for ( alternative <- daSites )
+            {
+                alternative.weightedCategories( categoryWeights )
+            }
+            categoryWeights
+        }
+        
         def resolve()
         {
-            val categoryCounts = getCategoryCounts( daSites )
-            var sortedCategoryList = List[(Int, Int)]()
+            val weightFn = getCategoryWeights _
+            //val weightFn = getCategoryCounts _
+            
+            val categoryWeights = weightFn( daSites )
+            var sortedCategoryList = List[(Double, Int)]()
             
             daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
             
@@ -285,7 +335,7 @@ object Disambiguator
             
             daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
             
-            val mapIt = categoryCounts.entrySet().iterator()
+            val mapIt = categoryWeights.entrySet().iterator()
             while ( mapIt.hasNext() )
             {
                 val next = mapIt.next()
@@ -299,21 +349,22 @@ object Disambiguator
             sortedCategoryList = sortedCategoryList.sortWith( _._1 > _._1 ) 
             
             println( "Number of words: " + wordList.length )
-            println( "Number of categories before: " + categoryCounts.size() )
+            println( "Number of categories before: " + categoryWeights.size() )
             println( "DA sites before: " + daSites.length )
             
             // TODO: Iterate over categories asserting them one by one
             for ( (count, categoryId) <- sortedCategoryList )
             {
-                if ( count > 1 )
+                //if ( count > 100 )
                 {
+                    println( "Asserting : " + categoryNameMap.get(categoryId) + ", " + count )
                     daSites = daSites.filter( _.assertCategory( categoryId ) )
                 }
             }
             
             
             
-            val newCategoryCounts = getCategoryCounts( daSites )
+            val newCategoryCounts = weightFn( daSites )
             println( "Number of categories after: " + newCategoryCounts.size() )
             println( "DA sites after pruning: " + daSites.length )
             
