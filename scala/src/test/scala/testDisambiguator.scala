@@ -43,7 +43,8 @@ class DisambiguatorTest extends FunSuite
             //var wordList = "george" :: "bush" :: "john" :: "major" :: "iraq" :: "saddam" :: "invasion" :: "of" :: "kuwait" :: Nil
             //var wordList = "standing" :: "astride" :: "the" :: "river" :: "temperature" :: "gradient" :: Nil
             //var wordList = "george" :: "bush" :: Nil
-            var wordList = "george" :: "bush" :: "tony" :: "blair" :: Nil
+            //var wordList = "bush" :: "blair" :: "rice" :: "cheney" :: "saddam" :: Nil
+            var wordList = "bush" :: "major" :: "kuwait" :: "saddam" :: Nil
 
             val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
             disambiguator.build()

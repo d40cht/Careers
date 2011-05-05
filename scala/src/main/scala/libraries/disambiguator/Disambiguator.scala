@@ -15,7 +15,7 @@ object Disambiguator
 	def validCategory ( categoryName : String ) =
 	{
 		var valid = true
-		if ( categoryName == "Living people" ) valid = false
+		if ( categoryName == "Category:Living people" ) valid = false
 		
 	    bannedRegex.findFirstIn( categoryName ) match
 		{
@@ -28,17 +28,25 @@ object Disambiguator
 	
 	def validPhrase( words : List[String] ) = words.foldLeft( false )( _ || !stopWordSet.contains(_) )
 	
-    class TopicDetails( val topicId : Int, var categoryIds : TreeSet[Int] )
+    class TopicDetails( val topicId : Int, val linkCount : Int, var categoryIds : TreeSet[Int] )
     {
     }
 
-    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, var topicDetails : List[TopicDetails], val validPhrase : Boolean, val phraseWeight : Double )
+    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, val validPhrase : Boolean, val phraseWeight : Double )
     {
+        var topicDetails = List[TopicDetails]()
         var children = List[DisambiguationAlternative]()
+        var topicLinkCount = 0
         
         def overlaps( da : DisambiguationAlternative ) =
             (startIndex >= da.startIndex && endIndex <= da.endIndex) ||
             (da.startIndex >= startIndex && da.endIndex <= endIndex)
+            
+        def addTopicDetails( td : TopicDetails )
+        {
+            topicDetails = td::topicDetails
+            topicLinkCount += td.linkCount
+        }
         
         def addAlternative( da : DisambiguationAlternative )
         {
@@ -77,10 +85,11 @@ object Disambiguator
             val localWeights = new TreeMap[Int, Double]
             for ( topicDetail <- topicDetails )
             {
+                val topicWeight = (topicDetail.linkCount+0.0) / (topicLinkCount+0.0)
                 for ( categoryId <- topicDetail.categoryIds )
                 {
                     val oldWeight = if (localWeights.containsKey(categoryId)) localWeights.get(categoryId) else 0.0
-                    localWeights.put( categoryId, max(oldWeight, phraseWeight) )
+                    localWeights.put( categoryId, max(oldWeight, phraseWeight*topicWeight) )
                 }
             }
 
@@ -166,7 +175,7 @@ object Disambiguator
             // Will need some indices
             db.exec( "CREATE TEMPORARY TABLE textWords( id INTEGER PRIMARY KEY, name TEXT, wordId INTEGER, inTopicCount INTEGER )" )
             db.exec( "CREATE TEMPORARY TABLE phraseLinks( level INTEGER, twId INTEGER, phraseTreeNodeId INTEGER )" )
-            db.exec( "CREATE TEMPORARY TABLE phrasesAndTopics( startIndex INTEGER, endIndex INTEGER, topicId INTEGER )" )
+            db.exec( "CREATE TEMPORARY TABLE phrasesAndTopics( startIndex INTEGER, endIndex INTEGER, topicId INTEGER, count INTEGER )" )
             db.exec( "CREATE TEMPORARY TABLE topicCategories( topicId INTEGER, categoryId INTEGER, topicName TEXT, categoryName TEXT )" )
             db.exec( "CREATE INDEX phraseLinkLevel ON phraseLinks(level)" )
             
@@ -196,25 +205,18 @@ object Disambiguator
             }
             
             println( "Crosslinking topics." )
-            db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId ORDER BY t1.twId-t1.level, t1.twId" )
+            db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId, t2.count FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId ORDER BY t1.twId-t1.level, t1.twId" )
             
             // TODO: Refactor for new datastructure
             println( "Crosslinking categories." )
-            //db.exec( "CREATE TEMPORARY TABLE phrasesAndTopics( startIndex INTEGER, endIndex INTEGER, topicId INTEGER )" )
-            //db.exec( "CREATE TEMPORARY TABLE topicCategories( topicId INTEGER, categoryId INTEGER, topicName TEXT, categoryName TEXT )" )
-            
-            //db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
-            //db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
-            //db.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
             
             db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.contextTopicId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 on t1.topicId=t3.id INNER JOIN topics AS t4 ON t2.contextTopicId=t4.id ORDER BY t1.topicId, t2.contextTopicId" )
             
-            /*db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.categoryId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoryMembership AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 ON t1.topicId=t3.id INNER JOIN categories AS t4 on t2.categoryId=t4.id" )*/
             println( "Building index." )
             db.exec( "CREATE INDEX topicCategoriesIndex ON topicCategories(topicId)" )
             
             println( "Retrieving data." )
-            val getPhrases = db.prepare( "SELECT DISTINCT t1.startIndex-1, t1.endIndex-1, t1.topicId, t2.categoryId, t2.topicName, t2.categoryName FROM phrasesAndTopics AS t1 INNER JOIN topicCategories AS t2 ON t1.topicId=t2.topicId ORDER BY t1.endIndex DESC, t1.startIndex ASC, t1.topicId, t2.categoryId", Col[Int]::Col[Int]::Col[Int]::Col[Int]::Col[String]::Col[String]::HNil )
+            val getPhrases = db.prepare( "SELECT DISTINCT t1.startIndex-1, t1.endIndex-1, t1.topicId, t1.count, t2.categoryId, t2.topicName, t2.categoryName FROM phrasesAndTopics AS t1 INNER JOIN topicCategories AS t2 ON t1.topicId=t2.topicId ORDER BY t1.endIndex DESC, t1.startIndex ASC, t1.topicId, t2.categoryId", Col[Int]::Col[Int]::Col[Int]::Col[Int]::Col[Int]::Col[String]::Col[String]::HNil )
             
             println( "Building disambiguation alternative forest." )
             var currDA : DisambiguationAlternative = null
@@ -223,42 +225,45 @@ object Disambiguator
             var categories = TreeSet[Int]()
             getPhrases.foreach( row =>
             {
-                val startIndex      = _1( row ).get
-                val endIndex        = _2( row ).get
-                val topicId         = _3( row ).get
-                val categoryId      = _4( row ).get
-                val topicName		= _5( row ).get
-                val categoryName    = _6( row ).get
+                val startIndex          = _1( row ).get
+                val endIndex            = _2( row ).get
+                val topicId             = _3( row ).get
+                val linkCount           = _4( row ).get
+                val categoryId          = _5( row ).get
+                val topicName		    = _6( row ).get
+                val categoryName        = _7( row ).get
                 
                 val phraseWords = wordList.slice( startIndex, endIndex+1 )
                 val phraseWeight = log( wordWeights.slice( startIndex, endIndex+1 ).foldLeft(0.0)( _ + _1( _ ).get ) )
                 //val phraseWeight = wordWeights.slice( startIndex, endIndex+1 ).foldLeft(0.0)( _ + _1( _ ).get )
-                println( "Site details: " + phraseWords + " (" + phraseWeight + ")" )
+                //println( "Site details: " + phraseWords + " (" + phraseWeight + ")" )
                 
                 if ( !categories.contains(categoryId) ) categories = categories + categoryId
                 
-                println( startIndex, endIndex, topicId, categoryId, topicName, categoryName )
+                //println( startIndex, endIndex, topicId, categoryId, topicName, categoryName )
                 
                 if ( currDA == null || currDA.startIndex != startIndex || currDA.endIndex != endIndex )
                 {
                 	
-                    currDA = new DisambiguationAlternative( startIndex, endIndex, List[TopicDetails](), validPhrase(phraseWords), phraseWeight )
+                    currDA = new DisambiguationAlternative( startIndex, endIndex, validPhrase(phraseWords), phraseWeight )
                     
                     if ( daSites == Nil || !daSites.head.overlaps( currDA ) )
                     {
-                    	println( "Adding new site: " + phraseWords )
+                    	//println( "Adding new site: " + phraseWords )
                         daSites = currDA :: daSites
                     }
                     else
                     {
-                    	println( "Adding site to existing: ", wordList.slice(daSites.head.startIndex, daSites.head.endIndex+1), wordList.slice(currDA.startIndex, currDA.endIndex+1) )
+                    	//println( "Adding site to existing: ", wordList.slice(daSites.head.startIndex, daSites.head.endIndex+1), wordList.slice(currDA.startIndex, currDA.endIndex+1) )
                         daSites.head.addAlternative( currDA )
                     }
                 }
                 
                 if ( currDA.topicDetails == Nil || currDA.topicDetails.head.topicId != topicId )
                 {
-                    currDA.topicDetails = new TopicDetails( topicId, new TreeSet[Int]() )::currDA.topicDetails
+                    currDA.addTopicDetails( new TopicDetails( topicId, linkCount, new TreeSet[Int]() ) )
+                    println( "--> " + phraseWords + " - "  + topicName + " " + linkCount )
+                    //currDA.topicDetails = new TopicDetails( topicId, linkCount, new TreeSet[Int]() )::currDA.topicDetails
                 }
                 val curTopicDetails = currDA.topicDetails.head
                 
@@ -268,14 +273,14 @@ object Disambiguator
 				}
             } )
 
-            println( "  complete... " + categories.size )
+            //println( "  complete... " + categories.size )
             
-            for ( da <- daSites )
+            /*for ( da <- daSites )
             {
                 println( da.startIndex, da.endIndex, da.topicDetails.length )
-            }
+            }*/
 
-            println( "Pulling topic and category names." )
+            //println( "Pulling topic and category names." )
             db.prepare( "SELECT DISTINCT topicId, topicName FROM topicCategories", Col[Int]::Col[String]::HNil ).
             	foreach( row => topicNameMap.put( _1(row).get, _2(row).get ) )
             db.prepare( "SELECT DISTINCT categoryId, categoryName FROM topicCategories", Col[Int]::Col[String]::HNil ).
@@ -291,11 +296,11 @@ object Disambiguator
             var count = 0
             for ( alternatives <- daSites )
             {
-            	println( "BOOO: " + alternatives.children.length )
+            	//println( "BOOO: " + alternatives.children.length )
             	
                 val tokenCategoryIds = alternatives.allCategoryIds()
                 val topicAlternatives = alternatives.numTopicAlternatives()
-                println( count + "  " + tokenCategoryIds.size + " " + topicAlternatives )
+                //println( count + "  " + tokenCategoryIds.size + " " + topicAlternatives )
                 count += 1
                 
                 for ( categoryId <- tokenCategoryIds )
@@ -328,7 +333,7 @@ object Disambiguator
             val categoryWeights = weightFn( daSites )
             var sortedCategoryList = List[(Double, Int)]()
             
-            daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
+            //daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
             
             println( "Pruning invalid phrases" )
             daSites = daSites.filter( _.validPhrase )
@@ -376,7 +381,7 @@ object Disambiguator
                     val categoryId = next.getKey()
                     val count = next.getValue()
                     
-                    println( "|| " + count + ": " + categoryNameMap.get(categoryId) )
+                    //println( "|| " + count + ": " + categoryNameMap.get(categoryId) )
                 }
             }
             var count = 0
