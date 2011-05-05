@@ -1,4 +1,5 @@
 import org.scalatest.FunSuite
+import scala.io.Source._
 
 import java.io.{File, BufferedReader, FileReader}
 import scala.collection.mutable.ArrayBuffer
@@ -11,6 +12,7 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 import scala.xml.XML
 
 
+import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.disambiguator.Disambiguator._
 
@@ -24,20 +26,8 @@ class DisambiguatorTest extends FunSuite
             val testFileName = "./src/test/scala/data/monbiotTest.txt"
             val testDbName = "disambig.sqlite3"
             
-            val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
-            var run = true
-            val wordList = new ArrayBuffer[String]
-            
-            while ( run )
-            {
-                val term = tokenizer.getAttribute(classOf[TermAttribute]).term()
-                if ( term != "" )
-                {
-                    wordList.append( term.toLowerCase() )
-                }
-                run = tokenizer.incrementToken()
-            }
-            tokenizer.close()
+            val fileText = fromFile(testFileName).getLines.mkString
+            val wordList = Utils.luceneTextTokenizer( Utils.normalize( fileText ) )
             
             //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::"partridge"::"in"::"a"::"pear"::"tree"::Nil
             //var wordList = "george" :: "bush" :: "rice" :: "tony" :: "blair" :: "iraq" :: "saddam" :: "gulf" :: "war" :: Nil
