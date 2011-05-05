@@ -17,7 +17,8 @@ object Disambiguator
 	    "Category:Living people",
 	    "Category:Greek loanwords",
 	    "Category:Unprintworthy redirects",
-	    "Main:British Phonographic Industry" )
+	    "Main:British Phonographic Industry",
+	    "Category:Protected redirects" )
 	
 	def validCategory ( categoryName : String ) =
 	{
