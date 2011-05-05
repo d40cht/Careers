@@ -213,7 +213,7 @@ object Disambiguator
             }
             
             println( "Crosslinking topics." )
-            db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId, t2.count FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId ORDER BY t1.twId-t1.level, t1.twId" )
+            db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId, t2.count FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId WHERE t2.count > 3 ORDER BY t1.twId-t1.level, t1.twId" )
             
             // TODO: Refactor for new datastructure
             println( "Crosslinking categories." )
