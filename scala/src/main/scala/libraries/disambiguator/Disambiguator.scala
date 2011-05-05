@@ -16,7 +16,8 @@ object Disambiguator
 	val bannedCategories = TreeSet(
 	    "Category:Living people",
 	    "Category:Greek loanwords",
-	    "Category:Unprintworthy redirects" )
+	    "Category:Unprintworthy redirects",
+	    "Main:British Phonographic Industry" )
 	
 	def validCategory ( categoryName : String ) =
 	{
@@ -351,9 +352,9 @@ object Disambiguator
             {
                 val next = mapIt.next()
                 val categoryId = next.getKey()
-                val count = next.getValue()
+                val weight = next.getValue()
                 
-                sortedCategoryList = (count, categoryId) :: sortedCategoryList
+                sortedCategoryList = (weight, categoryId) :: sortedCategoryList
             }
             
             // Sort so that most numerous categories come first
@@ -397,9 +398,9 @@ object Disambiguator
                 val topicAlternatives = alternatives.numTopicAlternatives()
                 val topicDetails = alternatives.getTopicDetails()
                 
-                val topicNames = topicDetails.map( x => topicNameMap.get( x.topicId ) )
+                val topicAndStats = topicDetails.map( x => (topicNameMap.get( x.topicId ), alternatives.phraseWeight * ((x.linkCount*1.0) / (alternatives.topicLinkCount*1.0)) ) )
                 
-                println( wordList.slice(alternatives.startIndex, alternatives.endIndex+1).toString() + ": " + count + "  " + tokenCategoryIds.size + " " + topicAlternatives + " " + topicNames )
+                println( wordList.slice(alternatives.startIndex, alternatives.endIndex+1).toString() + ": " + count + "  " + tokenCategoryIds.size + " " + topicAlternatives + " " + topicAndStats )
                 count += 1
             }
         }
