@@ -12,10 +12,16 @@ import org.seacourt.utility.StopWords.stopWordSet
 object Disambiguator
 {
 	val bannedRegex = new Regex("[0-9]{4}")
+	
+	val bannedCategories = TreeSet(
+	    "Category:Living people",
+	    "Category:Greek loanwords",
+	    "Category:Unprintworthy redirects" )
+	
 	def validCategory ( categoryName : String ) =
 	{
 		var valid = true
-		if ( categoryName == "Category:Living people" ) valid = false
+		if ( bannedCategories.contains( categoryName ) ) valid = false
 		
 	    bannedRegex.findFirstIn( categoryName ) match
 		{
