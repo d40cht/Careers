@@ -358,11 +358,11 @@ object Disambiguator
             println( "DA sites before: " + daSites.length )
             
             // TODO: Iterate over categories asserting them one by one
-            for ( (count, categoryId) <- sortedCategoryList )
+            for ( (weight, categoryId) <- sortedCategoryList )
             {
-                //if ( count > 100 )
+                if ( weight > 1.0 )
                 {
-                    println( "Asserting : " + categoryNameMap.get(categoryId) + ", " + count )
+                    println( "Asserting : " + categoryNameMap.get(categoryId) + ", " + weight )
                     daSites = daSites.filter( _.assertCategory( categoryId ) )
                 }
             }

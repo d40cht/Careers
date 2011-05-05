@@ -20,12 +20,13 @@ class DisambiguatorTest extends FunSuite
     {
         //if ( false )
         {
-            val testFileName = "./src/test/scala/data/simpleTest.txt"
+            //val testFileName = "./src/test/scala/data/simpleTest.txt"
+            val testFileName = "./src/test/scala/data/monbiotTest.txt"
             val testDbName = "disambig.sqlite3"
             
             val tokenizer = new StandardTokenizer( LUCENE_30, new BufferedReader( new FileReader( testFileName ) ) )
             var run = true
-            /*val wordList = new ArrayBuffer[String]
+            val wordList = new ArrayBuffer[String]
             
             while ( run )
             {
@@ -36,7 +37,7 @@ class DisambiguatorTest extends FunSuite
                 }
                 run = tokenizer.incrementToken()
             }
-            tokenizer.close()*/
+            tokenizer.close()
             
             //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::"partridge"::"in"::"a"::"pear"::"tree"::Nil
             //var wordList = "george" :: "bush" :: "rice" :: "tony" :: "blair" :: "iraq" :: "saddam" :: "gulf" :: "war" :: Nil
@@ -47,7 +48,7 @@ class DisambiguatorTest extends FunSuite
             
             
             //var wordList = "bush" :: "blair" :: "rice" :: "cheney" :: "saddam" :: Nil
-            //var wordList = "bush" :: "major" :: "kuwait" :: "saddam" :: Nil
+            //var wordList = "in" :: "the" :: "first" :: "place" :: "bush" :: "major" :: "kuwait" :: "war" :: "saddam" :: Nil
             //var wordList = "bush" :: "tree" :: "shrub" :: Nil
             //var wordList = "java" :: "coffee" :: "tea" :: Nil
             //var wordList = "java" :: "haskell" :: "c++" :: Nil
@@ -55,7 +56,7 @@ class DisambiguatorTest extends FunSuite
             //var wordList = "design" :: "patterns" :: "cotton" :: Nil
             //var wordList = "design" :: "patterns" :: "java" :: Nil
             //var wordList = "rice" :: "wheat" :: "bread" :: Nil
-            var wordList = "rice" :: "yale" :: "oxford" :: "cambridge" :: Nil
+            //var wordList = "rice" :: "yale" :: "oxford" :: "cambridge" :: Nil
             
 
             val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
