@@ -190,13 +190,15 @@ object Disambiguator
             val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
             var parentId = -1
             
-            val sfQuery = db.prepare( "SELECT t1.id FROM phraseTreeNodes AS t1 INNER JOIN words AS t2 ON t1.wordId=t2.id WHERE t2.name=? AND t1.parentId=?", Col[Int]::HNil )
+            val sfQuery = db.prepare( "SELECT t1.id, t2.count FROM phraseTreeNodes AS t1 INNER JOIN words AS t2 ON t1.wordId=t2.id WHERE t2.name=? AND t1.parentId=?", Col[Int]::Col[Int]::HNil )
             for ( word <- words )
             {
                 sfQuery.bind( word, parentId )
                 val res = sfQuery.toList
                 assert( res.length == 1 )
                 parentId = _1(res(0)).get
+                val count = _2(res(0)).get
+                println( ":: " + word + ", " + count )
             }
             
             //phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, count INTEGER
@@ -204,12 +206,21 @@ object Disambiguator
             topicQuery.bind( parentId )
             val topicDetails = topicQuery.toList
             
+            val contextQuery = db.prepare( "SELECT t2.name, t3.count FROM categoriesAndContexts AS t1 ON t1.contextTopicId=t2.id INNER JOIN topicCountAsContext AS t3 on t3.topicId=t2.id WHERE t1.topicId=? ORDER BY t3.count", Col[String]::Col[Int]::HNil )
             for ( topic <- topicDetails )
             {
                 val name    = _1(topic).get
                 val id      = _2(topic).get
                 val count   = _3(topic).get
-                println( "  " + name + ": " + count )
+                println( "  " + name + " : " + count )
+                
+                contextQuery.bind(id)
+                for ( context <- contextQuery )
+                {
+                    val name    = _1(context).get
+                    val count   = _2(context).get
+                    println( "    - " + name + " : " + count )
+                }
             }
         }
     }
