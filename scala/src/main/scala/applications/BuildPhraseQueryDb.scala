@@ -215,6 +215,12 @@ object PhraseMap
                 }
             }
             sql.sync()
+            
+            println( "Building category and context counts" )
+            sql.exec( "CREATE TABLE topicCountAsContext(topicId INTEGER, count INTEGER)" )
+            sql.exec( "INSERT INTO topicCountAsContext SELECT contextTopicId, sum(1) FROM categoriesAndContexts GROUP BY contextTopicId" )
+            sql.exec( "CREATE INDEX topicCountAsContextIndex ON topicCountAsContext(topicId)" )
+            sql.sync()
         }
         
         // ****************************

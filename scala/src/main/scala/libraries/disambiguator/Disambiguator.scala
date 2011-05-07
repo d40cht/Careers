@@ -185,6 +185,14 @@ object Disambiguator
     {
         val db = new SQLiteWrapper( new File(dbFileName) )
         
+        def disambiguate( str : String )
+        {
+            val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
+            val disambiguator = new Disambiguator( wors, new SQLiteWrapper( new File(dbFileName) ) )
+            disambiguator.build()
+            disambiguator.resolve()
+        }
+        
         def surfaceForm( str : String )
         {
             val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
