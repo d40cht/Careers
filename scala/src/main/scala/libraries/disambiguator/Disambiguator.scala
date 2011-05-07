@@ -99,9 +99,8 @@ object Disambiguator
             topicDetails ++ children.foldLeft(List[TopicDetails]())( _ ++ _.getTopicDetails() )
         }
         
-        def weightedCategories( weighted : TreeMap[Int, Double] )
+        def weightedCategories( localWeights : TreeMap[Int, Double] )
         {
-            val localWeights = new TreeMap[Int, Double]
             for ( topicDetail <- topicDetails )
             {
                 val topicWeight = (topicDetail.linkCount+0.0) / (topicLinkCount+0.0)
@@ -115,17 +114,6 @@ object Disambiguator
             for ( child <- children )
             {
                 child.weightedCategories( localWeights )
-            }
-            
-            val mapIt = localWeights.entrySet().iterator()
-            while ( mapIt.hasNext() )
-            {
-                val next = mapIt.next()
-                val categoryId = next.getKey()
-                val weight = next.getValue()
-                
-                val oldWeight = if (weighted.containsKey(categoryId)) weighted.get(categoryId) else 0.0
-                weighted.put( categoryId, weight+oldWeight )
             }
         }
         
@@ -188,7 +176,7 @@ object Disambiguator
         def disambiguate( str : String )
         {
             val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
-            val disambiguator = new Disambiguator( wors, new SQLiteWrapper( new File(dbFileName) ) )
+            val disambiguator = new Disambiguator( words, new SQLiteWrapper( new File(dbFileName) ) )
             disambiguator.build()
             disambiguator.resolve()
         }
@@ -389,11 +377,46 @@ object Disambiguator
         private def getCategoryWeights( daSites : List[DisambiguationAlternative] ) : TreeMap[Int, Double] =
         {
             val categoryWeights = new TreeMap[Int, Double]()
+            val categoryCounts = new TreeMap[Int, Int]()
             for ( alternative <- daSites )
             {
-                alternative.weightedCategories( categoryWeights )
+                val localWeights = new TreeMap[Int, Double]
+                alternative.weightedCategories( localWeights )
+            
+            
+                val mapIt = localWeights.entrySet().iterator()
+                while ( mapIt.hasNext() )
+                {
+                    val next = mapIt.next()
+                    val categoryId = next.getKey()
+                    val weight = next.getValue()
+                    
+                    val oldWeight = if (categoryWeights.containsKey(categoryId)) categoryWeights.get(categoryId) else 0.0
+                    categoryWeights.put( categoryId, weight+oldWeight )
+                    
+                    var currCount = 0
+                    if ( categoryCounts.containsKey(categoryId) )
+                    {
+                        currCount = categoryCounts.get(categoryId)
+                    }
+                    categoryCounts.put( categoryId, currCount + 1 )
+                }
             }
-            categoryWeights
+            val filteredCategoryWeights = new TreeMap[Int, Double]()
+            
+            // Filter out any categories that only exist at one DA site
+            val mapIt = categoryWeights.entrySet().iterator()
+            while ( mapIt.hasNext() )
+            {
+                val next = mapIt.next()
+                val categoryId = next.getKey()
+                val weight = next.getValue()
+                if ( categoryCounts.get( categoryId ) > 1 )
+                {
+                    filteredCategoryWeights.put( categoryId, weight )
+                }
+            }
+            filteredCategoryWeights
         }
         
         def resolve()
