@@ -3,11 +3,22 @@ package org.seacourt.disambiguator
 import scala.collection.immutable.TreeSet
 import java.util.TreeMap
 import math.{max, log}
+import java.io.{File}
 
 import scala.util.matching.Regex
 
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility.StopWords.stopWordSet
+import org.seacourt.utility._
+
+// Thoughts:
+//
+// * Word frequency - should that be tf/idf on words, or td/idf on phrases that are surface forms?
+// * Testing: are the various tables actually correct. Are there really 55331 articles that reference 'Main:Voivodeships of Poland'?
+// *    Indeed, are there really 466132 articles that mention the word 'voivodeships'?
+// * Get some test documents and test disambig at the paragraph level, then at the doc level and compare the results
+// * Mark up the test documents manually with expected/desired results
+// * Get stuff up in the scala REPL to test ideas
 
 object Disambiguator
 {
@@ -169,6 +180,39 @@ object Disambiguator
         
         def assertCategory( assertedCategoryId : Int ) = !containsCategory( assertedCategoryId ) || assertCategoryImpl( assertedCategoryId )
     }
+    
+    class Interactive( dbFileName : String )
+    {
+        val db = new SQLiteWrapper( new File(dbFileName) )
+        
+        def surfaceForm( str : String )
+        {
+            val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
+            var parentId = -1
+            
+            val sfQuery = db.prepare( "SELECT id FROM phraseTreeNodes AS t1 INNER JOIN words AS t2 ON t1.wordId=t2.id WHERE t2.name=? AND t1.parentId=?", Col[Int]::HNil )
+            for ( word <- words )
+            {
+                sfQuery.bind( word, parentId )
+                val res = sfQuery.toList
+                assert( res.length == 1 )
+                parentId = _1(res(0)).get
+            }
+            
+            //phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, count INTEGER
+            val topicQuery = db.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE phraseTreeNodeId=?", Col[String]::Col[Int]::Col[Int]::HNil )
+            topicQuery.bind( parentId )
+            val topicDetails = topicQuery.toList
+            
+            for ( topic <- topicDetails )
+            {
+                val name    = _1(topic).get
+                val id      = _2(topic).get
+                val count   = _3(topic).get
+                println( "  " + name + ": " + count )
+            }
+        }
+    }
 
     class Disambiguator( val wordList : List[String], db : SQLiteWrapper )
     {
@@ -213,7 +257,7 @@ object Disambiguator
             }
             
             println( "Crosslinking topics." )
-            db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId, t2.count FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId WHERE t2.count > 3 ORDER BY t1.twId-t1.level, t1.twId" )
+            db.exec( "INSERT INTO phrasesAndTopics SELECT t1.twId-t1.level, t1.twId, t2.topicId, t2.count FROM phraseLinks AS t1 INNER JOIN phraseTopics AS t2 ON t1.phraseTreeNodeId=t2.phraseTreeNodeId WHERE t2.count > 1 ORDER BY t1.twId-t1.level, t1.twId" )
             
             // TODO: Refactor for new datastructure
             println( "Crosslinking categories." )
