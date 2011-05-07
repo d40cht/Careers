@@ -18,6 +18,15 @@ import org.seacourt.disambiguator.Disambiguator._
 
 class DisambiguatorTest extends FunSuite
 {
+    /*test( "Disambiguator functionality test" )
+    {
+        val testDbName = "disambig.sqlite3"
+        val testPhrase = "gerry adams troubles bloody sunday"
+        val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
+        disambiguator.build()
+        disambiguator.resolve()
+    }*/
+    
     test("Efficient disambiguator test")
     {
         //if ( false )

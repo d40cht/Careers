@@ -182,7 +182,7 @@ object PhraseMap
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( word, count ) )
                 {
-                    if ( count.get > 4 )
+                    if ( count.get > 2 )
                     {
                         wordInsert.exec( word.toString, count.get )
                         sql.manageTransactions()
