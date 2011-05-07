@@ -188,7 +188,7 @@ object Disambiguator
         def disambiguate( str : String )
         {
             val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
-            val disambiguator = new Disambiguator( wors, new SQLiteWrapper( new File(dbFileName) ) )
+            val disambiguator = new Disambiguator( words, new SQLiteWrapper( new File(dbFileName) ) )
             disambiguator.build()
             disambiguator.resolve()
         }

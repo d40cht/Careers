@@ -94,7 +94,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                 val outValues = new TextArrayCountWritable()
                 for ( (target, count) <- targetCounts )
                 {
-                    if ( count > 4 ) outValues.append( target, count )
+                    if ( count > 1 ) outValues.append( target, count )
                 }
                 output.write( surfaceForm, outValues )
             }
