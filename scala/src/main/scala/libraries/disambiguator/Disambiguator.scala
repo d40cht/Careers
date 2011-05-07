@@ -200,7 +200,7 @@ object Disambiguator
             }
             
             //phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, count INTEGER
-            val topicQuery = db.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE phraseTreeNodeId=?", Col[String]::Col[Int]::Col[Int]::HNil )
+            val topicQuery = db.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::Col[Int]::HNil )
             topicQuery.bind( parentId )
             val topicDetails = topicQuery.toList
             
