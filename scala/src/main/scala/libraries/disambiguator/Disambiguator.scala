@@ -190,7 +190,7 @@ object Disambiguator
             val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
             var parentId = -1
             
-            val sfQuery = db.prepare( "SELECT id FROM phraseTreeNodes AS t1 INNER JOIN words AS t2 ON t1.wordId=t2.id WHERE t2.name=? AND t1.parentId=?", Col[Int]::HNil )
+            val sfQuery = db.prepare( "SELECT t1.id FROM phraseTreeNodes AS t1 INNER JOIN words AS t2 ON t1.wordId=t2.id WHERE t2.name=? AND t1.parentId=?", Col[Int]::HNil )
             for ( word <- words )
             {
                 sfQuery.bind( word, parentId )
