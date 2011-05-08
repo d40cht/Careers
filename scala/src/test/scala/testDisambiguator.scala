@@ -21,8 +21,10 @@ class DisambiguatorTest extends FunSuite
     private def disambigAssert( phrase : String, expectedTopics : List[String] )
     {
         val wordList = Utils.luceneTextTokenizer( Utils.normalize( phrase ) )
-        val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File("disambig.sqlite3") ) ) 
+        val disambiguator = new Disambiguator( wordList, new SQLiteWrapper( new File("disambig.sqlite3") ) ) 
+        disambiguator.build()
         val res = disambiguator.resolve(1)
+        println( phrase + " " + expectedTopics + " " + res )
         assert( expectedTopics.length === res.length )
         for ( (expected, alts) <- expectedTopics.zip(res) )
         {

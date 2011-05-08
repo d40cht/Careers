@@ -510,8 +510,8 @@ object Disambiguator
                 for ( v <- alts ) println( "    " + v )
                 disambiguation = alts :: disambiguation
             }
-            
-            disambiguation.reverse
+
+            disambiguation
             
             /*val newCategoryCounts = weightFn( daSites )
             println( "Number of categories after: " + newCategoryCounts.size() )
