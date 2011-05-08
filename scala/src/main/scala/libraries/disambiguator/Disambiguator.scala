@@ -503,7 +503,8 @@ object Disambiguator
                 
                 val sorted = res.sortWith( _._1 > _._1 )
                 
-                println( site.phrase + " >> " + sorted.slice(0, 3) )
+                println( " >> " + site.phrase )
+                for ( v <- sorted.slice(0, 3) ) println( "    " + v )
             }
             
             
