@@ -302,7 +302,7 @@ object Disambiguator
             // TODO: Refactor for new datastructure
             println( "Crosslinking categories." )
             
-            db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.contextTopicId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 on t1.topicId=t3.id INNER JOIN topics AS t4 ON t2.contextTopicId=t4.id INNER JOIN topicCountAsContext AS t5 ON t2.contextTopicId=t5.id WHERE t5.count < 10000 ORDER BY t1.topicId, t2.contextTopicId" )
+            db.exec( "INSERT INTO topicCategories SELECT DISTINCT t1.topicId, t2.contextTopicId, t3.name, t4.name FROM phrasesAndTopics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.topicId=t2.topicId INNER JOIN topics AS t3 on t1.topicId=t3.id INNER JOIN topics AS t4 ON t2.contextTopicId=t4.id INNER JOIN topicCountAsContext AS t5 ON t2.contextTopicId=t5.topicId WHERE t5.count < 50000 ORDER BY t1.topicId, t2.contextTopicId" )
             
             println( "Building index." )
             db.exec( "CREATE INDEX topicCategoriesIndex ON topicCategories(topicId)" )
