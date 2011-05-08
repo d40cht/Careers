@@ -52,6 +52,24 @@ class DisambiguatorTest extends FunSuite
         disambigAssert( "python palin", TreeSet("Main:Monty Python", "Main:Michael Palin") )
         disambigAssert( "rice cheney bush", TreeSet("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush") )
         disambigAssert( "invasion of kuwait, george bush, saddam hussein", TreeSet("Main:Invasion of Kuwait", "Main:George H. W. Bush", "Main:Saddam Hussein") )
+        
+        
+        // --> a cup of coffee or of english breakfast in the morning
+        //
+        // currently asserting:
+        // Asserting : Main:Breakfast, 8.619803438371143
+        // Asserting : Main:Baseball, 6.5069746098656225 (from 'of')
+        // Asserting : Main:Ice hockey, 6.487016855370194
+        // Asserting : Main:Basketball, 6.206483157834628
+        // Asserting : Main:Major professional sports leagues in the United States and Canada, 6.181901288236755
+        // Asserting : Main:Farm team, 6.177005664603328
+        // Asserting : Category:Ice hockey terminology, 6.173292786643741
+        // Asserting : Main:Tennessee, 5.634098038507746
+        // Asserting : Main:Album, 4.718607633800677
+        // Asserting : Main:Scotland, 3.673734027766638
+        // Asserting : Main:New York City, 3.2294931966794067
+        // Asserting : Main:Day, 3.1176734993139887
+
     }
     
     test("Efficient disambiguator test")

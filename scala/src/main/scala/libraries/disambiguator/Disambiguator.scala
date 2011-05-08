@@ -326,8 +326,8 @@ object Disambiguator
                 val categoryName        = _7( row ).get
                 
                 val phraseWords = wordList.slice( startIndex, endIndex+1 )
-                val phraseWeight = log( wordWeights.slice( startIndex, endIndex+1 ).foldLeft(0.0)( _ + _1( _ ).get ) )
-                //val phraseWeight = wordWeights.slice( startIndex, endIndex+1 ).foldLeft(0.0)( _ + _1( _ ).get )
+                //val phraseWeight = log( wordWeights.slice( startIndex, endIndex+1 ).foldLeft(0.0)( _ + _1( _ ).get ) )
+                val phraseWeight = wordWeights.slice( startIndex, endIndex+1 ).foldLeft(0.0)( _ + _1( _ ).get )
                 //println( "Site details: " + phraseWords + " (" + phraseWeight + ")" )
                 
                 if ( !categories.contains(categoryId) ) categories = categories + categoryId
