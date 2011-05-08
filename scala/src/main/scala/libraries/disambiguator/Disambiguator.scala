@@ -206,12 +206,12 @@ object Disambiguator
     {
         val db = new SQLiteWrapper( new File(dbFileName) )
         
-        def disambiguate( str : String )
+        def disambiguate( str : String, maxAlternatives : Int )
         {
             val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
             val disambiguator = new Disambiguator( words, new SQLiteWrapper( new File(dbFileName) ) )
             disambiguator.build()
-            disambiguator.resolve()
+            disambiguator.resolve( maxAlternatives )
         }
         
         def surfaceForm( str : String )
@@ -452,7 +452,7 @@ object Disambiguator
             filteredCategoryWeights
         }
         
-        def resolve()
+        def resolve( maxAlternatives : Int ) : List[List[(Double, List[String], String)]] =
         {
             val weightFn = getCategoryWeights _
             //val weightFn = getCategoryCounts _
@@ -497,6 +497,7 @@ object Disambiguator
                 }*/
             }
             
+            var disambiguation = List[List[(Double, List[String], String)]]()
             for ( site <- daSites )
             {
                 // Weight, phrase, topic
@@ -505,10 +506,12 @@ object Disambiguator
                 val sorted = res.sortWith( _._1 > _._1 )
                 
                 println( " >> " + site.phrase )
-                for ( v <- sorted.slice(0, 3) ) println( "    " + v )
+                val alts = sorted.slice(0, maxAlternatives)
+                for ( v <- alts ) println( "    " + v )
+                disambiguation = alts :: disambiguation
             }
             
-            
+            disambiguation.reverse
             
             /*val newCategoryCounts = weightFn( daSites )
             println( "Number of categories after: " + newCategoryCounts.size() )

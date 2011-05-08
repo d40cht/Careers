@@ -18,14 +18,36 @@ import org.seacourt.disambiguator.Disambiguator._
 
 class DisambiguatorTest extends FunSuite
 {
-    /*test( "Disambiguator functionality test" )
+    private def disambigAssert( phrase : String, expectedTopics : List[String] )
     {
-        val testDbName = "disambig.sqlite3"
-        val testPhrase = "gerry adams troubles bloody sunday"
-        val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
-        disambiguator.build()
-        disambiguator.resolve()
-    }*/
+        val wordList = Utils.luceneTextTokenizer( Utils.normalize( phrase ) )
+        val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File("disambig.sqlite3") ) ) 
+        val res = disambiguator.resolve(1)
+        for ( (expected, alts) <- expectedTopics.zip(res) )
+        {
+            assert( alts.length === 1 )
+            val (weight, words, topic) = alts(0)
+            assert( expected === topic )
+        }
+    }
+    
+    test( "Disambiguator functionality test" )
+    {
+        //val testDbName = "disambig.sqlite3"
+        //val testPhrase = "gerry adams troubles bloody sunday"
+        // "rice wheat barley"
+        // "rice cambridge oxford yale harvard"
+        // "rice cheney bush"
+        // "java haskell scala c"
+        // "la scala covent garden puccini"
+        // "tea party palin"
+        // "python palin"
+        //val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
+        //disambiguator.build()
+        //disambiguator.resolve()
+        
+        disambigAssert( "python palin", List("Main: Monty Python", "Main: Michael Palin") )
+    }
     
     test("Efficient disambiguator test")
     {
@@ -60,7 +82,7 @@ class DisambiguatorTest extends FunSuite
 
             val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
             disambiguator.build()
-            disambiguator.resolve()
+            disambiguator.resolve(3)
         }
     }
     
