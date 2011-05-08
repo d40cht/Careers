@@ -23,6 +23,7 @@ class DisambiguatorTest extends FunSuite
         val wordList = Utils.luceneTextTokenizer( Utils.normalize( phrase ) )
         val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File("disambig.sqlite3") ) ) 
         val res = disambiguator.resolve(1)
+        assert( expectedTopics.length === res.length )
         for ( (expected, alts) <- expectedTopics.zip(res) )
         {
             assert( alts.length === 1 )
@@ -31,7 +32,7 @@ class DisambiguatorTest extends FunSuite
         }
     }
     
-    test( "Disambiguator functionality test" )
+    test( "Disambiguator short phrase test" )
     {
         //val testDbName = "disambig.sqlite3"
         //val testPhrase = "gerry adams troubles bloody sunday"
@@ -47,12 +48,14 @@ class DisambiguatorTest extends FunSuite
         //disambiguator.resolve()
         
         disambigAssert( "python palin", List("Main: Monty Python", "Main: Michael Palin") )
+        disambigAssert( "rice cheney bush", List("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush") )
+        disambigAssert( "invasion of kuwait, george bush, saddam hussein", List("Main:Invasion of Kuwait", "Main:George H. W. Bush", "Main:Saddam Hussein") )
     }
     
     test("Efficient disambiguator test")
     {
         //if ( false )
-        {
+        /*{
             //val testFileName = "./src/test/scala/data/simpleTest.txt"
             val testFileName = "./src/test/scala/data/monbiotTest.txt"
             val testDbName = "disambig.sqlite3"
@@ -83,7 +86,7 @@ class DisambiguatorTest extends FunSuite
             val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
             disambiguator.build()
             disambiguator.resolve(3)
-        }
+        }*/
     }
     
     /*
