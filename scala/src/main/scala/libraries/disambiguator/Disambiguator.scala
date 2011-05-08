@@ -48,8 +48,14 @@ object Disambiguator
 	
 	def validPhrase( words : List[String] ) = words.foldLeft( false )( _ || !stopWordSet.contains(_) )
 	
-    class TopicDetails( val topicId : Int, val linkCount : Int, var categoryIds : TreeSet[Int] )
+    class TopicDetails( val topicId : Int, val linkCount : Int, var categoryIds : TreeSet[Int], val topicName : String )
     {
+        var score = 0.0
+        
+        def assertCategory( categoryId : Int, categoryWeight : Double )
+        {
+            if ( categoryIds.contains( categoryId ) ) score += categoryWeight
+        }
     }
 
     class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, val validPhrase : Boolean, val phraseWeight : Double, val phrase : List[String] )
@@ -61,7 +67,18 @@ object Disambiguator
         def overlaps( da : DisambiguationAlternative ) =
             (startIndex >= da.startIndex && endIndex <= da.endIndex) ||
             (da.startIndex >= startIndex && da.endIndex <= endIndex)
+
+        def reportAlternatives() : List[(Double, List[String], String)] =
+        {
+            var res = List[(Double, List[String], String)]()
+            for ( topic <- topicDetails )
+            {
+                res = (topic.score, phrase, topic.topicName) :: res
+            }
             
+            children.foldLeft( res )( _ ++ _.reportAlternatives() )
+        }
+           
         def addTopicDetails( td : TopicDetails )
         {
             topicDetails = td::topicDetails
@@ -177,6 +194,12 @@ object Disambiguator
         }
         
         def assertCategory( assertedCategoryId : Int ) = !containsCategory( assertedCategoryId ) || assertCategoryImpl( assertedCategoryId )
+        
+        def assertCategoryWeighted( categoryId : Int, weight : Double )
+        {
+            for ( topic <- topicDetails ) topic.assertCategory( categoryId, weight )
+            for ( child <- children ) child.assertCategoryWeighted( categoryId, weight )
+        }
     }
     
     class Interactive( dbFileName : String )
@@ -330,7 +353,7 @@ object Disambiguator
                 
                 if ( currDA.topicDetails == Nil || currDA.topicDetails.head.topicId != topicId )
                 {
-                    currDA.addTopicDetails( new TopicDetails( topicId, linkCount, new TreeSet[Int]() ) )
+                    currDA.addTopicDetails( new TopicDetails( topicId, linkCount, new TreeSet[Int](), topicName ) )
                     println( "--> " + phraseWords + " - "  + topicName + " " + linkCount )
                     //currDA.topicDetails = new TopicDetails( topicId, linkCount, new TreeSet[Int]() )::currDA.topicDetails
                 }
@@ -464,16 +487,28 @@ object Disambiguator
             // TODO: Iterate over categories asserting them one by one
             for ( (weight, categoryId) <- sortedCategoryList )
             {
-                if ( weight > 1.0 )
+                for ( site <- daSites ) site.assertCategoryWeighted( categoryId, weight )
+                
+                /*if ( weight > 1.0 )
                 {
                     println( "Asserting : " + categoryNameMap.get(categoryId) + ", " + weight )
                     daSites = daSites.filter( _.assertCategory( categoryId ) )
-                }
+                }*/
+            }
+            
+            for ( site <- daSites )
+            {
+                // Weight, phrase, topic
+                val res = site.reportAlternatives()
+                
+                val sorted = res.sortWith( _._1 > _._1 )
+                
+                println( site.phrase + " >> " + sorted.slice(0, 3) )
             }
             
             
             
-            val newCategoryCounts = weightFn( daSites )
+            /*val newCategoryCounts = weightFn( daSites )
             println( "Number of categories after: " + newCategoryCounts.size() )
             println( "DA sites after pruning: " + daSites.length )
             
@@ -499,7 +534,7 @@ object Disambiguator
                 
                 println( wordList.slice(alternatives.startIndex, alternatives.endIndex+1).toString() + ": " + count + "  " + tokenCategoryIds.size + " " + topicAlternatives + " " + topicAndStats )
                 count += 1
-            }
+            }*/
         }
     }
 }
