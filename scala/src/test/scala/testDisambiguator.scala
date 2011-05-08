@@ -3,6 +3,7 @@ import scala.io.Source._
 
 import java.io.{File, BufferedReader, FileReader}
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.immutable.TreeSet
 
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
@@ -18,17 +19,18 @@ import org.seacourt.disambiguator.Disambiguator._
 
 class DisambiguatorTest extends FunSuite
 {
-    private def disambigAssert( phrase : String, expectedTopics : List[String] )
+    private def disambigAssert( phrase : String, expectedTopics : Set[String] )
     {
         val wordList = Utils.luceneTextTokenizer( Utils.normalize( phrase ) )
-        val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File("disambig.sqlite3") ) ) 
+        val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File("disambig.sqlite3") ) )
+        disambiguator.build()
         val res = disambiguator.resolve(1)
-        assert( expectedTopics.length === res.length )
-        for ( (expected, alts) <- expectedTopics.zip(res) )
+        assert( expectedTopics.size === res.length )
+        
+        val resultSet = res.foldLeft( TreeSet[String]() )( _ + _.head._3 )
+        for ( (expected, result) <- expectedTopics.zip(resultSet) )
         {
-            assert( alts.length === 1 )
-            val (weight, words, topic) = alts(0)
-            assert( expected === topic )
+            assert( expected === result )
         }
     }
     
@@ -47,9 +49,9 @@ class DisambiguatorTest extends FunSuite
         //disambiguator.build()
         //disambiguator.resolve()
         
-        disambigAssert( "python palin", List("Main: Monty Python", "Main: Michael Palin") )
-        disambigAssert( "rice cheney bush", List("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush") )
-        disambigAssert( "invasion of kuwait, george bush, saddam hussein", List("Main:Invasion of Kuwait", "Main:George H. W. Bush", "Main:Saddam Hussein") )
+        disambigAssert( "python palin", Set("Main: Monty Python", "Main: Michael Palin") )
+        disambigAssert( "rice cheney bush", Set("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush") )
+        disambigAssert( "invasion of kuwait, george bush, saddam hussein", Set("Main:Invasion of Kuwait", "Main:George H. W. Bush", "Main:Saddam Hussein") )
     }
     
     test("Efficient disambiguator test")
