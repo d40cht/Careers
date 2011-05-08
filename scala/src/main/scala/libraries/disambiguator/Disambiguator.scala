@@ -73,7 +73,7 @@ object Disambiguator
             var res = List[(Double, List[String], String)]()
             for ( topic <- topicDetails )
             {
-                res = (topic.score, phrase, topic.topicName) :: res
+                res = (topic.score * phraseWeight, phrase, topic.topicName) :: res
             }
             
             children.foldLeft( res )( _ ++ _.reportAlternatives() )
@@ -354,7 +354,7 @@ object Disambiguator
                 if ( currDA.topicDetails == Nil || currDA.topicDetails.head.topicId != topicId )
                 {
                     currDA.addTopicDetails( new TopicDetails( topicId, linkCount, new TreeSet[Int](), topicName ) )
-                    println( "--> " + phraseWords + " - "  + topicName + " " + linkCount )
+//                    println( "--> " + phraseWords + " - "  + topicName + " " + linkCount )
                     //currDA.topicDetails = new TopicDetails( topicId, linkCount, new TreeSet[Int]() )::currDA.topicDetails
                 }
                 val curTopicDetails = currDA.topicDetails.head
