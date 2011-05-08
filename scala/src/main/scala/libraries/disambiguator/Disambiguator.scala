@@ -19,6 +19,7 @@ import org.seacourt.utility._
 // * Get some test documents and test disambig at the paragraph level, then at the doc level and compare the results
 // * Mark up the test documents manually with expected/desired results
 // * Get stuff up in the scala REPL to test ideas
+// * Count at each site whenever an assertion has been applied (i.e. the category was relevant). Disable sites where only a few were relevant? Or something else!
 
 object Disambiguator
 {
@@ -51,7 +52,7 @@ object Disambiguator
     {
     }
 
-    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, val validPhrase : Boolean, val phraseWeight : Double )
+    class DisambiguationAlternative( val startIndex : Int, val endIndex : Int, val validPhrase : Boolean, val phraseWeight : Double, val phrase : List[String] )
     {
         var topicDetails = List[TopicDetails]()
         var children = List[DisambiguationAlternative]()
@@ -154,6 +155,8 @@ object Disambiguator
         // Prune any topics which don't contain this category
         private def assertCategoryImpl( assertedCategoryId : Int ) : Boolean =
         {
+            val debugPrunedTopics = topicDetails.filter( !_.categoryIds.contains(assertedCategoryId ) )
+            
             var categoryAlive = false
             topicDetails = topicDetails.filter( _.categoryIds.contains(assertedCategoryId) )
             
@@ -162,6 +165,12 @@ object Disambiguator
             children = children.filter( _.assertCategory( assertedCategoryId ) )
             
             if ( children != Nil ) categoryAlive = true
+            
+            if ( debugPrunedTopics != Nil )
+            {
+                println( "  Pruning " + phrase )
+                for ( pt <- debugPrunedTopics ) println( "    " + pt.topicId )
+            }
             
             categoryAlive
         }
@@ -304,7 +313,7 @@ object Disambiguator
                 if ( currDA == null || currDA.startIndex != startIndex || currDA.endIndex != endIndex )
                 {
                 	
-                    currDA = new DisambiguationAlternative( startIndex, endIndex, validPhrase(phraseWords), phraseWeight )
+                    currDA = new DisambiguationAlternative( startIndex, endIndex, validPhrase(phraseWords), phraseWeight, phraseWords )
                     
                     if ( daSites == Nil || !daSites.head.overlaps( currDA ) )
                     {
