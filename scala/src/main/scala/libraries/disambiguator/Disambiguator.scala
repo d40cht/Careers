@@ -169,7 +169,8 @@ object Disambiguator
             if ( debugPrunedTopics != Nil )
             {
                 println( "  Pruning " + phrase )
-                for ( pt <- debugPrunedTopics ) println( "    " + pt.topicId )
+                if ( children == Nil ) println( "  --> Phrase topics empty. Removed." )
+                //for ( pt <- debugPrunedTopics ) println( "    " + pt.topicId )
             }
             
             categoryAlive
