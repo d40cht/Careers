@@ -487,6 +487,7 @@ object Disambiguator
             // TODO: Iterate over categories asserting them one by one
             for ( (weight, categoryId) <- sortedCategoryList )
             {
+                println( "Asserting : " + categoryNameMap.get(categoryId) + ", " + weight )
                 for ( site <- daSites ) site.assertCategoryWeighted( categoryId, weight )
                 
                 /*if ( weight > 1.0 )
