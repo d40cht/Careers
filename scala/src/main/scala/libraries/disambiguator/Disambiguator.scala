@@ -161,17 +161,17 @@ object Disambiguator
             topicDetails = topicDetails.filter( _.categoryIds.contains(assertedCategoryId) )
             
             if ( topicDetails != Nil ) categoryAlive = true
+            if ( debugPrunedTopics != Nil )
+            {
+                println( "  Pruning " + phrase )
+                if ( topicDetails == Nil ) println( "  --> Phrase topics empty. Removed." )
+                //for ( pt <- debugPrunedTopics ) println( "    " + pt.topicId )
+            }
             
             children = children.filter( _.assertCategory( assertedCategoryId ) )
             
             if ( children != Nil ) categoryAlive = true
-            
-            if ( debugPrunedTopics != Nil )
-            {
-                println( "  Pruning " + phrase )
-                if ( children == Nil ) println( "  --> Phrase topics empty. Removed." )
-                //for ( pt <- debugPrunedTopics ) println( "    " + pt.topicId )
-            }
+
             
             categoryAlive
         }
