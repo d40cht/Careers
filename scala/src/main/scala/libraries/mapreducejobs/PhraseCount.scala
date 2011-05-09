@@ -8,6 +8,7 @@ import scala.collection.JavaConversions._
 import org.dbpedia.extraction.wikiparser._
 
 import scala.collection.immutable.TreeSet
+import scala.collection.mutable.StringBuilder
 
 import org.seacourt.utility._
 import org.seacourt.mapreduce._
@@ -37,24 +38,27 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
                 var seenSet = TreeSet[String]()
                 
                 var iter = words
+                val phrase = new StringBuilder()
                 while ( iter != Nil )
                 {
-                    var phrase = ""
+                    phrase.clear()
                     var iter2 = iter
                     var count = 0
+                    
                     while ( iter2 != Nil && count < maxPhraseWordLength )
                     {
-                        phrase += iter2.head
+                        phrase.append( iter2.head )
                         
-                        if ( !seenSet.contains( phrase ) )
+                        val asString = phrase.toString
+                        if ( !seenSet.contains( asString ) )
                         {
-                            output( phrase, 1 )
-                            seenSet += phrase
+                            output( asString, 1 )
+                            seenSet += asString
                         }
                         
                         iter2 = iter2.tail
                         count += 1
-                        phrase += " "
+                        phrase.append( " " )
                     }
 
                     iter = iter.tail
