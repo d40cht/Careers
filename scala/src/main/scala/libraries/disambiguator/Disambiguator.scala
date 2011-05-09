@@ -21,6 +21,9 @@ import org.seacourt.utility._
 // * Get stuff up in the scala REPL to test ideas
 // * Count at each site whenever an assertion has been applied (i.e. the category was relevant). Disable sites where only a few were relevant? Or something else!
 
+
+// * Important ratio: #topics surface form occurs in / #topics surface form phrase occurs in. Need a hadoop join
+
 object Disambiguator
 {
 	val bannedRegex = new Regex("[0-9]{4}")
