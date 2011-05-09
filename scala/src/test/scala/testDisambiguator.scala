@@ -54,7 +54,12 @@ class DisambiguatorTest extends FunSuite
         disambigAssert( "invasion of kuwait, george bush, saddam hussein", TreeSet("Main:Invasion of Kuwait", "Main:George H. W. Bush", "Main:Saddam Hussein") )
         
         
-        // --> a cup of coffee or of english breakfast in the morning
+        //"java c design patterns"
+        //jumper design patterns
+        //the death of saddam hussein
+        
+        // NOTE: A fix to some of this can happen by not counting cateogires from 'cup' (and 'of') twice.
+        // --> a cup of coffee or a cup of english breakfast in the morning
         //
         // currently asserting:
         // Asserting : Main:Breakfast, 8.619803438371143
