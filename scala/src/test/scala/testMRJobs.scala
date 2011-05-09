@@ -2,6 +2,7 @@ import org.scalatest.FunSuite
 import scala.collection.immutable.TreeSet
 import scala.io.Source._
 
+import org.seacourt.utility._
 import org.seacourt.mapreducejobs._
 
 import org.apache.hadoop.io.SequenceFile.{createWriter, Reader}
@@ -275,5 +276,10 @@ class CategoryMembershipTest extends FunSuite
         assert( phrases.contains( "and a partridge in a" ) )
         assert( phrases.contains( "and a partridge in a pear" ) )
         assert( phrases.contains( "and a partridge in a pear tree" ) )
+        
+        for ( substring <- phrases )
+        {
+            assert( Utils.luceneTextTokenizer(phrases).length <= 8 )
+        }
     }
 }
