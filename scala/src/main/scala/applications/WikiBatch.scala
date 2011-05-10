@@ -52,7 +52,10 @@ object WikiBatch
             val file = new HadoopReader( fs, filePath, conf )
             while ( file.next( surfaceForm, topics ) )
             {
-                db.put( surfaceForm.toString, "" )
+                if ( topics.elements.foldLeft(0)( _ + _._2 ) > 3 )
+                {
+                    db.put( surfaceForm.toString, "" )
+                }
             }
         }
         println( "  db build complete." )
