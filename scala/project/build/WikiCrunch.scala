@@ -5,6 +5,7 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
 {
     val lucenecore = "org.apache.lucene" % "lucene-core" % "3.0.3"
     val scalatest = "org.scalatest" % "scalatest" % "1.3"
+    val berkeleydb = "berkeleydb" % "je" % "3.2.76"
     
     //val entryClass = "Crunch"
     //val entryClass = "SurfaceForms"

@@ -13,8 +13,36 @@ import scala.io.Source._
 
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility._
+import org.seacourt.berkeleydb._
 
 import scala.util.matching.Regex
+
+
+
+class BerkeleyDbTests extends FunSuite
+{
+    
+
+    test("Simple test")
+    {
+        val db = new BerkeleyDb( "./bdblocaltest", true )
+        
+        db.put( "Hello1", "World1" )
+        db.put( "Hello2", "World2" )
+        db.put( "Hello3", "World3" )
+        db.put( "Hello4", "World4" )
+        
+        assert( db.get( "Hello1" ) === Some( "World1" ) )
+        assert( db.get( "Hello2" ) === Some( "World2" ) )
+        assert( db.get( "Hello3" ) === Some( "World3" ) )
+        assert( db.get( "Hello4" ) === Some( "World4" ) )
+        
+        assert( db.get( "Hello5" ) === None )
+        assert( db.get( "Hello6" ) === None )
+        
+        db.close()
+    }
+}
  
 class VariousDbpediaParseTests extends FunSuite
 {

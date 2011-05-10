@@ -279,7 +279,7 @@ class CategoryMembershipTest extends FunSuite
         
         for ( substring <- phrases )
         {
-            assert( Utils.luceneTextTokenizer(phrases).length <= 8 )
+            assert( Utils.luceneTextTokenizer(substring).length <= 8 )
         }
     }
 }
