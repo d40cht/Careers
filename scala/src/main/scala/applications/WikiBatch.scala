@@ -79,7 +79,11 @@ object WikiBatch
         // Copy surface forms out into a Berkeley db
         buildSFDb()
         
-        // Copy the berkeley db into HDFS then out to the distributed cache
+        // Zip up the berkeley db to a tgz
+        // Copy it using DistributedCache.addCacheArchive (will unzip at the clients)
+        // Make sure the flag set is: 'DistributedCache.createSymlink(Configuration)' to make it symlinked to the local FS
+        // Open the berkeley db as required
+        
         // Run phrasecounter so it only counts phrases that exist as surface forms
         
         //PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
