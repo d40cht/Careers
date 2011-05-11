@@ -26,26 +26,26 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
     
     class JobMapper extends MapperType
     {
-        var dbenv : berkeleydb.Environment = null
-        var db : berkeleydb.Environment#Database = null
+        //var dbenv : berkeleydb.Environment = null
+        //var db : berkeleydb.Environment#Database = null
         
         override def setup( context : MapperType#Context )
         {
             //val phraseDbFileName = context.getConfiguration().get(phraseDbKey)
             //val phraseDbRawName = context.getConfiguration().get(phraseDbRaw)
             
-            val localCacheFiles = context.getLocalCacheArchives()
+            /*val localCacheFiles = context.getLocalCacheArchives()
             require( localCacheFiles.length == 1 )
             
             // Make the phrase db accessible
             dbenv = new berkeleydb.Environment( new File(localCacheFiles(0).toString + "/phrasedb"), false )
-            db = dbenv.openDb( "phrases", false )
+            db = dbenv.openDb( "phrases", false )*/
         }
         
         override def cleanup( context : MapperType#Context )
         {
-            db.close()
-            dbenv.close()
+            //db.close()
+            //dbenv.close()
         }
     
         def mapWork( topicTitle : String, topicText : String, output : (String, Int) => Unit )
@@ -67,10 +67,10 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
                 var seenSet = TreeSet[String]()
                 
                 var iter = words
-                val phrase = new StringBuilder()
+                //val phrase = new StringBuilder()
                 while ( iter != Nil )
                 {
-                    phrase.clear()
+                    /*phrase.clear()
                     var iter2 = iter
                     var count = 0
                     
@@ -94,6 +94,13 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
                         iter2 = iter2.tail
                         count += 1
                         phrase.append( " " )
+                    }*/
+                    
+                    val slice = iter.slice(0,10).mkString( " " )
+                    if ( !seenSet.contains(slice) )
+                    {
+                        seenSet += slice
+                        output( slice, 1 )
                     }
 
                     iter = iter.tail
@@ -131,11 +138,11 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
         job.setReducerClass(classOf[JobReducer])
         
         // Copy the phrase db to distributed cache
-        val phraseDbFileName = config.get(phraseDbKey)
+        /*val phraseDbFileName = config.get(phraseDbKey)
         println( "Adding archive to local cache" )
         job.addCacheArchive( new URI(phraseDbFileName) )
         job.createSymlink()
-        println( "  complete" )
+        println( "  complete" )*/
     }
 }
 
