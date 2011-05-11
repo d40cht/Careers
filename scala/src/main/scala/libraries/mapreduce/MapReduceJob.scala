@@ -11,6 +11,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat
 import org.apache.hadoop.mapreduce.lib.output.{FileOutputFormat, SequenceFileOutputFormat}
 import org.apache.hadoop.util.GenericOptionsParser
+import org.apache.hadoop.conf.{Configuration => MRConfiguration}
 import scala.collection.JavaConversions._
 
 import org.dbpedia.extraction.wikiparser._
@@ -29,8 +30,9 @@ abstract class MapReduceJob[MapKeyType <: Writable : Manifest, MapValueType <: W
     type MapperType = Mapper[MapKeyType, MapValueType, ReduceKeyType, ReduceValueType]
     type ReducerType = Reducer[ReduceKeyType, ReduceValueType, OutputKeyType, OutputValueType]
     type Job = MRJob
+    type Configuration = MRConfiguration
     
-    def register( job : Job )
+    def register( job : Job, config : Configuration )
     
     def run( jobName : String, conf : Configuration, inputFileName : String, outputFilePath : String, numReduces : Int )
     {
@@ -38,7 +40,9 @@ abstract class MapReduceJob[MapKeyType <: Writable : Manifest, MapValueType <: W
         
         job.setJarByClass(classOf[MapReduceJob[_,_,_,_,_,_]])
         
-        register( job )
+        register( job, conf )
+        
+        
         
         job.setNumReduceTasks( numReduces )
         

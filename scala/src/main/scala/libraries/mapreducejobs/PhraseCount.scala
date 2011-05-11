@@ -1,7 +1,10 @@
 package org.seacourt.mapreducejobs
 
-
 import org.apache.hadoop.io.{Text, IntWritable}
+import org.apache.hadoop.mapred.JobConf
+
+import java.net.URI
+import java.io.File
 
 import scala.collection.JavaConversions._
 
@@ -12,13 +15,33 @@ import scala.collection.mutable.StringBuilder
 
 import org.seacourt.utility._
 import org.seacourt.mapreduce._
+import org.seacourt.berkeleydb
 
 object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, IntWritable]
 {
+    val phraseDbKey = "org.seacourt.phrasedb"
     val maxPhraseWordLength = 8
     
     class JobMapper extends MapperType
     {
+        var dbenv : berkeleydb.Environment = null
+        var db : berkeleydb.Environment#Database = null
+        
+        override def setup( context : MapperType#Context )
+        {
+            val phraseDbFileName = context.getConfiguration().get(phraseDbKey)
+            
+            // Make the phrase db accessible
+            dbenv = new berkeleydb.Environment( new File(phraseDbFileName), false )
+            db = dbenv.openDb( "phrases", false )
+        }
+        
+        override def cleanup( context : MapperType#Context )
+        {
+            db.close()
+            dbenv.close()
+        }
+    
         def mapWork( topicTitle : String, topicText : String, output : (String, Int) => Unit )
         {
             try
@@ -90,10 +113,15 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
         }
     }
     
-    override def register( job : Job )
+    override def register( job : Job, config : Configuration )
     {
         job.setMapperClass(classOf[JobMapper])
         job.setReducerClass(classOf[JobReducer])
+        
+        // Copy the phrase db to distributed cache
+        val phraseDbFileName = config.get(phraseDbKey)
+        job.createSymlink()
+        job.addCacheArchive( new URI(phraseDbFileName) )
     }
 }
 

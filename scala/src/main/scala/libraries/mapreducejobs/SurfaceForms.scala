@@ -116,7 +116,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
         }
     }
     
-    override def register( job : Job )
+    override def register( job : Job, config : Configuration )
     {
         job.setMapperClass(classOf[JobMapper])
         job.setReducerClass(classOf[JobReducer])
