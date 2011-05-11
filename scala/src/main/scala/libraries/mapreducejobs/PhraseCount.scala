@@ -129,7 +129,9 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
         // Copy the phrase db to distributed cache
         val phraseDbFileName = config.get(phraseDbKey)
         job.createSymlink()
+        println( "Adding archive to local cache" )
         job.addCacheArchive( new URI(phraseDbFileName) )
+        println( "  complete" )
     }
 }
 
