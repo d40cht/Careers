@@ -32,6 +32,9 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
         {
             val phraseDbFileName = context.getConfiguration().get(phraseDbKey)
             val phraseDbRawName = context.getConfiguration().get(phraseDbRaw)
+
+            require( new File(phraseDbRawName).exists() )
+            require( new File(phraseDbRawName).isDirectory() )
             
             // Make the phrase db accessible
             dbenv = new berkeleydb.Environment( new File(phraseDbRawName), false )
@@ -128,9 +131,9 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
         
         // Copy the phrase db to distributed cache
         val phraseDbFileName = config.get(phraseDbKey)
-        job.createSymlink()
         println( "Adding archive to local cache" )
         job.addCacheArchive( new URI(phraseDbFileName) )
+        job.createSymlink()
         println( "  complete" )
     }
 }
