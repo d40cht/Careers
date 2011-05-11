@@ -31,9 +31,10 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
         override def setup( context : MapperType#Context )
         {
             val phraseDbFileName = context.getConfiguration().get(phraseDbKey)
+            val phraseDbRawName = context.getConfiguration().get(phraseDbRaw)
             
             // Make the phrase db accessible
-            dbenv = new berkeleydb.Environment( new File(phraseDbRaw), false )
+            dbenv = new berkeleydb.Environment( new File(phraseDbRawName), false )
             db = dbenv.openDb( "phrases", false )
         }
         
