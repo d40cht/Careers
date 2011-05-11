@@ -2,6 +2,7 @@ package org.seacourt.mapreducejobs
 
 import org.apache.hadoop.io.{Text, IntWritable}
 import org.apache.hadoop.mapred.JobConf
+import org.apache.hadoop.filecache.DistributedCache
 
 import java.net.URI
 import java.io.File
@@ -30,14 +31,14 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
         
         override def setup( context : MapperType#Context )
         {
-            val phraseDbFileName = context.getConfiguration().get(phraseDbKey)
-            val phraseDbRawName = context.getConfiguration().get(phraseDbRaw)
-
-            require( new File(phraseDbRawName).exists() )
-            require( new File(phraseDbRawName).isDirectory() )
+            //val phraseDbFileName = context.getConfiguration().get(phraseDbKey)
+            //val phraseDbRawName = context.getConfiguration().get(phraseDbRaw)
+            
+            val localCacheFiles = context.getLocalCacheArchives()
+            require( localCacheFiles.length == 1 )
             
             // Make the phrase db accessible
-            dbenv = new berkeleydb.Environment( new File(phraseDbRawName), false )
+            dbenv = new berkeleydb.Environment( new File(localCacheFiles(0).toString + "/phrasedb"), false )
             db = dbenv.openDb( "phrases", false )
         }
         
