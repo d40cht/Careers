@@ -19,7 +19,8 @@ import org.seacourt.berkeleydb
 
 object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, IntWritable]
 {
-    val phraseDbKey = "org.seacourt.phrasedb"
+    val phraseDbKey = "org.seacourt.phrasedbtar"
+    val phraseDbRaw = "org.seacourt.phrasedb"
     val maxPhraseWordLength = 8
     
     class JobMapper extends MapperType
@@ -31,10 +32,8 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
         {
             val phraseDbFileName = context.getConfiguration().get(phraseDbKey)
             
-            val localPath = new File("./" + new File(phraseDbFileName).getName())
-            
             // Make the phrase db accessible
-            dbenv = new berkeleydb.Environment( localPath, false )
+            dbenv = new berkeleydb.Environment( new File(phraseDbRaw), false )
             db = dbenv.openDb( "phrases", false )
         }
         

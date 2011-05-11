@@ -101,6 +101,7 @@ object WikiBatch
         println( "  complete" )
         
         // Run phrasecounter so it only counts phrases that exist as surface forms
+        conf.set( PhraseCounter.phraseDbRaw, sfDbLocalPath )
         conf.set( PhraseCounter.phraseDbKey, remoteTarPath )
         PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
         
