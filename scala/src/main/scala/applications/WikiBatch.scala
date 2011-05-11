@@ -21,8 +21,6 @@ import sbt.Process._
 
 object WikiBatch
 {
-    val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/wikiBatch"
-    
     private def getJobFiles( fs : FileSystem, basePath : String, directory : String ) =
     {
         val fileList = fs.listStatus( new Path( basePath + "/" + directory ) )
@@ -30,7 +28,7 @@ object WikiBatch
         fileList.map( _.getPath ).filter( !_.toString.endsWith( "_SUCCESS" ) )
     }
     
-    private def buildSFDb( conf : Configuration, fs : FileSystem, dbenvPath : String )
+    private def buildSFDb( conf : Configuration, fs : FileSystem, dbenvPath : String, basePath : String )
     {
         println( "Building surface form bdb" )
         
@@ -84,7 +82,7 @@ object WikiBatch
         SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         
         // Copy surface forms out into a Berkeley db and send to distributed cache
-        buildSFDb(conf, fs, sfDbLocalPath)
+        buildSFDb(conf, fs, sfDbLocalPath, outputPathBase)
         
         // Zip up the berkeley db to a tgz
         // Copy it using DistributedCache.addCacheArchive (will unzip at the clients)
