@@ -72,11 +72,17 @@ object PhraseCounter extends MapReduceJob[Text, Text, Text, IntWritable, Text, I
                     {
                         phrase.append( iter2.head )
                         
+                        // If this is the first time we've seen this phrase and it's in the phrase
+                        // db then output a count. Otherwise add it to seen and continue
                         val asString = phrase.toString
                         if ( !seenSet.contains( asString ) )
                         {
-                            output( asString, 1 )
+                            if ( db.get( asString ) != None )
+                            {
+                                output( asString, 1 )
+                            }
                             seenSet += asString
+                                
                         }
                         
                         iter2 = iter2.tail
