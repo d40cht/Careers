@@ -78,7 +78,7 @@ object WikiBatch
         
         val sfDbLocalPath = "phrasedb"
         val localTarPath = sfDbLocalPath + ".tgz"
-        val remoteTarPath = basePath + "/" + sfDbLocalPath + ".tgz"
+        val remoteTarPath = outputPathBase + "/" + sfDbLocalPath + ".tgz"
         SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         
         // Copy surface forms out into a Berkeley db and send to distributed cache
