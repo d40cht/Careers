@@ -82,7 +82,7 @@ object WikiBatch
         SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         
         // Copy surface forms out into a Berkeley db and send to distributed cache
-        /*buildSFDb(conf, fs, sfDbLocalPath, outputPathBase)
+        buildSFDb(conf, fs, sfDbLocalPath, outputPathBase)
         
         // Zip up the berkeley db to a tgz
         // Copy it using DistributedCache.addCacheArchive (will unzip at the clients)
@@ -102,7 +102,7 @@ object WikiBatch
         
         // Run phrasecounter so it only counts phrases that exist as surface forms
         conf.set( PhraseCounter.phraseDbRaw, sfDbLocalPath )
-        conf.set( PhraseCounter.phraseDbKey, remoteTarPath )*/
+        conf.set( PhraseCounter.phraseDbKey, remoteTarPath )
         PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
         
         //WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
