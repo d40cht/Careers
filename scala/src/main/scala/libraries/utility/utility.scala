@@ -5,7 +5,7 @@ import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
-import java.io.StringReader
+import java.io.{StringReader, OutputStream}
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
 
@@ -13,9 +13,10 @@ import scala.util.matching.Regex
 import org.apache.hadoop.io.{Writable}
 import java.io.{DataInput, DataOutput}
 
-import java.io.{DataOutput, DataOutputStream, DataInput}
+import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, ByteArrayInputStream}
 
-import scala.collection.mutable.ArrayLike
+import scala.collection.mutable.{IndexedSeqOptimized, Builder}
+
 
 trait FixedLengthSerializable
 {
@@ -43,26 +44,60 @@ trait FixedLengthSerializable
     }
 }
 
-class EfficientArray[Element <: FixedLengthSerializable]( var _length : Int ) extends ArrayLike[Element, EfficientArray[Element]]
+
+class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length : Int ) extends IndexedSeqOptimized[Element, EfficientArray[Element]]
 {
-    // TODO: How to get this?
-    private val elementSize = 16
+    private def makeElement() : Element = manifest[Element].erasure.newInstance.asInstanceOf[Element]
+    private lazy val elementSize = makeElement.size
+    
     private val buffer = new Array[Byte]( elementSize * length )
+    
+    class ArrayOutputStream( var index : Int ) extends OutputStream
+    {
+        override def write( b : Int )
+        {
+            buffer(index) = b.toByte
+            index += 1
+        }
+    }
+    
+    class ArrayIterator() extends Iterator[Element]
+    {
+        var index = 0
+        
+        def hasNext = index < length * elementSize
+        def next() =
+        {
+            val n = apply(index)
+            index += 1
+            n
+        }
+    }
+    
+    class ArrayBuilder extends Builder[Element, EfficientArray[Element]]
+    {
+        override def +=( elem : Element ) = this
+        override def clear() {}
+        override def result() = new EfficientArray[Element](0)
+    }
+    
+    override def newBuilder = new ArrayBuilder()
     
     override def length : Int = _length
     override def apply( i : Int ) : Element =
     {
-        val e : Element = null
+        val e : Element = makeElement()
+        e.load( new DataInputStream( new ByteArrayInputStream( buffer, i * elementSize, elementSize ) ) )
         e
-        //val e = new Element
     }
     override def update( i : Int, v : Element )
     {
-        
+        v.save( new DataOutputStream( new ArrayOutputStream( i * elementSize ) ) )
     }
-    /*override def seq : TraversableOnce[Element] =
+    
+    /*override def seq() : TraversableOnce[Element] =
     {
-        
+        new ArrayIterator()
     }*/
 }
 

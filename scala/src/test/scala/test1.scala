@@ -17,6 +17,7 @@ import org.seacourt.utility._
 import org.seacourt.berkeleydb
 
 import scala.util.matching.Regex
+import scala.util.Sorting._
 
 import resource._
 
@@ -25,6 +26,8 @@ import java.io.{DataInput, DataOutput}
 final class FixedLengthString( var value : String ) extends FixedLengthSerializable
 {
     def size = 16
+    
+    def this() = this("")
     
     override def saveImpl( out : DataOutput )
     {
@@ -39,6 +42,30 @@ final class FixedLengthString( var value : String ) extends FixedLengthSerializa
 
 class SizeTests extends FunSuite
 {
+    test("Efficient array test 1")
+    {
+        val arr = new EfficientArray[FixedLengthString]( 5 )
+        arr(0) = new FixedLengthString( "56" )
+        arr(1) = new FixedLengthString( "55" )
+        arr(2) = new FixedLengthString( "53" )
+        arr(3) = new FixedLengthString( "54" )
+        arr(4) = new FixedLengthString( "52" )
+        
+        
+        assert( arr(0).value === "56" )
+        assert( arr(1).value === "55" )
+        assert( arr(2).value === "53" )
+        assert( arr(3).value === "54" )
+        assert( arr(4).value === "52" )
+        
+        stableSort( arr, (x:FixedLengthString, y:FixedLengthString) => x.value < y.value )
+        
+        assert( arr(0).value === "52" )
+        assert( arr(1).value === "53" )
+        assert( arr(2).value === "54" )
+        assert( arr(3).value === "55" )
+        assert( arr(4).value === "56" )
+    }
 
     test("Array size test")
     {
