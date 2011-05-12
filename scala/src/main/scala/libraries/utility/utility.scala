@@ -13,6 +13,61 @@ import scala.util.matching.Regex
 import org.apache.hadoop.io.{Writable}
 import java.io.{DataInput, DataOutput}
 
+import java.io.{DataOutput, DataOutputStream, DataInput}
+
+import scala.collection.mutable.ArrayLike
+
+trait FixedLengthSerializable
+{
+    def size : Int
+    def loadImpl( in : DataInput )
+    def saveImpl( out : DataOutput )
+    
+    final def save( out : DataOutputStream )
+    {
+        val before = out.size()
+        saveImpl( out )
+        val padding = size - (out.size() - before)
+        assert( padding >= 0 )
+        for ( i <- 0 until padding ) out.writeByte(0)
+    }
+    
+    final def load( in : DataInput )
+    {
+        //val before = in.size()
+        loadImpl( in )
+        //val after = out.size()
+        //val padding = size - (out.size() - before)
+        //assert( padding >= 0 )
+        //skipBytes( padding )
+    }
+}
+
+class EfficientArray[Element <: FixedLengthSerializable]( var _length : Int ) extends ArrayLike[Element, EfficientArray[Element]]
+{
+    // TODO: How to get this?
+    private val elementSize = 16
+    private val buffer = new Array[Byte]( elementSize * length )
+    
+    override def length : Int = _length
+    override def apply( i : Int ) : Element =
+    {
+        val e : Element = null
+        e
+        //val e = new Element
+    }
+    override def update( i : Int, v : Element )
+    {
+        
+    }
+    /*override def seq : TraversableOnce[Element] =
+    {
+        
+    }*/
+}
+
+
+
 class TextArrayWritable extends Writable
 {
     var elements : List[String] = Nil

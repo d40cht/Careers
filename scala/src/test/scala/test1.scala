@@ -9,6 +9,7 @@ import org.dbpedia.extraction.sources.WikiPage
 import org.dbpedia.extraction.wikiparser.{Node}
 
 import java.io.File
+import java.lang.System
 import scala.io.Source._
 
 import org.seacourt.sql.SqliteWrapper._
@@ -19,7 +20,52 @@ import scala.util.matching.Regex
 
 import resource._
 
+import java.io.{DataInput, DataOutput}
 
+final class FixedLengthString( var value : String ) extends FixedLengthSerializable
+{
+    def size = 16
+    
+    override def saveImpl( out : DataOutput )
+    {
+        out.writeUTF( value )
+    }
+    
+    override def loadImpl( in : DataInput )
+    {
+        value = in.readUTF()
+    }
+}
+
+class SizeTests extends FunSuite
+{
+
+    test("Array size test")
+    {
+        System.gc()
+        val before = Runtime.getRuntime().totalMemory()
+        
+        val db = new SQLiteWrapper( null )
+        
+        db.exec( "CREATE TABLE test( number TEXT PRIMARY KEY )" )
+        val insStatement = db.prepare( "INSERT INTO test VALUES( ? )", HNil )
+        
+        val testSize = 2000000
+        //val b = new Array[Array[Byte]]( testSize )
+
+        db.exec( "BEGIN" )
+        for ( i <- 0 until testSize )
+        {
+            insStatement.exec( i.toString )
+            //b(i) = i.toString.getBytes()
+        }
+        db.exec( "COMMIT" )
+        System.gc()
+        
+        val after = Runtime.getRuntime().totalMemory()
+        println( "##########################> Heapsize change: " + ((after-before) / (1024.0*1024.0)) + "Mb" )
+    }
+}
 
 class BerkeleyDbTests extends FunSuite
 {
