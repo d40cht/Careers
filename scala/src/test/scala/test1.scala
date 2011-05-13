@@ -58,7 +58,8 @@ class SizeTests extends FunSuite
         assert( arr(3).value === "54" )
         assert( arr(4).value === "52" )
         
-        stableSort( arr, (x:FixedLengthString, y:FixedLengthString) => x.value < y.value )
+        val r : Seq[FixedLengthString] = arr
+        stableSort( r, (x:FixedLengthString, y:FixedLengthString) => x.value < y.value )
         
         assert( arr(0).value === "52" )
         assert( arr(1).value === "53" )

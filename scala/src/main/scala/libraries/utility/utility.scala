@@ -45,7 +45,7 @@ trait FixedLengthSerializable
 }
 
 
-class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length : Int ) extends IndexedSeqOptimized[Element, EfficientArray[Element]]
+class EfficientArray[+Element <: FixedLengthSerializable : Manifest]( var _length : Int ) extends IndexedSeqOptimized[Element, EfficientArray[Element]]
 {
     private def makeElement() : Element = manifest[Element].erasure.newInstance.asInstanceOf[Element]
     private lazy val elementSize = makeElement.size
