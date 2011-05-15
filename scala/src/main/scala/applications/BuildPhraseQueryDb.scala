@@ -108,7 +108,7 @@ object PhraseMap
         conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
         val fs = FileSystem.get(conf)   
         
-        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
+        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory 
         val sql = new SQLiteWriter( outputFilePath )
         
         {
@@ -130,8 +130,11 @@ object PhraseMap
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( word, count ) )
                 {
-                    val str = word.toString.slice( 0, FixedLengthString.size )
-                    builder += new FixedLengthString( str )
+                    //val str = word.toString.slice( 0, FixedLengthString.size )
+                    if ( word.toString.length <= FixedLengthString.size )
+                    {
+                        builder += new FixedLengthString( str )
+                    }
                 }
             }
             
