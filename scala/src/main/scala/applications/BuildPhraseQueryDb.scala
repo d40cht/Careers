@@ -130,10 +130,13 @@ object PhraseMap
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( word, count ) )
                 {
-                    //val str = word.toString.slice( 0, FixedLengthString.size )
-                    if ( word.toString.length <= FixedLengthString.size )
+                    if ( count.get() > 2 )
                     {
-                        builder += new FixedLengthString( str )
+                        val str = word.toString()
+                        if ( str.length <= FixedLengthString.size )
+                        {
+                            builder += new FixedLengthString( str )
+                        }
                     }
                 }
             }
