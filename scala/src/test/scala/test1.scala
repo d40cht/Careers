@@ -42,6 +42,64 @@ final class FixedLengthString( var value : String ) extends FixedLengthSerializa
 
 class SizeTests extends FunSuite
 {
+    // Be great if this were more generic
+    def binarySearch[T <: FixedLengthSerializable](x: T, xs: EfficientArray[T], comp : (T, T)=> Boolean): Option[Int] =
+    {
+        def searchBetween(start: Int, end: Int): Option[Int] =
+        {
+            if ( start > end )
+            {
+                None
+            }
+            else
+            {
+                val pivot = (start + end) / 2
+                val pivotValue = xs(pivot)
+                
+                if ( comp(x, pivotValue) )
+                {
+                    searchBetween(start, pivot-1)
+                }
+                else if ( comp(pivotValue, x) )
+                {
+                    searchBetween(pivot+1, end)
+                }
+                else
+                {
+                    Some( pivot )
+                }
+            }
+        }
+
+        searchBetween(0, xs.length-1)
+    }
+    
+    test("Efficient array builder and serialization test")
+    {
+        val tarr = new EfficientArray[FixedLengthString](0)
+        val builder = tarr.newBuilder
+        
+        builder += new FixedLengthString( "56" )
+        builder += new FixedLengthString( "55" )
+        builder += new FixedLengthString( "53" )
+        builder += new FixedLengthString( "54" )
+        builder += new FixedLengthString( "52" )
+        
+        val arr = builder.result()
+        assert( arr.length === 5 )
+        
+        arr.save( new File( "testEArr.bin" ) )
+        
+        val larr = new EfficientArray[FixedLengthString](0)
+        larr.load( new File( "testEArr.bin" ) )
+        
+        assert( arr.length === larr.length )
+        for ( i <- 0 until arr.length )
+        {
+            assert( arr(i).value === larr(i).value )
+        }
+    }
+
     test("Efficient array test 1")
     {
         val arr = new EfficientArray[FixedLengthString]( 5 )
@@ -58,14 +116,37 @@ class SizeTests extends FunSuite
         assert( arr(3).value === "54" )
         assert( arr(4).value === "52" )
         
-        val r : Seq[FixedLengthString] = arr
-        stableSort( r, (x:FixedLengthString, y:FixedLengthString) => x.value < y.value )
+        //val comparator = Function2[FixedLengthString, FixedLengthString, Boolean] = _.value < _.value
+        val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
         
-        assert( arr(0).value === "52" )
-        assert( arr(1).value === "53" )
-        assert( arr(2).value === "54" )
-        assert( arr(3).value === "55" )
-        assert( arr(4).value === "56" )
+        //stableSort( arr, (x:FixedLengthString, y:FixedLengthString) => x.value < y.value )
+        val sarr : EfficientArray[FixedLengthString] = arr.sortWith( comp )
+        
+        assert( sarr.length === 5 )
+        
+        assert( sarr(0).value === "52" )
+        assert( sarr(1).value === "53" )
+        assert( sarr(2).value === "54" )
+        assert( sarr(3).value === "55" )
+        assert( sarr(4).value === "56" )
+        
+        assert( comp( sarr(0), sarr(1) ) )
+        assert( !comp( sarr(1), sarr(0) ) )
+        
+        assert( binarySearch( new FixedLengthString("20"), sarr, comp ) === None )
+        assert( binarySearch( new FixedLengthString("52"), sarr, comp ) === Some(0) )
+        assert( binarySearch( new FixedLengthString("53"), sarr, comp ) === Some(1) )
+        assert( binarySearch( new FixedLengthString("54"), sarr, comp ) === Some(2) )
+        assert( binarySearch( new FixedLengthString("55"), sarr, comp ) === Some(3) )
+        assert( binarySearch( new FixedLengthString("56"), sarr, comp ) === Some(4) )
+        
+        val arr2 = new EfficientArray[FixedLengthString]( 1 )
+        arr2(0) = new FixedLengthString( "56" )
+        assert( binarySearch( new FixedLengthString("20"), arr2, comp ) === None )
+        assert( binarySearch( new FixedLengthString("80"), arr2, comp ) === None )
+        assert( binarySearch( new FixedLengthString("56"), arr2, comp ) === Some(0) )
+        
+        // TODO: Save out, then load back in again
     }
 
     test("Array size test")

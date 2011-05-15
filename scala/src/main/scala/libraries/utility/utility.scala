@@ -11,11 +11,11 @@ import org.dbpedia.extraction.sources.WikiPage
 
 import scala.util.matching.Regex
 import org.apache.hadoop.io.{Writable}
-import java.io.{DataInput, DataOutput}
+import java.io.{DataInput, DataOutput, FileInputStream, FileOutputStream, File}
 
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, ByteArrayInputStream}
 
-import scala.collection.mutable.{IndexedSeqOptimized, Builder}
+import scala.collection.mutable.{IndexedSeqOptimized, Builder, ArrayLike, LinkedList}
 
 
 trait FixedLengthSerializable
@@ -45,12 +45,12 @@ trait FixedLengthSerializable
 }
 
 
-class EfficientArray[+Element <: FixedLengthSerializable : Manifest]( var _length : Int ) extends IndexedSeqOptimized[Element, EfficientArray[Element]]
+class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length : Int ) extends ArrayLike[Element, EfficientArray[Element]]
 {
-    private def makeElement() : Element = manifest[Element].erasure.newInstance.asInstanceOf[Element]
+    private def makeElement : Element = manifest[Element].erasure.newInstance.asInstanceOf[Element]
     private lazy val elementSize = makeElement.size
     
-    private val buffer = new Array[Byte]( elementSize * length )
+    private var buffer = new Array[Byte]( elementSize * length )
     
     class ArrayOutputStream( var index : Int ) extends OutputStream
     {
@@ -74,32 +74,64 @@ class EfficientArray[+Element <: FixedLengthSerializable : Manifest]( var _lengt
         }
     }
     
-    class ArrayBuilder extends Builder[Element, EfficientArray[Element]]
+    // No reason why this can't be more efficient
+    class ArrayBuilder( val elementSize : Int ) extends Builder[Element, EfficientArray[Element]]
     {
-        override def +=( elem : Element ) = this
-        override def clear() {}
-        override def result() = new EfficientArray[Element](0)
+        var data = LinkedList[Element]()
+        override def +=( elem : Element ) =
+        {
+            data = data :+ elem
+            this
+        }
+        override def clear() { data = LinkedList[Element]() }
+        override def result() =
+        {
+            val arr = new EfficientArray[Element]( data.size )
+            var i = 0
+            for ( v <- data )
+            {
+                arr(i) = v
+                i += 1
+            }
+            arr
+        }
     }
-    
-    override def newBuilder = new ArrayBuilder()
+
+    override def newBuilder = new ArrayBuilder(elementSize)
     
     override def length : Int = _length
     override def apply( i : Int ) : Element =
     {
-        val e : Element = makeElement()
+        val e : Element = makeElement
         e.load( new DataInputStream( new ByteArrayInputStream( buffer, i * elementSize, elementSize ) ) )
         e
     }
+    
     override def update( i : Int, v : Element )
     {
         v.save( new DataOutputStream( new ArrayOutputStream( i * elementSize ) ) )
     }
     
-    /*override def seq() : TraversableOnce[Element] =
+    def getBuffer() = buffer
+    def setBuffer( newBuffer : Array[Byte] ) { buffer = newBuffer }
+    
+    def save( file : File )
     {
-        new ArrayIterator()
-    }*/
+        val stream = new FileOutputStream( file )
+        stream.write( buffer )
+    }
+    
+    def load( file : File )
+    {
+        val flen = file.length.toInt
+        buffer = new Array[Byte]( flen )
+        val stream = new FileInputStream( file )
+        
+        stream.read( buffer )
+        _length = flen / elementSize
+    }
 }
+
 
 
 
