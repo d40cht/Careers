@@ -108,10 +108,60 @@ object PhraseMap
         conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
         val fs = FileSystem.get(conf)   
         
+        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
         val sql = new SQLiteWriter( outputFilePath )
         
+        {
+            println( "Building word dictionary" )
+            
+            val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
+            
+            val builder = new EfficientArray[FixedLengthString](0).newBuilder
         
-        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
+            val wordInsert = sql.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
+            //id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER
+            for ( filePath <- fileList )
+            {
+                println( "  " + filePath )
+                val word = new Text()
+                val count = new IntWritable()
+                
+                
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( word, count ) )
+                {
+                    val str = word.toString.slice( 0, FixedLengthString.size )
+                    builder += new FixedLengthString( str )
+                }
+            }
+            
+            val sortedWordArray = builder.result().sortWith( _.value < _.value )
+            sortedWordArray.save( new File("allWords.bin") )
+        }
+        
+        {
+            println( "Adding words" )
+            val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
+        
+            val wordInsert = sql.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
+            //id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER
+            for ( filePath <- fileList )
+            {
+                println( "  " + filePath )
+                val word = new Text()
+                val count = new IntWritable()
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( word, count ) )
+                {
+                    if ( count.get > 2 )
+                    {
+                        wordInsert.exec( word.toString, count.get )
+                        sql.manageTransactions()
+                    }
+                }
+            }
+            sql.sync()
+        }
         
         {
             println( "Building topic index" )
@@ -168,29 +218,7 @@ object PhraseMap
             sql.sync()
         }
         
-        {
-            println( "Adding words" )
-            val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
         
-            val wordInsert = sql.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
-            //id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER
-            for ( filePath <- fileList )
-            {
-                println( "  " + filePath )
-                val word = new Text()
-                val count = new IntWritable()
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( word, count ) )
-                {
-                    if ( count.get > 2 )
-                    {
-                        wordInsert.exec( word.toString, count.get )
-                        sql.manageTransactions()
-                    }
-                }
-            }
-            sql.sync()
-        }
         
         {
             println( "Adding categories and contexts" )

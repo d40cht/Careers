@@ -23,23 +23,6 @@ import resource._
 
 import java.io.{DataInput, DataOutput}
 
-final class FixedLengthString( var value : String ) extends FixedLengthSerializable
-{
-    def size = 16
-    
-    def this() = this("")
-    
-    override def saveImpl( out : DataOutput )
-    {
-        out.writeUTF( value )
-    }
-    
-    override def loadImpl( in : DataInput )
-    {
-        value = in.readUTF()
-    }
-}
-
 class SizeTests extends FunSuite
 {
     // Be great if this were more generic

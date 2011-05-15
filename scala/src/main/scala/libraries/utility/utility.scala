@@ -44,6 +44,28 @@ trait FixedLengthSerializable
     }
 }
 
+final class FixedLengthString( var value : String ) extends FixedLengthSerializable
+{
+    def size = 16
+    
+    def this() = this("")
+    
+    override def saveImpl( out : DataOutput )
+    {
+        out.writeUTF( value )
+    }
+    
+    override def loadImpl( in : DataInput )
+    {
+        value = in.readUTF()
+    }
+}
+
+
+object FixedLengthString
+{
+    def size = 16
+}
 
 class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length : Int ) extends ArrayLike[Element, EfficientArray[Element]]
 {
