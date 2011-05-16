@@ -14,6 +14,7 @@ import org.apache.hadoop.io.{Writable}
 import java.io.{DataInput, DataOutput, FileInputStream, FileOutputStream, File}
 
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, ByteArrayInputStream}
+import java.util.ArrayList
 
 import scala.collection.mutable.{IndexedSeqOptimized, Builder, ArrayLike, LinkedList}
 
@@ -99,21 +100,19 @@ class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length
     // No reason why this can't be more efficient
     class ArrayBuilder( val elementSize : Int ) extends Builder[Element, EfficientArray[Element]]
     {
-        var data = LinkedList[Element]()
+        var data = new ArrayList[Element]()
         override def +=( elem : Element ) =
         {
-            data = data :+ elem
+            data.add( elem )
             this
         }
-        override def clear() { data = LinkedList[Element]() }
+        override def clear() { data.clear() }
         override def result() =
         {
-            val arr = new EfficientArray[Element]( data.size )
-            var i = 0
-            for ( v <- data )
+            val arr = new EfficientArray[Element]( data.size() )
+            for ( i <- 0 until data.size() )
             {
-                arr(i) = v
-                i += 1
+                arr(i) = data.get(i)
             }
             arr
         }

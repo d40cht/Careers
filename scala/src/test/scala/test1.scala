@@ -57,6 +57,39 @@ class SizeTests extends FunSuite
         searchBetween(0, xs.length-1)
     }
     
+    test( "Efficient array large test" )
+    {
+        val count = 500000
+        val tarr = new EfficientArray[FixedLengthString](0)
+        val builder = tarr.newBuilder
+        
+        println( "Building...")
+        for ( i <- 0 until count )
+        {
+            builder += new FixedLengthString(((count-1)-i).toString)
+        }
+        
+        println( "Extracting" )
+        val data = builder.result()
+        
+        println( "Sorting" )
+        val sorted = data.sortWith( _.value.toInt < _.value.toInt )
+        
+        println( "Saving" )
+        sorted.save( new File("largeTest.bin" ) )
+        
+        println( "Loading" )
+        val larr = new EfficientArray[FixedLengthString](0)
+        larr.load( new File("largeTest.bin") )
+        
+        println( "Validating" )
+        assert( larr.size === count )
+        for ( i <- 0 until count )
+        {
+            assert( larr(i).value === i.toString )
+        }
+    }
+    
     test("Efficient array builder and serialization test")
     {
         val tarr = new EfficientArray[FixedLengthString](0)
