@@ -162,7 +162,25 @@ class SizeTests extends FunSuite
         assert( binarySearch( new FixedLengthString("80"), arr2, comp ) === None )
         assert( binarySearch( new FixedLengthString("56"), arr2, comp ) === Some(0) )
         
-        // TODO: Save out, then load back in again
+        val arr3 = new EfficientArray[FixedLengthString]( 1 )
+        arr3(0) = new FixedLengthString("1")
+        arr3(0) = new FixedLengthString("12")
+        arr3(0) = new FixedLengthString("123")
+        arr3(0) = new FixedLengthString("1234")
+        arr3(0) = new FixedLengthString("12345")
+        arr3(0) = new FixedLengthString("123456")
+        arr3(0) = new FixedLengthString("1234567")
+        arr3(0) = new FixedLengthString("12345678")
+        arr3(0) = new FixedLengthString("123456789")
+        arr3(0) = new FixedLengthString("1234567891")
+        arr3(0) = new FixedLengthString("12345678912")
+        arr3(0) = new FixedLengthString("123456789123")
+        arr3(0) = new FixedLengthString("1234567891234")
+        arr3(0) = new FixedLengthString("12345678912345")
+        //arr3(0) = new FixedLengthString("123456789123456")
+        //arr3(0) = new FixedLengthString("1234567891234567")
+        //arr3(0) = new FixedLengthString("12345678912345678")
+        //arr3(0) = new FixedLengthString("123456789123456789")
     }
 
     test("Array size test")
