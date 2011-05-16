@@ -133,7 +133,7 @@ object PhraseMap
                     if ( count.get() > 2 )
                     {
                         val str = word.toString()
-                        if ( str.length <= FixedLengthString.size )
+                        if ( str.length < FixedLengthString.size )
                         {
                             builder += new FixedLengthString( str )
                         }
