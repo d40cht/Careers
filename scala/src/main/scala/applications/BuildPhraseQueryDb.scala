@@ -133,7 +133,9 @@ object PhraseMap
                     if ( count.get() > 2 )
                     {
                         val str = word.toString()
-                        if ( str.length < FixedLengthString.size )
+                       
+                        //if ( str.length < (FixedLengthString.size-4) )
+                        if ( str.length < 8 )
                         {
                             builder += new FixedLengthString( str )
                         }
@@ -141,7 +143,9 @@ object PhraseMap
                 }
             }
             
+            println( "Sorting array." )
             val sortedWordArray = builder.result().sortWith( _.value < _.value )
+            println( "Array length: " + sortedWordArray.length )
             sortedWordArray.save( new File("allWords.bin") )
         }
         

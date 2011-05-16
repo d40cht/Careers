@@ -47,7 +47,7 @@ trait FixedLengthSerializable
 
 final class FixedLengthString( var value : String ) extends FixedLengthSerializable
 {
-    def size = 16
+    def size = 24
     
     def this() = this("")
     
