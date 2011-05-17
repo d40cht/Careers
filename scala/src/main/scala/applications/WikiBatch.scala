@@ -93,7 +93,7 @@ object WikiBatch
         // TODO: An additional parse run that runs over all the topics of relevance, and a fn in Utils to
         //       specify relevance to be used in all the jobs below.
         
-        //WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
         buildWordMap( conf, fs, outputPathBase )
         
         SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
