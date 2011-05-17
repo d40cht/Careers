@@ -68,13 +68,12 @@ object WikiBatch
         sortedWordArray.save( new File(wordMapName) )
         
         println( "Copying to HDFS" )
-        fs.copyFromLocalFile( false, true, new Path( wordMapName ), new Path( basePath + "/" + wordMapName ) )
+        val remoteMapPath = basePath + "/" + wordMapName
+        fs.copyFromLocalFile( false, true, new Path( wordMapName ), new Path( remoteMapPath ) )
         println( "  complete" )
         
         // Run phrasecounter so it only counts phrases that exist as surface forms
-        conf.set( "wordMap", wordMapName )
-        //conf.set( PhraseCounter.phraseDbRaw, sfDbLocalPath )
-        //conf.set( PhraseCounter.phraseDbKey, remoteTarPath )
+        conf.set( "wordMap", remoteMapPath )
     }
 
     def main(args:Array[String]) : Unit =
