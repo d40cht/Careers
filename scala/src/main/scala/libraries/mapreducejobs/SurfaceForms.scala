@@ -11,6 +11,8 @@ import scala.collection.immutable.{TreeSet, TreeMap}
 import org.seacourt.mapreduce._
 import org.seacourt.utility._
 
+import java.io.File
+
 // TODO:
 // Sanity check text to remove junk
 
@@ -18,6 +20,22 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
 {
     class JobMapper extends MapperType
     {
+        val wordMap = new EfficientArray[FixedLengthString](0)
+        val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
+        
+        override def setup( context : MapperType#Context )
+        {
+            val localCacheFiles = context.getLocalCacheFiles()
+            require( localCacheFiles.length == 1 )
+            
+            // Make the phrase db accessible
+            wordMap.load( new File(localCacheFiles(0).toString) )
+        }
+        
+        override def cleanup( context : MapperType#Context )
+        {
+        }
+        
         def mapWork( topicTitle : String, topicText : String, output : (String, String) => Unit )
         {
             try
@@ -51,10 +69,23 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                         case _ =>
                     }
                 } )
+
                 
                 output( Utils.normalize( topicTitle ), Utils.normalizeLink( WikiTitle.parse(topicTitle) ) )
+                
                 for ( (sf, dest) <- resSet )
                 {
+                    var words = List[Int]()
+                    for ( word <- Utils.luceneTextTokenizer( sf ) )
+                    {
+                        val fl = new FixedLengthString( word )
+                        Utils.binarySearch( fl, wordMap, comp ) match
+                        {
+                            case Some( v ) => words = v :: words
+                            case _ =>
+                        }
+                    }
+
                     output( sf, dest )
                 }
             }

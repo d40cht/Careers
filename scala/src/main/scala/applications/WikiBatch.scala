@@ -39,6 +39,7 @@ object WikiBatch
         val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
         
         val builder = new EfficientArray[FixedLengthString](0).newBuilder
+
         for ( filePath <- fileList )
         {
             println( "  " + filePath )
@@ -92,8 +93,8 @@ object WikiBatch
         // TODO: An additional parse run that runs over all the topics of relevance, and a fn in Utils to
         //       specify relevance to be used in all the jobs below.
         
-        WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        //buildWordMap( conf, fs, outputPathBase )
+        //WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        buildWordMap( conf, fs, outputPathBase )
         
         SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
