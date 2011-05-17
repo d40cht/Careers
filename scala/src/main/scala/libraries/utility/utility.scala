@@ -314,6 +314,38 @@ object Utils
             case _ =>
         }
     }
+    
+    // Be great if this were more generic
+    def binarySearch[T <: FixedLengthSerializable](x: T, xs: EfficientArray[T], comp : (T, T)=> Boolean): Option[Int] =
+    {
+        def searchBetween(start: Int, end: Int): Option[Int] =
+        {
+            if ( start > end )
+            {
+                None
+            }
+            else
+            {
+                val pivot = (start + end) / 2
+                val pivotValue = xs(pivot)
+                
+                if ( comp(x, pivotValue) )
+                {
+                    searchBetween(start, pivot-1)
+                }
+                else if ( comp(pivotValue, x) )
+                {
+                    searchBetween(pivot+1, end)
+                }
+                else
+                {
+                    Some( pivot )
+                }
+            }
+        }
+
+        searchBetween(0, xs.length-1)
+    }
 }
 
 class LinkExtractor

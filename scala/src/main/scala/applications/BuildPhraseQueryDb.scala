@@ -145,7 +145,19 @@ object PhraseMap
             
             println( "Sorting array." )
             val sortedWordArray = builder.result().sortWith( _.value < _.value )
+            
             println( "Array length: " + sortedWordArray.length )
+            
+            val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
+            for ( i <- 0 until sortedWordArray.length )
+            {
+                val value = sortedWordArray(i)
+                
+                val findIndex = Utils.binarySearch( value, sortedWordArray, comp )
+                assert( findIndex == Some(i) )
+            }
+            println( "Verifying array." )
+            
             sortedWordArray.save( new File("allWords.bin") )
         }
         

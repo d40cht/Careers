@@ -25,38 +25,6 @@ import java.io.{DataInput, DataOutput}
 
 class SizeTests extends FunSuite
 {
-    // Be great if this were more generic
-    def binarySearch[T <: FixedLengthSerializable](x: T, xs: EfficientArray[T], comp : (T, T)=> Boolean): Option[Int] =
-    {
-        def searchBetween(start: Int, end: Int): Option[Int] =
-        {
-            if ( start > end )
-            {
-                None
-            }
-            else
-            {
-                val pivot = (start + end) / 2
-                val pivotValue = xs(pivot)
-                
-                if ( comp(x, pivotValue) )
-                {
-                    searchBetween(start, pivot-1)
-                }
-                else if ( comp(pivotValue, x) )
-                {
-                    searchBetween(pivot+1, end)
-                }
-                else
-                {
-                    Some( pivot )
-                }
-            }
-        }
-
-        searchBetween(0, xs.length-1)
-    }
-    
     test( "Efficient array large test" )
     {
         val count = 500000
@@ -149,18 +117,18 @@ class SizeTests extends FunSuite
         assert( comp( sarr(0), sarr(1) ) )
         assert( !comp( sarr(1), sarr(0) ) )
         
-        assert( binarySearch( new FixedLengthString("20"), sarr, comp ) === None )
-        assert( binarySearch( new FixedLengthString("52"), sarr, comp ) === Some(0) )
-        assert( binarySearch( new FixedLengthString("53"), sarr, comp ) === Some(1) )
-        assert( binarySearch( new FixedLengthString("54"), sarr, comp ) === Some(2) )
-        assert( binarySearch( new FixedLengthString("55"), sarr, comp ) === Some(3) )
-        assert( binarySearch( new FixedLengthString("56"), sarr, comp ) === Some(4) )
+        assert( Utils.binarySearch( new FixedLengthString("20"), sarr, comp ) === None )
+        assert( Utils.binarySearch( new FixedLengthString("52"), sarr, comp ) === Some(0) )
+        assert( Utils.binarySearch( new FixedLengthString("53"), sarr, comp ) === Some(1) )
+        assert( Utils.binarySearch( new FixedLengthString("54"), sarr, comp ) === Some(2) )
+        assert( Utils.binarySearch( new FixedLengthString("55"), sarr, comp ) === Some(3) )
+        assert( Utils.binarySearch( new FixedLengthString("56"), sarr, comp ) === Some(4) )
         
         val arr2 = new EfficientArray[FixedLengthString]( 1 )
         arr2(0) = new FixedLengthString( "56" )
-        assert( binarySearch( new FixedLengthString("20"), arr2, comp ) === None )
-        assert( binarySearch( new FixedLengthString("80"), arr2, comp ) === None )
-        assert( binarySearch( new FixedLengthString("56"), arr2, comp ) === Some(0) )
+        assert( Utils.binarySearch( new FixedLengthString("20"), arr2, comp ) === None )
+        assert( Utils.binarySearch( new FixedLengthString("80"), arr2, comp ) === None )
+        assert( Utils.binarySearch( new FixedLengthString("56"), arr2, comp ) === Some(0) )
         
         val arr3 = new EfficientArray[FixedLengthString]( 1 )
         arr3(0) = new FixedLengthString("1")
