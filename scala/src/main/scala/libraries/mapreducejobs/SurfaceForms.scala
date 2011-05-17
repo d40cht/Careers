@@ -12,6 +12,7 @@ import org.seacourt.mapreduce._
 import org.seacourt.utility._
 
 import java.io.File
+import java.net.URI
 
 // TODO:
 // Sanity check text to remove junk
@@ -151,6 +152,10 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
     {
         job.setMapperClass(classOf[JobMapper])
         job.setReducerClass(classOf[JobReducer])
+        
+        val wordMapFile = config.get( "wordMap" )
+        job.addCacheFile( new URI(wordMapFile) )
+        job.createSymlink()
     }
 }
 
