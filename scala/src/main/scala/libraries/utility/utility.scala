@@ -47,7 +47,7 @@ trait FixedLengthSerializable
 
 final class FixedLengthString( var value : String ) extends FixedLengthSerializable
 {
-    def size = 24
+    def size = 32
     
     def this() = this("")
     
@@ -65,7 +65,7 @@ final class FixedLengthString( var value : String ) extends FixedLengthSerializa
 
 object FixedLengthString
 {
-    def size = 16
+    def size = 32
 }
 
 class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length : Int ) extends ArrayLike[Element, EfficientArray[Element]]
