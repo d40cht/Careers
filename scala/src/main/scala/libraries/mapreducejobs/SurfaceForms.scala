@@ -21,7 +21,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
 {
     class JobMapper extends MapperType
     {
-        val wordMap = new EfficientArray[FixedLengthString](0)
+        /*val wordMap = new EfficientArray[FixedLengthString](0)
         val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
         
         override def setup( context : MapperType#Context )
@@ -35,7 +35,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
         
         override def cleanup( context : MapperType#Context )
         {
-        }
+        }*/
         
         def mapWork( topicTitle : String, topicText : String, output : (String, String) => Unit )
         {
@@ -76,17 +76,6 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                 
                 for ( (sf, dest) <- resSet )
                 {
-                    var words = List[Int]()
-                    for ( word <- Utils.luceneTextTokenizer( sf ) )
-                    {
-                        val fl = new FixedLengthString( word )
-                        Utils.binarySearch( fl, wordMap, comp ) match
-                        {
-                            case Some( v ) => words = v :: words
-                            case _ =>
-                        }
-                    }
-
                     output( sf, dest )
                 }
             }
@@ -153,9 +142,9 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
         job.setMapperClass(classOf[JobMapper])
         job.setReducerClass(classOf[JobReducer])
         
-        val wordMapFile = config.get( "wordMap" )
-        job.addCacheFile( new URI(wordMapFile) )
-        job.createSymlink()
+        //val wordMapFile = config.get( "wordMap" )
+        //job.addCacheFile( new URI(wordMapFile) )
+        //job.createSymlink()
     }
 }
 

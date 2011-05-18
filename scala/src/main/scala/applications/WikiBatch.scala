@@ -31,41 +31,84 @@ object WikiBatch
         fileList.map( _.getPath ).filter( !_.toString.endsWith( "_SUCCESS" ) )
     }
     
+    /*    
+    var words = List[Int]()
+    for ( word <- Utils.luceneTextTokenizer( sf ) )
+    {
+        val fl = new FixedLengthString( word )
+        Utils.binarySearch( fl, wordMap, comp ) match
+        {
+            case Some( v ) => words = v :: words
+            case _ =>
+        }
+    }
+    */
+
     
-    private def buildWordMap( conf : Configuration, fs : FileSystem, basePath : String )
+    private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
     {
         println( "Building word dictionary" )
         
-        val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
-        
-        val builder = new EfficientArray[FixedLengthString](0).newBuilder
-
-        for ( filePath <- fileList )
         {
-            println( "  " + filePath )
-            val word = new Text()
-            val count = new IntWritable()
-            
-            
-            val file = new HadoopReader( fs, filePath, conf )
-            while ( file.next( word, count ) )
+            val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
+            val builder = new EfficientArray[FixedLengthString](0).newBuilder
+
+            for ( filePath <- fileList )
             {
-                if ( count.get() > 2 )
+                println( "  " + filePath )
+                val word = new Text()
+                val count = new IntWritable()
+                
+                
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( word, count ) )
                 {
-                    val str = word.toString()
-                   
-                    if ( str.length < 12 )
+                    if ( count.get() > 2 )
                     {
-                        builder += new FixedLengthString( str )
+                        val str = word.toString()
+                       
+                        if ( str.length < 12 )
+                        {
+                            builder += new FixedLengthString( str )
+                        }
+                    }
+                }
+            }
+        
+            println( "Sorting array." )
+            val sortedWordArray = builder.result().sortWith( _.value < _.value )
+            println( "Array length: " + sortedWordArray.length )
+            sortedWordArray.save( new File(wordMapName) )
+        }
+        
+        println( "Parsing surface forms" )
+        
+        {
+            val fileList = getJobFiles( fs, basePath, "surfaceForms" )
+            val builder = new EfficientArray[FixedLengthString](0).newBuilder
+
+            var maxLength = 0
+            for ( filePath <- fileList )
+            {
+                println( "  " + filePath )
+                val surfaceForm = new Text()
+                val targets = new TextArrayCountWritable()
+                
+                val file = new HadoopReader( fs, filePath, conf )
+                while ( file.next( surfaceForm, targets ) )
+                {
+                    val wordList = Utils.luceneTextTokenizer( surfaceForm.toString )
+                    val length = wordList.length
+                    if ( length > maxLength )
+                    {
+                        maxLength = length
+                        println( "Max length: " + maxLength )
                     }
                 }
             }
         }
         
-        println( "Sorting array." )
-        val sortedWordArray = builder.result().sortWith( _.value < _.value )
-        println( "Array length: " + sortedWordArray.length )
-        sortedWordArray.save( new File(wordMapName) )
+        
         
         println( "Copying to HDFS" )
         val remoteMapPath = basePath + "/" + wordMapName
@@ -94,9 +137,10 @@ object WikiBatch
         //       specify relevance to be used in all the jobs below.
         
         WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        buildWordMap( conf, fs, outputPathBase )
-        
         SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
+        
+        buildWordAndSurfaceFormsMap( conf, fs, outputPathBase )
+        
         PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
         
         //RedirectParser.run( "RedirectParser", conf, inputFile, outputPathBase + "/redirects", numReduces )
