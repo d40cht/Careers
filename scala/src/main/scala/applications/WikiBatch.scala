@@ -16,6 +16,7 @@ import org.seacourt.utility._
 import resource._
 
 import sbt.Process._
+import scala.collection.immutable.TreeMap
 
 // To add: link counts - forward and backwards.
 
@@ -86,7 +87,8 @@ object WikiBatch
         {
             val fileList = getJobFiles( fs, basePath, "surfaceForms" )
             val builder = new EfficientArray[FixedLengthString](0).newBuilder
-
+    
+            var wordLength = TreeMap[Int, Int]()
             var maxLength = 0
             for ( filePath <- fileList )
             {
@@ -94,17 +96,26 @@ object WikiBatch
                 val surfaceForm = new Text()
                 val targets = new TextArrayCountWritable()
                 
+                
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( surfaceForm, targets ) )
                 {
                     val wordList = Utils.luceneTextTokenizer( surfaceForm.toString )
                     val length = wordList.length
+                    
+                    val count = wordLength.getOrElse( length, 0 )
+                    wordLength = wordLength.updated( length, count + 1 )
                     if ( length > maxLength )
                     {
                         maxLength = length
                         println( "Max length: " + maxLength )
                     }
                 }
+            }
+            
+            for ( (length, count) <- wordLength )
+            {
+                println( "* " + length + " : " + count )
             }
         }
         
@@ -136,8 +147,8 @@ object WikiBatch
         // TODO: An additional parse run that runs over all the topics of relevance, and a fn in Utils to
         //       specify relevance to be used in all the jobs below.
         
-        WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
+        //WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        //SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         
         buildWordAndSurfaceFormsMap( conf, fs, outputPathBase )
         
