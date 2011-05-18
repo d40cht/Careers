@@ -76,17 +76,6 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                 
                 for ( (sf, dest) <- resSet )
                 {
-                    var words = List[Int]()
-                    for ( word <- Utils.luceneTextTokenizer( sf ) )
-                    {
-                        val fl = new FixedLengthString( word )
-                        Utils.binarySearch( fl, wordMap, comp ) match
-                        {
-                            case Some( v ) => words = v :: words
-                            case _ =>
-                        }
-                    }
-
                     output( sf, dest )
                 }
             }
