@@ -7,6 +7,7 @@ import org.apache.hadoop.filecache.DistributedCache
 import org.apache.hadoop.io.{Text, IntWritable}
 
 import java.io.File
+import java.util.ArrayList
 
 import org.seacourt.sql.SqliteWrapper
 import org.seacourt.mapreducejobs._
@@ -50,9 +51,10 @@ object WikiBatch
     {
         println( "Building word dictionary" )
         
+        val builder = new EfficientArray[FixedLengthString](0).newBuilder
+        
         {
             val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
-            val builder = new EfficientArray[FixedLengthString](0).newBuilder
 
             for ( filePath <- fileList )
             {
@@ -75,12 +77,12 @@ object WikiBatch
                     }
                 }
             }
-        
-            println( "Sorting array." )
-            val sortedWordArray = builder.result().sortWith( _.value < _.value )
-            println( "Array length: " + sortedWordArray.length )
-            sortedWordArray.save( new File(wordMapName) )
         }
+    
+        println( "Sorting array." )
+        val sortedWordArray = builder.result().sortWith( _.value < _.value )
+        println( "Array length: " + sortedWordArray.length )
+        sortedWordArray.save( new File(wordMapName) )
         
         println( "Parsing surface forms" )
         
@@ -88,34 +90,57 @@ object WikiBatch
             val fileList = getJobFiles( fs, basePath, "surfaceForms" )
             val builder = new EfficientArray[FixedLengthString](0).newBuilder
     
-            var wordLength = TreeMap[Int, Int]()
-            var maxLength = 0
+    
+            val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
+            // (parentId : Int, wordId : Int) => thisId : Int
+            var phraseData = new ArrayList[TreeMap[(Int, Int), Int]]()
+            var lastId = 1
             for ( filePath <- fileList )
             {
                 println( "  " + filePath )
                 val surfaceForm = new Text()
                 val targets = new TextArrayCountWritable()
                 
-                
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( surfaceForm, targets ) )
                 {
                     val wordList = Utils.luceneTextTokenizer( surfaceForm.toString )
-                    val length = wordList.length
+                    val numWords = wordList.length
                     
-                    val count = wordLength.getOrElse( length, 0 )
-                    wordLength = wordLength.updated( length, count + 1 )
-                    if ( length > maxLength )
+                    while ( phraseData.size < numWords )
                     {
-                        maxLength = length
-                        println( "Max length: " + maxLength )
+                        phraseData.add(TreeMap[(Int, Int), Int]())
+                    }
+                    
+                    var index = 0
+                    var parentId = -1
+                    for ( word <- wordList )
+                    {
+                        val res = Utils.binarySearch( new FixedLengthString(word), sortedWordArray, comp )
+                        
+                        res match
+                        {
+                            case Some(wordId) =>
+                            {
+                                var layer = phraseData.get(index)
+                                layer.get( (parentId, wordId) ) match
+                                {
+                                    case Some( elementId ) => parentId = elementId
+                                    case _ =>
+                                    {
+                                        phraseData.set( index, layer.insert( (parentId, wordId), lastId ) )
+                                        
+                                        parentId = lastId
+                                        lastId += 1
+                                    }
+                                }
+                                index += 1
+                            }
+                            
+                            case _ =>
+                        }
                     }
                 }
-            }
-            
-            for ( (length, count) <- wordLength )
-            {
-                println( "* " + length + " : " + count )
             }
         }
         
