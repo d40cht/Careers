@@ -70,7 +70,7 @@ object WikiBatch
                     {
                         val str = word.toString()
                        
-                        if ( str.length < 12 )
+                        if ( str.getBytes("UTF-8").length < 20 )
                         {
                             builder += new FixedLengthString( str )
                         }
@@ -144,6 +144,8 @@ object WikiBatch
             }
         }
         
+        // Now serialize out all the phrase data layers, re-ordering all the word ids
+        
         
         
         println( "Copying to HDFS" )
@@ -172,12 +174,12 @@ object WikiBatch
         // TODO: An additional parse run that runs over all the topics of relevance, and a fn in Utils to
         //       specify relevance to be used in all the jobs below.
         
-        WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
+        //WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        //SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         
         buildWordAndSurfaceFormsMap( conf, fs, outputPathBase )
         
-        PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
+        //PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
         
         //RedirectParser.run( "RedirectParser", conf, inputFile, outputPathBase + "/redirects", numReduces )
         //CategoriesAndContexts.run( "CategoriesAndContexts", conf, inputFile, outputPathBase + "/categoriesAndContexts", numReduces )
