@@ -66,7 +66,7 @@ object WikiBatch
                 val file = new HadoopReader( fs, filePath, conf )
                 while ( file.next( word, count ) )
                 {
-                    if ( count.get() > 2 )
+                    if ( count.get() > 5 )
                     {
                         val str = word.toString()
                        
