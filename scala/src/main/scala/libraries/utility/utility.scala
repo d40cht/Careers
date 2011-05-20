@@ -62,6 +62,31 @@ final class FixedLengthString( var value : String ) extends FixedLengthSerializa
     }
 }
 
+final class EfficientIntPair( var first : Int, var second : Int ) extends FixedLengthSerializable
+{
+    def size = 8
+    
+    def this() = this(0, 0)
+    
+    override def saveImpl( out : DataOutput )
+    {
+        out.writeInt( first )
+        out.writeInt( second )
+    }
+    
+    override def loadImpl( in : DataInput )
+    {
+        first = in.readInt()
+        second = in.readInt()
+    }
+    
+    def less( other : EfficientIntPair ) : Boolean =
+    {
+        if ( first != other.first ) first < other.first
+        else second < other.second
+    }
+}
+
 
 object FixedLengthString
 {
