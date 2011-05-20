@@ -154,19 +154,19 @@ object WikiBatch
                 var newIdToIndexMap = new TreeMap[Int, Int]()
                 
                 // (parentId : Int, wordId : Int) => thisId : Int
-                var i = 0
-                val builder = new EfficientArray[EfficientIntPair](0).newBuilder
+                var count = 0
+                val builder2 = new EfficientArray[EfficientIntPair](0).newBuilder
                 for ( ((parentId, wordId), thisId) <- treeData )
                 {
-                    newIdToIndexMap = newIdToIndexMap.insert( thisId, i )
+                    newIdToIndexMap = newIdToIndexMap.insert( thisId, count )
                     val parentArrayIndex = if (parentId == -1) -1 else idToIndexMap( parentId )
                     
-                    builder += new EfficientIntPair( parentArrayIndex, wordId )
+                    builder2 += new EfficientIntPair( parentArrayIndex, wordId )
                     
-                    i += 1
+                    count += 1
                 }
                 
-                val sortedArray = builder.result().sortWith( _.less(_) )
+                val sortedArray = builder2.result().sortWith( _.less(_) )
                 sortedArray.save( new File( "phraseMap" + i + ".bin" ) )
                 
                 idToIndexMap = newIdToIndexMap
