@@ -45,15 +45,16 @@ object WikiBatch
         }
     }
     */
-
     
-    private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
+    class WordPhraseManager( val conf : Configuration, val fs : FileSystem, val basePath : String )
     {
-        println( "Building word dictionary" )
+        val sortedWordArray = buildWordDictionary()
         
-        val builder = new EfficientArray[FixedLengthString](0).newBuilder
-        
+        def buildWordDictionary() =
         {
+            println( "Building word dictionary" )
+            val builder = new EfficientArray[FixedLengthString](0).newBuilder
+            
             val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
 
             for ( filePath <- fileList )
@@ -77,20 +78,22 @@ object WikiBatch
                     }
                 }
             }
+        
+            println( "Sorting array." )
+            val sortedWordArray = builder.result().sortWith( _.value < _.value )
+            println( "Array length: " + sortedWordArray.length )
+            sortedWordArray.save( new File(wordMapName) )
+            
+            sortedWordArray
         }
-    
-        println( "Sorting array." )
-        val sortedWordArray = builder.result().sortWith( _.value < _.value )
-        println( "Array length: " + sortedWordArray.length )
-        sortedWordArray.save( new File(wordMapName) )
         
-        println( "Parsing surface forms" )
-        
+        def parseSurfaceForms() = 
         {
+            println( "Parsing surface forms" )
+        
             val fileList = getJobFiles( fs, basePath, "surfaceForms" )
             val builder = new EfficientArray[FixedLengthString](0).newBuilder
-    
-    
+
             val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
             // (parentId : Int, wordId : Int) => thisId : Int
             var phraseData = new ArrayList[TreeMap[(Int, Int), Int]]()
@@ -142,7 +145,41 @@ object WikiBatch
                     }
                 }
             }
+            
+            var idToIndexMap = new TreeMap[Int, Int]()
+            
+            for ( i <- 0 until phraseData.size )
+            {
+                val treeData = phraseData.get(i)
+                var newIdToIndexMap = new TreeMap[Int, Int]()
+                
+                // (parentId : Int, wordId : Int) => thisId : Int
+                var count = 0
+                val builder2 = new EfficientArray[EfficientIntPair](0).newBuilder
+                for ( ((parentId, wordId), thisId) <- treeData )
+                {
+                    newIdToIndexMap = newIdToIndexMap.insert( thisId, count )
+                    val parentArrayIndex = if (parentId == -1) -1 else idToIndexMap( parentId )
+                    
+                    builder2 += new EfficientIntPair( parentArrayIndex, wordId )
+                    
+                    count += 1
+                }
+                
+                val sortedArray = builder2.result().sortWith( _.less(_) )
+                sortedArray.save( new File( "phraseMap" + i + ".bin" ) )
+                
+                idToIndexMap = newIdToIndexMap
+            }
         }
+    }
+
+    
+    private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
+    {
+        val wpm = new WordPhraseManager( conf, fs, basePath )
+        
+        
         
         // Now serialize out all the phrase data layers, re-ordering all the word ids
         
