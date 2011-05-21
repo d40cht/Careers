@@ -16,6 +16,77 @@ import scala.xml.XML
 import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.disambiguator.Disambiguator._
+import org.seacourt.wikibatch._
+
+import org.apache.hadoop.io.{Writable, Text, IntWritable}
+
+class WikiBatchPhraseDictTest extends FunSuite
+{
+    class WordSource( var wordList : List[String] ) extends KVWritableIterator[Text, IntWritable]
+    {
+        override def getNext( word : Text, count : IntWritable ) : Boolean =
+        {
+            if ( wordList == Nil )
+            {   
+                false
+            }
+            else
+            {
+                word.set( wordList.head )
+                count.set( 1 )
+                wordList = wordList.tail
+                true
+            }
+        }  
+    }
+    
+    class PhraseSource( var phraseList : List[String] ) extends KVWritableIterator[Text, TextArrayCountWritable]
+    {
+        override def getNext( phrase : Text, targets : TextArrayCountWritable ) : Boolean  =
+        {
+            if ( phraseList == Nil )
+            {
+                false
+            }
+            else
+            {
+                phrase.set( phraseList.head )
+                phraseList = phraseList.tail
+                true
+            }
+        }
+    }
+    
+    test( "Phrase map etc" )
+    {
+        // Parse all words from a text
+        val wordSource = new WordSource( List( "on", "the", "first", "day", "of", "christmas", "my", "true", "love", "sent", "to", "me" ) )
+        val phraseSource = new PhraseSource( List( "on the first", "first day", "on the first day of christmas", "my true love", "true love" ) )
+        
+        // Then a few parse phrases and save all out
+        var phraseDepth = 0
+        
+        {
+            val wb = new WikiBatch.PhraseMapBuilder( "wordMap", "phraseMap" )
+            wb.buildWordMap( wordSource )
+            phraseDepth = wb.parseSurfaceForms( phraseSource )
+        }
+        
+        assert( phraseDepth === 6 )
+        
+        // Then re-run and check that the phrases exist
+        /*{
+            val rb = new WikiBatch.PhraseMapReader( "wordMap", "phraseMap" )
+            
+            assert( rb.find( "chicken tikka" ) === false )
+            assert( rb.find( "on the first" ) === true )
+            assert( rb.find( "first day" ) === true )
+            assert( rb.find( "on the first day of christmas" ) === true )
+            assert( rb.find( "on the first day of christmas bloo" ) === true )
+            assert( rb.find( "bloo on the first day of christmas" ) === true )
+        }*/
+    }
+}
 
 class DisambiguatorTest extends FunSuite
 {
@@ -33,6 +104,8 @@ class DisambiguatorTest extends FunSuite
             assert( expected === result )
         }
     }
+    
+   
     
     test( "Disambiguator short phrase test" )
     {
