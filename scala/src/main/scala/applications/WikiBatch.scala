@@ -1,10 +1,12 @@
+package org.seacourt.wikibatch
+
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.util.GenericOptionsParser
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.SequenceFile.{Reader => HadoopReader}
 import org.apache.hadoop.io.{Text}
 import org.apache.hadoop.filecache.DistributedCache
-import org.apache.hadoop.io.{Text, IntWritable}
+import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
 import java.io.File
 import java.util.ArrayList
@@ -21,127 +23,199 @@ import scala.collection.immutable.TreeMap
 
 // To add: link counts - forward and backwards.
 
-
-object WikiBatch
+trait KVWritableIterator[KeyType, ValueType]
 {
-    val wordMapName = "wordMap.bin"
+    def getNext( key : KeyType, value : ValueType ) : Boolean
+}
+
+class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable]( val conf : Configuration, val fs : FileSystem, val basePath : String, val seqFileName : String ) extends KVWritableIterator[KeyType, ValueType]
+{
+    var fileList = getJobFiles( fs, basePath, seqFileName )
+    var currFile = advanceFile()
     
     private def getJobFiles( fs : FileSystem, basePath : String, directory : String ) =
     {
-        val fileList = fs.listStatus( new Path( basePath + "/" + directory ) )
+        val fileList = fs.listStatus( new Path( basePath + "/" + directory ) ).toList
         
         fileList.map( _.getPath ).filter( !_.toString.endsWith( "_SUCCESS" ) )
     }
     
-    /*    
-    var words = List[Int]()
-    for ( word <- Utils.luceneTextTokenizer( sf ) )
+    private def advanceFile() : HadoopReader =
     {
-        val fl = new FixedLengthString( word )
-        Utils.binarySearch( fl, wordMap, comp ) match
+        if ( fileList == Nil )
         {
-            case Some( v ) => words = v :: words
-            case _ =>
+            null
+        }
+        else
+        {
+            println( "Reading file: " + fileList.head )
+            val reader = new HadoopReader( fs, fileList.head, conf )
+            fileList = fileList.tail
+            reader
         }
     }
-    */
     
-    class WordPhraseManager( val conf : Configuration, val fs : FileSystem, val basePath : String )
+    override def getNext( key : KeyType, value : ValueType ) : Boolean =
     {
-        val sortedWordArray = buildWordDictionary()
+        var success = currFile.next( key, value )
+        if ( !success )
+        {
+            currFile = advanceFile()
+            
+            if ( currFile != null )
+            {
+                success = currFile.next( key, value )
+            }
+        }
+        success
+    }
+}
+
+
+object WikiBatch
+{
+    class PhraseMapReader( wordMapBase : String, phraseMapBase : String, maxPhraseLength : Int )
+    {
+        val wordMap = new EfficientArray[FixedLengthString](0)
+        wordMap.load( new File(wordMapBase + ".bin") )
         
-        def buildWordDictionary() =
+        val phraseMap = new ArrayList[EfficientArray[EfficientIntPair]]()
+        for ( i <- 0 until maxPhraseLength )
+        {
+            val phraseLevel = new EfficientArray[EfficientIntPair](0)
+            phraseLevel.load( new File(phraseMapBase + i + ".bin") )
+            phraseMap.add( phraseLevel )
+        }
+        
+        def find( phrase : String ) : Boolean =
+        {
+            val wordList = Utils.luceneTextTokenizer( phrase )
+            
+            val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
+            
+            val wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), wordMap, comp ) )
+            
+            println( phrase + ": " + wordIds )
+            
+            var parentId = -1
+            var i = 0
+            for ( wordId <- wordIds )
+            {
+                wordId match
+                {
+                    case Some( wordIndex ) =>
+                    {
+                        val pm = Utils.binarySearch( new EfficientIntPair( parentId, wordIndex ), phraseMap.get(i), (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )
+                        println( i + " >- " + parentId + " " + wordIndex + " " + pm )
+                        pm match
+                        {
+                            case Some( levelIndex ) =>
+                            {
+                                parentId = levelIndex
+                            }
+                            case _ => return false
+                        }
+                    }
+                    case _ => return false
+                }
+                
+                i += 1
+            }
+            
+            
+            return true
+        }
+    }
+    
+    class PhraseMapBuilder( wordMapBase : String, phraseMapBase : String )
+    {
+        def buildWordMap( wordSource : KVWritableIterator[Text, IntWritable] ) =
         {
             println( "Building word dictionary" )
             val builder = new EfficientArray[FixedLengthString](0).newBuilder
             
-            val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
-
-            for ( filePath <- fileList )
+            val word = new Text()
+            val count = new IntWritable()
+            while ( wordSource.getNext( word, count ) )
             {
-                println( "  " + filePath )
-                val word = new Text()
-                val count = new IntWritable()
-                
-                
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( word, count ) )
+                if ( count.get() > 2 )
                 {
-                    if ( count.get() > 5 )
+                    val str = word.toString()
+                   
+                    if ( str.getBytes("UTF-8").length < 20 )
                     {
-                        val str = word.toString()
-                       
-                        if ( str.getBytes("UTF-8").length < 20 )
-                        {
-                            builder += new FixedLengthString( str )
-                        }
+                        builder += new FixedLengthString( str )
                     }
                 }
             }
         
             println( "Sorting array." )
             val sortedWordArray = builder.result().sortWith( _.value < _.value )
+            
+            var index = 0
+            for ( word <- sortedWordArray )
+            {
+                //println( " >> -- " + word.value + ": " + index )
+                index += 1
+            }
             println( "Array length: " + sortedWordArray.length )
-            sortedWordArray.save( new File(wordMapName) )
+            sortedWordArray.save( new File(wordMapBase + ".bin") )
             
             sortedWordArray
         }
         
-        def parseSurfaceForms() = 
+        def parseSurfaceForms( sfSource : KVWritableIterator[Text, TextArrayCountWritable] ) = 
         {
             println( "Parsing surface forms" )
-        
-            val fileList = getJobFiles( fs, basePath, "surfaceForms" )
+            
+            val wordMap = new EfficientArray[FixedLengthString](0)
+            wordMap.load( new File(wordMapBase + ".bin") )
+            
             val builder = new EfficientArray[FixedLengthString](0).newBuilder
 
             val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
             // (parentId : Int, wordId : Int) => thisId : Int
             var phraseData = new ArrayList[TreeMap[(Int, Int), Int]]()
             var lastId = 1
-            for ( filePath <- fileList )
+            
+            val surfaceForm = new Text()
+            val targets = new TextArrayCountWritable()
+            while ( sfSource.getNext( surfaceForm, targets ) )
             {
-                println( "  " + filePath )
-                val surfaceForm = new Text()
-                val targets = new TextArrayCountWritable()
+                val wordList = Utils.luceneTextTokenizer( surfaceForm.toString )
+                val numWords = wordList.length
                 
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( surfaceForm, targets ) )
+                while ( phraseData.size < numWords )
                 {
-                    val wordList = Utils.luceneTextTokenizer( surfaceForm.toString )
-                    val numWords = wordList.length
+                    phraseData.add(TreeMap[(Int, Int), Int]())
+                }
+                
+                var index = 0
+                var parentId = -1
+                for ( word <- wordList )
+                {
+                    val res = Utils.binarySearch( new FixedLengthString(word), wordMap, comp )
                     
-                    while ( phraseData.size < numWords )
+                    res match
                     {
-                        phraseData.add(TreeMap[(Int, Int), Int]())
-                    }
-                    
-                    var index = 0
-                    var parentId = -1
-                    for ( word <- wordList )
-                    {
-                        val res = Utils.binarySearch( new FixedLengthString(word), sortedWordArray, comp )
-                        
-                        res match
+                        case Some(wordId) =>
                         {
-                            case Some(wordId) =>
+                            var layer = phraseData.get(index)
+                            layer.get( (parentId, wordId) ) match
                             {
-                                var layer = phraseData.get(index)
-                                layer.get( (parentId, wordId) ) match
+                                case Some( elementId ) => parentId = elementId
+                                case _ =>
                                 {
-                                    case Some( elementId ) => parentId = elementId
-                                    case _ =>
-                                    {
-                                        phraseData.set( index, layer.insert( (parentId, wordId), lastId ) )
-                                        
-                                        parentId = lastId
-                                        lastId += 1
-                                    }
+                                    phraseData.set( index, layer.insert( (parentId, wordId), lastId ) )
+                                    
+                                    parentId = lastId
+                                    lastId += 1
                                 }
-                                index += 1
                             }
-                            
-                            case _ =>
+                            index += 1
                         }
+                        
+                        case _ =>
                     }
                 }
             }
@@ -155,7 +229,26 @@ object WikiBatch
                 var newIdToIndexMap = new TreeMap[Int, Int]()
                 
                 // (parentId : Int, wordId : Int) => thisId : Int
+                
+                var tempMap = new TreeMap[(Int, Int), Int]()
+                for ( ((parentId, wordId), thisId) <- treeData )
+                {
+                    val parentArrayIndex = if (parentId == -1) -1 else idToIndexMap( parentId )
+                    tempMap = tempMap.insert( (parentArrayIndex, wordId), thisId )
+                }
+                
+                val builder2 = new EfficientArray[EfficientIntPair](0).newBuilder
                 var count = 0
+                for ( ((parentArrayIndex, wordId), thisId) <- tempMap )
+                {
+                    newIdToIndexMap = newIdToIndexMap.insert( thisId, count )
+                    builder2 += new EfficientIntPair( parentArrayIndex, wordId )
+                    
+                    //println( i + "**)) -- " + count + " - " + parentArrayIndex + " -> " + wordId )
+                    count += 1
+                }
+                
+                /*var count = 0
                 val builder2 = new EfficientArray[EfficientIntPair](0).newBuilder
                 for ( ((parentId, wordId), thisId) <- treeData )
                 {
@@ -168,31 +261,38 @@ object WikiBatch
                 }
                 
                 val sortedArray = builder2.result().sortWith( _.less(_) )
-                sortedArray.save( new File( "phraseMap" + i + ".bin" ) )
+                sortedArray.save( new File( phraseMapBase + i + ".bin" ) )*/
+                builder2.result().save( new File( phraseMapBase + i + ".bin" ) )
                 
                 idToIndexMap = newIdToIndexMap
+                
+                phraseData.set( i, null )
             }
+            
+            phraseData.size
         }
     }
 
     
     private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
     {
-        val wpm = new WordPhraseManager( conf, fs, basePath )
-        wpm.parseSurfaceForms() 
+        val wordSource = new SeqFilesIterator[Text, IntWritable]( conf, fs, basePath, "wordInTopicCount" )
+        val wpm = new PhraseMapBuilder( "lookup/wordMap", "lookup/phraseMap" )
+        wpm.buildWordMap( wordSource )
+        
+        val sfSource = new SeqFilesIterator[Text, TextArrayCountWritable]( conf, fs, basePath, "surfaceForms" )
+        wpm.parseSurfaceForms( sfSource )
         
         
         // Now serialize out all the phrase data layers, re-ordering all the word ids
         
-        
-        
-        println( "Copying to HDFS" )
+        /*println( "Copying to HDFS" )
         val remoteMapPath = basePath + "/" + wordMapName
         fs.copyFromLocalFile( false, true, new Path( wordMapName ), new Path( remoteMapPath ) )
         println( "  complete" )
         
         // Run phrasecounter so it only counts phrases that exist as surface forms
-        conf.set( "wordMap", remoteMapPath )
+        conf.set( "wordMap", remoteMapPath )*/
     }
 
     def main(args:Array[String]) : Unit =
@@ -224,7 +324,7 @@ object WikiBatch
     }
 }
 
-object DatabaseBuilder
+/*object DatabaseBuilder
 {
 	def main(args:Array[String]) : Unit =
     {
@@ -238,5 +338,5 @@ object DatabaseBuilder
 		// Now pull them all in and build the sqlite db
         PhraseMap.run( conf, inputPathBase, "testOut.sqlite3" )
 	}
-}
+}*/
 

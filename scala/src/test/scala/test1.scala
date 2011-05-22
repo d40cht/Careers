@@ -27,7 +27,7 @@ class SizeTests extends FunSuite
 {
     test( "Efficient array large test" )
     {
-        val count = 500000
+        val count = 50000
         val tarr = new EfficientArray[FixedLengthString](0)
         val builder = tarr.newBuilder
         
@@ -161,7 +161,7 @@ class SizeTests extends FunSuite
         db.exec( "CREATE TABLE test( number TEXT PRIMARY KEY )" )
         val insStatement = db.prepare( "INSERT INTO test VALUES( ? )", HNil )
         
-        val testSize = 2000000
+        val testSize = 20000
         //val b = new Array[Array[Byte]]( testSize )
 
         db.exec( "BEGIN" )
@@ -174,7 +174,6 @@ class SizeTests extends FunSuite
         System.gc()
         
         val after = Runtime.getRuntime().totalMemory()
-        println( "##########################> Heapsize change: " + ((after-before) / (1024.0*1024.0)) + "Mb" )
     }
 }
 
