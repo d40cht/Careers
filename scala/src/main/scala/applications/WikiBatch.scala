@@ -87,43 +87,94 @@ object WikiBatch
             phraseMap.add( phraseLevel )
         }
         
-        def find( phrase : String ) : Boolean =
+        def phraseByIndex( index : Int ) : List[String] =
+        {
+            var level = 0
+            var found = false
+            var iter = index
+            while (!found)
+            {
+                val length = phraseMap.get(level).length
+                if ( iter >= length )
+                {
+                    iter -= length
+                    level += 1
+                }
+                else
+                {
+                    found = true
+                }
+            }
+            
+            
+            var res = List[String]()
+            while (level != -1)
+            {
+                val el = phraseMap.get(level)( iter )
+                
+                res = (wordMap(el.second).value) :: res
+                iter = el.first
+                level -= 1
+            }
+            
+            res
+        }
+        
+        def find( phrase : String ) : Int =
         {
             val wordList = Utils.luceneTextTokenizer( phrase )
             
             val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
             
-            val wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), wordMap, comp ) )
+            var wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), wordMap, comp ) )
             
-            println( phrase + ": " + wordIds )
+            //println( phrase + ": " + wordIds )
             
+            var foundIndex = 0
             var parentId = -1
             var i = 0
-            for ( wordId <- wordIds )
+
+            while ( (wordIds != Nil) )
             {
+                if ( i >= phraseMap.size)
+                {
+                    return -1
+                }
+                
+                val wordId = wordIds.head
+                val thisLevel = phraseMap.get(i)
                 wordId match
                 {
                     case Some( wordIndex ) =>
                     {
-                        val pm = Utils.binarySearch( new EfficientIntPair( parentId, wordIndex ), phraseMap.get(i), (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )
-                        println( i + " >- " + parentId + " " + wordIndex + " " + pm )
+                        val pm = Utils.binarySearch( new EfficientIntPair( parentId, wordIndex ), thisLevel, (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )
+                        //println( i + " >- " + parentId + " " + wordIndex + " " + pm )
                         pm match
                         {
                             case Some( levelIndex ) =>
                             {
                                 parentId = levelIndex
                             }
-                            case _ => return false
+                            case _ => return -1
                         }
                     }
-                    case _ => return false
+                    case _ => return -1
                 }
                 
-                i += 1
+                wordIds = wordIds.tail
+                if ( wordIds == Nil )
+                {
+                    foundIndex += parentId
+                }
+                else
+                {
+                    foundIndex += thisLevel.length
+                }
+            
+                i += 1   
             }
             
-            
-            return true
+            return foundIndex
         }
     }
     

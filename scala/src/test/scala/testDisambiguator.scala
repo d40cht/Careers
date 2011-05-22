@@ -78,13 +78,15 @@ class WikiBatchPhraseDictTest extends FunSuite
         {
             val rb = new WikiBatch.PhraseMapReader( "wordMap", "phraseMap", phraseDepth )
             
-            assert( rb.find( "chicken tikka" ) === false )
-            assert( rb.find( "on" ) === true )
-            assert( rb.find( "on the first" ) === true )
-            assert( rb.find( "first day" ) === true )
-            assert( rb.find( "on the first day of christmas" ) === true )
-            assert( rb.find( "on the first day of christmas bloo" ) === false )
-            assert( rb.find( "bloo on the first day of christmas" ) === false )
+            assert( rb.find( "chicken tikka" ) === -1 )
+            assert( rb.find( "on the first day of christmas bloo" ) === -1 )
+            assert( rb.find( "bloo on the first day of christmas" ) === -1 )
+            
+            
+            assert( rb.phraseByIndex( rb.find( "on" ) ) === List("on") )
+            assert( rb.phraseByIndex( rb.find( "on the first" ) ) === List("on", "the", "first") )
+            assert( rb.phraseByIndex( rb.find( "first day" ) ) === List("first", "day") )
+            assert( rb.phraseByIndex( rb.find( "on the first day of christmas" ) ) === List("on", "the", "first", "day", "of", "christmas") )
         }
     }
 }
