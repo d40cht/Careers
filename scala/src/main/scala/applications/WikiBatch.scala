@@ -62,7 +62,7 @@ class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable]( val conf : C
         {
             currFile = advanceFile()
             
-            if ( currFile != None )
+            if ( currFile != null )
             {
                 success = currFile.next( key, value )
             }
