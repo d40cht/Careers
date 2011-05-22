@@ -150,6 +150,7 @@ object WikiBatch
             
             for ( i <- 0 until phraseData.size )
             {
+                println( "  Phrasedata pass: " + i )
                 val treeData = phraseData.get(i)
                 var newIdToIndexMap = new TreeMap[Int, Int]()
                 
@@ -178,7 +179,7 @@ object WikiBatch
     private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
     {
         val wpm = new WordPhraseManager( conf, fs, basePath )
-        
+        wpm.parseSurfaceForms() 
         
         
         // Now serialize out all the phrase data layers, re-ordering all the word ids
