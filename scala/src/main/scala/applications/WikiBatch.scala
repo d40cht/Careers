@@ -332,10 +332,31 @@ object WikiBatch
         wpm.buildWordMap( wordSource )
         
         val sfSource = new SeqFilesIterator[Text, TextArrayCountWritable]( conf, fs, basePath, "surfaceForms" )
-        wpm.parseSurfaceForms( sfSource )
+        val phraseDepth = wpm.parseSurfaceForms( sfSource )
         
         
-        // Now serialize out all the phrase data layers, re-ordering all the word ids
+        // Then validate
+        println( "Validating surface forms" )
+        
+        {
+            val rb = new WikiBatch.PhraseMapReader( "lookup/wordMap", "lookup/phraseMap", phraseDepth )
+            
+            val sfSource2 = new SeqFilesIterator[Text, TextArrayCountWritable]( conf, fs, basePath, "surfaceForms" )
+            
+            val surfaceForm = new Text()
+            val targets = new TextArrayCountWritable()
+            var count = 0
+            var countFound = 0
+            while ( sfSource2.getNext( surfaceForm, targets ) )
+            {
+                if ( rb.find( surfaceForm.toString ) != -1 ) countFound += 1
+                count += 1
+            }
+            println( "Found " + countFound + ", total: " + count )
+        }
+        
+        
+        // Now copy the lookup over to HDFS and hence to the distributed cache
         
         /*println( "Copying to HDFS" )
         val remoteMapPath = basePath + "/" + wordMapName

@@ -81,8 +81,7 @@ class WikiBatchPhraseDictTest extends FunSuite
             assert( rb.find( "chicken tikka" ) === -1 )
             assert( rb.find( "on the first day of christmas bloo" ) === -1 )
             assert( rb.find( "bloo on the first day of christmas" ) === -1 )
-            
-            
+
             assert( rb.phraseByIndex( rb.find( "on" ) ) === List("on") )
             assert( rb.phraseByIndex( rb.find( "on the first" ) ) === List("on", "the", "first") )
             assert( rb.phraseByIndex( rb.find( "first day" ) ) === List("first", "day") )
