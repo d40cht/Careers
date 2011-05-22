@@ -155,7 +155,7 @@ object WikiBatch
             var index = 0
             for ( word <- sortedWordArray )
             {
-                println( " >> -- " + word.value + ": " + index )
+                //println( " >> -- " + word.value + ": " + index )
                 index += 1
             }
             println( "Array length: " + sortedWordArray.length )
@@ -224,6 +224,7 @@ object WikiBatch
             
             for ( i <- 0 until phraseData.size )
             {
+                println( "  Phrasedata pass: " + i )
                 val treeData = phraseData.get(i)
                 var newIdToIndexMap = new TreeMap[Int, Int]()
                 
@@ -243,7 +244,7 @@ object WikiBatch
                     newIdToIndexMap = newIdToIndexMap.insert( thisId, count )
                     builder2 += new EfficientIntPair( parentArrayIndex, wordId )
                     
-                    println( i + "**)) -- " + count + " - " + parentArrayIndex + " -> " + wordId )
+                    //println( i + "**)) -- " + count + " - " + parentArrayIndex + " -> " + wordId )
                     count += 1
                 }
                 
@@ -276,7 +277,7 @@ object WikiBatch
     private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
     {
         val wordSource = new SeqFilesIterator[Text, IntWritable]( conf, fs, basePath, "wordInTopicCount" )
-        val wpm = new PhraseMapBuilder( "wordMap", "phraseMap" )
+        val wpm = new PhraseMapBuilder( "lookup/wordMap", "lookup/phraseMap" )
         wpm.buildWordMap( wordSource )
         
         val sfSource = new SeqFilesIterator[Text, TextArrayCountWritable]( conf, fs, basePath, "surfaceForms" )

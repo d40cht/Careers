@@ -14,7 +14,7 @@ import org.apache.hadoop.io.{Writable}
 import java.io.{DataInput, DataOutput, FileInputStream, FileOutputStream, File}
 
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, ByteArrayInputStream}
-import java.util.ArrayList
+import java.util.{ArrayList, Arrays}
 
 import scala.collection.mutable.{IndexedSeqOptimized, Builder, ArrayLike, LinkedList}
 
@@ -123,27 +123,31 @@ class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length
     }
     
     // No reason why this can't be more efficient
-    class ArrayBuilder( val elementSize : Int ) extends Builder[Element, EfficientArray[Element]]
+    class ArrayBuilder() extends Builder[Element, EfficientArray[Element]]
     {
-        var data = new ArrayList[Element]()
+        var data = new EfficientArray[Element]( 64 )
+        var appendIndex = 0
+        
         override def +=( elem : Element ) =
         {
-            data.add( elem )
+            if ( appendIndex == (data.length-1) )
+            {
+                data.resize( (data.length * 3)/2 )
+            }
+            data(appendIndex) = elem
+            appendIndex += 1
+
             this
         }
         override def clear() { data.clear() }
         override def result() =
         {
-            val arr = new EfficientArray[Element]( data.size() )
-            for ( i <- 0 until data.size() )
-            {
-                arr(i) = data.get(i)
-            }
-            arr
+            data.resize( appendIndex )
+            data
         }
     }
 
-    override def newBuilder = new ArrayBuilder(elementSize)
+    override def newBuilder = new ArrayBuilder()
     
     override def length : Int = _length
     override def apply( i : Int ) : Element =
@@ -160,6 +164,14 @@ class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length
     
     def getBuffer() = buffer
     def setBuffer( newBuffer : Array[Byte] ) { buffer = newBuffer }
+    
+    def resize( numElements : Int )
+    {
+        buffer = Arrays.copyOf( buffer, numElements * elementSize )
+        _length = numElements
+    }
+    
+    def clear() = resize(0)
     
     def save( file : File )
     {
