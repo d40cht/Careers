@@ -138,7 +138,7 @@ object WikiBatch
             val count = new IntWritable()
             while ( wordSource.getNext( word, count ) )
             {
-                if ( count.get() > 2 )
+                if ( count.get() > 4 )
                 {
                     val str = word.toString()
                    
