@@ -74,7 +74,7 @@ class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable]( val conf : C
 
 object WikiBatch
 {
-    class PhraseMapreader( wordMapBase : String, phraseMapBase : String, maxPhraseLength : Int )
+    class PhraseMapReader( wordMapBase : String, phraseMapBase : String, maxPhraseLength : Int )
     {
         val wordMap = new EfficientArray[FixedLengthString](0)
         wordMap.load( new File(wordMapBase + ".bin") )
@@ -90,7 +90,40 @@ object WikiBatch
         def find( phrase : String ) : Boolean =
         {
             val wordList = Utils.luceneTextTokenizer( phrase )
-            true
+            
+            val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
+            
+            val wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), wordMap, comp ) )
+            
+            println( phrase + ": " + wordIds )
+            
+            var parentId = -1
+            var i = 0
+            for ( wordId <- wordIds )
+            {
+                wordId match
+                {
+                    case Some( wordIndex ) =>
+                    {
+                        val pm = Utils.binarySearch( new EfficientIntPair( parentId, wordIndex ), phraseMap.get(i), (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )
+                        println( i + " >- " + parentId + " " + wordIndex + " " + pm )
+                        pm match
+                        {
+                            case Some( levelIndex ) =>
+                            {
+                                parentId = levelIndex
+                            }
+                            case _ => return false
+                        }
+                    }
+                    case _ => return false
+                }
+                
+                i += 1
+            }
+            
+            
+            return true
         }
     }
     
@@ -118,6 +151,13 @@ object WikiBatch
         
             println( "Sorting array." )
             val sortedWordArray = builder.result().sortWith( _.value < _.value )
+            
+            var index = 0
+            for ( word <- sortedWordArray )
+            {
+                println( " >> -- " + word.value + ": " + index )
+                index += 1
+            }
             println( "Array length: " + sortedWordArray.length )
             sortedWordArray.save( new File(wordMapBase + ".bin") )
             
@@ -188,7 +228,26 @@ object WikiBatch
                 var newIdToIndexMap = new TreeMap[Int, Int]()
                 
                 // (parentId : Int, wordId : Int) => thisId : Int
+                
+                var tempMap = new TreeMap[(Int, Int), Int]()
+                for ( ((parentId, wordId), thisId) <- treeData )
+                {
+                    val parentArrayIndex = if (parentId == -1) -1 else idToIndexMap( parentId )
+                    tempMap = tempMap.insert( (parentArrayIndex, wordId), thisId )
+                }
+                
+                val builder2 = new EfficientArray[EfficientIntPair](0).newBuilder
                 var count = 0
+                for ( ((parentArrayIndex, wordId), thisId) <- tempMap )
+                {
+                    newIdToIndexMap = newIdToIndexMap.insert( thisId, count )
+                    builder2 += new EfficientIntPair( parentArrayIndex, wordId )
+                    
+                    println( i + "**)) -- " + count + " - " + parentArrayIndex + " -> " + wordId )
+                    count += 1
+                }
+                
+                /*var count = 0
                 val builder2 = new EfficientArray[EfficientIntPair](0).newBuilder
                 for ( ((parentId, wordId), thisId) <- treeData )
                 {
@@ -201,7 +260,8 @@ object WikiBatch
                 }
                 
                 val sortedArray = builder2.result().sortWith( _.less(_) )
-                sortedArray.save( new File( phraseMapBase + i + ".bin" ) )
+                sortedArray.save( new File( phraseMapBase + i + ".bin" ) )*/
+                builder2.result().save( new File( phraseMapBase + i + ".bin" ) )
                 
                 idToIndexMap = newIdToIndexMap
                 

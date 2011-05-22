@@ -33,7 +33,7 @@ class WikiBatchPhraseDictTest extends FunSuite
             else
             {
                 word.set( wordList.head )
-                count.set( 1 )
+                count.set( 10 )
                 wordList = wordList.tail
                 true
             }
@@ -61,7 +61,7 @@ class WikiBatchPhraseDictTest extends FunSuite
     {
         // Parse all words from a text
         val wordSource = new WordSource( List( "on", "the", "first", "day", "of", "christmas", "my", "true", "love", "sent", "to", "me" ) )
-        val phraseSource = new PhraseSource( List( "on the first", "first day", "on the first day of christmas", "my true love", "true love" ) )
+        val phraseSource = new PhraseSource( List( "on", "on the first", "first day", "on the first day of christmas", "my true love", "true love" ) )
         
         // Then a few parse phrases and save all out
         var phraseDepth = 0
@@ -75,16 +75,17 @@ class WikiBatchPhraseDictTest extends FunSuite
         assert( phraseDepth === 6 )
         
         // Then re-run and check that the phrases exist
-        /*{
-            val rb = new WikiBatch.PhraseMapReader( "wordMap", "phraseMap" )
+        {
+            val rb = new WikiBatch.PhraseMapReader( "wordMap", "phraseMap", phraseDepth )
             
             assert( rb.find( "chicken tikka" ) === false )
+            assert( rb.find( "on" ) === true )
             assert( rb.find( "on the first" ) === true )
             assert( rb.find( "first day" ) === true )
             assert( rb.find( "on the first day of christmas" ) === true )
-            assert( rb.find( "on the first day of christmas bloo" ) === true )
-            assert( rb.find( "bloo on the first day of christmas" ) === true )
-        }*/
+            assert( rb.find( "on the first day of christmas bloo" ) === false )
+            assert( rb.find( "bloo on the first day of christmas" ) === false )
+        }
     }
 }
 
