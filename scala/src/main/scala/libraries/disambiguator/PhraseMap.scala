@@ -38,6 +38,27 @@ class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phra
         }
     }
     
+    def dump()
+    {
+        var i = 0
+        for ( el <- wordMap )
+        {
+            println( i + " --> " + el.value )
+            i += 1
+        }
+        
+        for ( k <- 0 until phraseMap.size )
+        {
+            val el = phraseMap.get(k)
+            var j = 0
+            for ( el2 <- el )
+            {
+                println( k + ", " + j + " --> " + el2.first + " " + el2.second )
+                j += 1
+            }
+        }
+    }
+    
     def phraseByIndex( index : Int ) : List[String] =
     {
         var level = 0
@@ -126,6 +147,11 @@ class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phra
                     case Some( wordIndex ) =>
                     {
                         res = update( wordIndex )
+                        
+                        if ( res == -1 )
+                        {
+                            return -1
+                        }
                     }
                     case _ => return -1
                 }

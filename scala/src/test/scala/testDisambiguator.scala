@@ -44,16 +44,16 @@ class WikiBatchPhraseDictTest extends FunSuite
         {
             val pml = new PhraseMapLookup()
             pml.load( new DataInputStream( new FileInputStream( new File( "disambigTest.bin" ) ) ) )
-            val rb = pml.getIter()
+            //pml.dump()
             
-            assert( rb.find( "chicken tikka" ) === -1 )
-            assert( rb.find( "on the first day of christmas bloo" ) === -1 )
-            assert( rb.find( "bloo on the first day of christmas" ) === -1 )
+            assert( pml.getIter().find( "chicken tikka" ) === -1 )
+            assert( pml.getIter().find( "on the first day of christmas bloo" ) === -1 )
+            assert( pml.getIter().find( "bloo on the first day of christmas" ) === -1 )
 
-            assert( pml.phraseByIndex( rb.find( "on" ) ) === List("on") )
-            assert( pml.phraseByIndex( rb.find( "on the first" ) ) === List("on", "the", "first") )
-            assert( pml.phraseByIndex( rb.find( "first day" ) ) === List("first", "day") )
-            assert( pml.phraseByIndex( rb.find( "on the first day of christmas" ) ) === List("on", "the", "first", "day", "of", "christmas") )
+            assert( pml.phraseByIndex( pml.getIter().find( "on" ) ) === List("on") )
+            assert( pml.phraseByIndex( pml.getIter().find( "on the first" ) ) === List("on", "the", "first") )
+            assert( pml.phraseByIndex( pml.getIter().find( "first day" ) ) === List("first", "day") )
+            assert( pml.phraseByIndex( pml.getIter().find( "on the first day of christmas" ) ) === List("on", "the", "first", "day", "of", "christmas") )
         }
     }
 }
