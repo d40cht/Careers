@@ -15,23 +15,43 @@ import org.seacourt.sql.SqliteWrapper
 import org.seacourt.mapreducejobs._
 import org.seacourt.berkeleydb
 import org.seacourt.utility._
+import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup}
 
 import resource._
 
 import sbt.Process._
 import scala.collection.immutable.TreeMap
 
-// To add: link counts - forward and backwards.
 
-trait KVWritableIterator[KeyType, ValueType]
+trait WrappedWritable[From <: Writable, To]
 {
-    def getNext( key : KeyType, value : ValueType ) : Boolean
+    val writable : From
+    def get : To
 }
 
-class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable]( val conf : Configuration, val fs : FileSystem, val basePath : String, val seqFileName : String ) extends KVWritableIterator[KeyType, ValueType]
+final class WrappedString extends WrappedWritable[Text, String]
+{
+    val writable = new Text() 
+    def get = writable.toString()
+}
+
+final class WrappedInt extends WrappedWritable[IntWritable, Int]
+{
+    val writable = new IntWritable() 
+    def get = writable.get()
+}
+
+final class WrappedTextArrayCountWritable extends WrappedWritable[TextArrayCountWritable, List[(String, Int)]]
+{
+    val writable = new TextArrayCountWritable()
+    def get = writable.elements
+}
+
+class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable, ConvKeyType, ConvValueType]( val conf : Configuration, val fs : FileSystem, val basePath : String, val seqFileName : String, val keyField : WrappedWritable[KeyType, ConvKeyType], val valueField : WrappedWritable[ValueType, ConvValueType] ) extends Iterator[(ConvKeyType, ConvValueType)]
 {
     var fileList = getJobFiles( fs, basePath, seqFileName )
     var currFile = advanceFile()
+    private var _hasNext = advance( keyField.writable, valueField.writable )
     
     private def getJobFiles( fs : FileSystem, basePath : String, directory : String ) =
     {
@@ -55,7 +75,7 @@ class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable]( val conf : C
         }
     }
     
-    override def getNext( key : KeyType, value : ValueType ) : Boolean =
+    private def advance( key : KeyType, value : ValueType ) : Boolean =
     {
         var success = currFile.next( key, value )
         if ( !success )
@@ -69,281 +89,27 @@ class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable]( val conf : C
         }
         success
     }
+    
+    
+    override def hasNext() : Boolean = _hasNext
+    override def next() : (ConvKeyType, ConvValueType) =
+    {
+        val current = (keyField.get, valueField.get)
+        _hasNext = advance( keyField.writable, valueField.writable )
+        
+        current
+    }
 }
-
 
 object WikiBatch
 {
-    class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phraseMap : ArrayList[EfficientArray[EfficientIntPair]] )
-    {
-        def this() = this( new EfficientArray[FixedLengthString](0), new ArrayList[EfficientArray[EfficientIntPair]]() )
-        
-        // sortedWordArray.save( new File(wordMapBase + ".bin") )
-        // phraseMap.result().save( new File( phraseMapBase + i + ".bin" ) )
-        
-        def save( outStream : DataOutputStream )
-        {
-            wordMap.save( outStream )
-            outStream.writeInt( phraseMap.size )
-            for ( i <- 0 until phraseMap.size )
-            {
-                phraseMap.get(i).save( outStream )
-            }
-        }
-        
-        def load( inStream : DataInputStream )
-        {
-            wordMap.clear()
-            wordMap.load( inStream )
-            val depth = inStream.readInt()
-            phraseMap.clear()
-            for ( i <- 0 until depth )
-            {
-                val level = new EfficientArray[EfficientIntPair](0)
-                level.load( inStream )
-                phraseMap.add( level )
-            }
-        }
-    }
-    
-    
-    class PhraseMapReader( val pml : PhraseMapLookup )
-    {
-        def phraseByIndex( index : Int ) : List[String] =
-        {
-            var level = 0
-            var found = false
-            var iter = index
-            while (!found)
-            {
-                val length = pml.phraseMap.get(level).length
-                if ( iter >= length )
-                {
-                    iter -= length
-                    level += 1
-                }
-                else
-                {
-                    found = true
-                }
-            }
-            
-            
-            var res = List[String]()
-            while (level != -1)
-            {
-                val el = pml.phraseMap.get(level)( iter )
-                
-                res = (pml.wordMap(el.second).value) :: res
-                iter = el.first
-                level -= 1
-            }
-            
-            res
-        }
-        
-        def find( phrase : String ) : Int =
-        {
-            val wordList = Utils.luceneTextTokenizer( phrase )
-            
-            val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
-            
-            var wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), pml.wordMap, comp ) )
-            
-            //println( phrase + ": " + wordIds )
-            
-            var foundIndex = 0
-            var parentId = -1
-            var i = 0
-
-            while ( (wordIds != Nil) )
-            {
-                if ( i >= pml.phraseMap.size)
-                {
-                    return -1
-                }
-                
-                val wordId = wordIds.head
-                val thisLevel = pml.phraseMap.get(i)
-                wordId match
-                {
-                    case Some( wordIndex ) =>
-                    {
-                        val pm = Utils.binarySearch( new EfficientIntPair( parentId, wordIndex ), thisLevel, (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )
-                        //println( i + " >- " + parentId + " " + wordIndex + " " + pm )
-                        pm match
-                        {
-                            case Some( levelIndex ) =>
-                            {
-                                parentId = levelIndex
-                            }
-                            case _ => return -1
-                        }
-                    }
-                    case _ => return -1
-                }
-                
-                wordIds = wordIds.tail
-                if ( wordIds == Nil )
-                {
-                    foundIndex += parentId
-                }
-                else
-                {
-                    foundIndex += thisLevel.length
-                }
-            
-                i += 1   
-            }
-            
-            return foundIndex
-        }
-    }
-    
-    
-    
-    class PhraseMapBuilder( wordMapBase : String, phraseMapBase : String )
-    {
-        val pml = new PhraseMapLookup()
-        
-        def buildWordMap( wordSource : KVWritableIterator[Text, IntWritable] ) =
-        {
-            println( "Building word dictionary" )
-            val builder = new EfficientArray[FixedLengthString](0).newBuilder
-            
-            val word = new Text()
-            val count = new IntWritable()
-            while ( wordSource.getNext( word, count ) )
-            {
-                if ( count.get() > 4 )
-                {
-                    val str = word.toString()
-                   
-                    if ( str.getBytes("UTF-8").length < 20 )
-                    {
-                        builder += new FixedLengthString( str )
-                    }
-                }
-            }
-        
-            println( "Sorting array." )
-            val sortedWordArray = builder.result().sortWith( _.value < _.value )
-            
-            var index = 0
-            for ( word <- sortedWordArray )
-            {
-                //println( " >> -- " + word.value + ": " + index )
-                index += 1
-            }
-            println( "Array length: " + sortedWordArray.length )
-            sortedWordArray.save( new DataOutputStream( new FileOutputStream( new File(wordMapBase + ".bin") ) ) )
-            
-            sortedWordArray
-        }
-        
-        def parseSurfaceForms( sfSource : KVWritableIterator[Text, TextArrayCountWritable] ) = 
-        {
-            println( "Parsing surface forms" )
-            
-            val wordMap = new EfficientArray[FixedLengthString](0)
-            wordMap.load( new DataInputStream( new FileInputStream( new File(wordMapBase + ".bin") ) ) )
-            
-            val builder = new EfficientArray[FixedLengthString](0).newBuilder
-
-            val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
-            // (parentId : Int, wordId : Int) => thisId : Int
-            var phraseData = new ArrayList[TreeMap[(Int, Int), Int]]()
-            var lastId = 1
-            
-            val surfaceForm = new Text()
-            val targets = new TextArrayCountWritable()
-            while ( sfSource.getNext( surfaceForm, targets ) )
-            {
-                val wordList = Utils.luceneTextTokenizer( surfaceForm.toString )
-                val numWords = wordList.length
-                
-                while ( phraseData.size < numWords )
-                {
-                    phraseData.add(TreeMap[(Int, Int), Int]())
-                }
-                
-                var index = 0
-                var parentId = -1
-                for ( word <- wordList )
-                {
-                    val res = Utils.binarySearch( new FixedLengthString(word), wordMap, comp )
-                    
-                    res match
-                    {
-                        case Some(wordId) =>
-                        {
-                            var layer = phraseData.get(index)
-                            layer.get( (parentId, wordId) ) match
-                            {
-                                case Some( elementId ) => parentId = elementId
-                                case _ =>
-                                {
-                                    phraseData.set( index, layer.insert( (parentId, wordId), lastId ) )
-                                    
-                                    parentId = lastId
-                                    lastId += 1
-                                }
-                            }
-                            index += 1
-                        }
-                        
-                        case _ =>
-                    }
-                }
-            }
-            
-            var idToIndexMap = new TreeMap[Int, Int]()
-            
-            var arrayData = new ArrayList[EfficientArray[EfficientIntPair]]()
-            for ( i <- 0 until phraseData.size )
-            {
-                println( "  Phrasedata pass: " + i )
-                val treeData = phraseData.get(i)
-                var newIdToIndexMap = new TreeMap[Int, Int]()
-                
-                // (parentId : Int, wordId : Int) => thisId : Int
-                
-                var tempMap = new TreeMap[(Int, Int), Int]()
-                for ( ((parentId, wordId), thisId) <- treeData )
-                {
-                    val parentArrayIndex = if (parentId == -1) -1 else idToIndexMap( parentId )
-                    tempMap = tempMap.insert( (parentArrayIndex, wordId), thisId )
-                }
-                
-                val builder2 = new EfficientArray[EfficientIntPair](0).newBuilder
-                var count = 0
-                for ( ((parentArrayIndex, wordId), thisId) <- tempMap )
-                {
-                    newIdToIndexMap = newIdToIndexMap.insert( thisId, count )
-                    builder2 += new EfficientIntPair( parentArrayIndex, wordId )
-                    
-                    //println( i + "**)) -- " + count + " - " + parentArrayIndex + " -> " + wordId )
-                    count += 1
-                }
-                
-                arrayData.add( builder2.result() )
-                idToIndexMap = newIdToIndexMap
-                
-                phraseData.set( i, null )
-            }
-            
-            arrayData
-        }
-    }
-
-    
     private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
     {
-        val wordSource = new SeqFilesIterator[Text, IntWritable]( conf, fs, basePath, "wordInTopicCount" )
+        val wordSource = new SeqFilesIterator( conf, fs, basePath, "wordInTopicCount", new WrappedString(), new WrappedInt() )
         val wpm = new PhraseMapBuilder( "lookup/wordMap", "lookup/phraseMap" )
         val wordMap = wpm.buildWordMap( wordSource )
         
-        val sfSource = new SeqFilesIterator[Text, TextArrayCountWritable]( conf, fs, basePath, "surfaceForms" )
+        val sfSource = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
         val phraseMap = wpm.parseSurfaceForms( sfSource )
         
         val pml = new PhraseMapLookup( wordMap, phraseMap )
@@ -353,17 +119,15 @@ object WikiBatch
         println( "Validating surface forms" )
         
         {
-            val rb = new WikiBatch.PhraseMapReader( pml )
+            val rb = pml.getIter()
             
-            val sfSource2 = new SeqFilesIterator[Text, TextArrayCountWritable]( conf, fs, basePath, "surfaceForms" )
+            val sfSource2 = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
             
-            val surfaceForm = new Text()
-            val targets = new TextArrayCountWritable()
             var count = 0
             var countFound = 0
-            while ( sfSource2.getNext( surfaceForm, targets ) )
+            for ( (surfaceForm, targets) <- sfSource2 )
             {
-                if ( rb.find( surfaceForm.toString ) != -1 ) countFound += 1
+                if ( rb.find( surfaceForm ) != -1 ) countFound += 1
                 count += 1
             }
             println( "Found " + countFound + ", total: " + count )

@@ -17,76 +17,43 @@ import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.disambiguator.Disambiguator._
 import org.seacourt.wikibatch._
+import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup}
 
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
 class WikiBatchPhraseDictTest extends FunSuite
 {
-    class WordSource( var wordList : List[String] ) extends KVWritableIterator[Text, IntWritable]
-    {
-        override def getNext( word : Text, count : IntWritable ) : Boolean =
-        {
-            if ( wordList == Nil )
-            {   
-                false
-            }
-            else
-            {
-                word.set( wordList.head )
-                count.set( 10 )
-                wordList = wordList.tail
-                true
-            }
-        }  
-    }
-    
-    class PhraseSource( var phraseList : List[String] ) extends KVWritableIterator[Text, TextArrayCountWritable]
-    {
-        override def getNext( phrase : Text, targets : TextArrayCountWritable ) : Boolean  =
-        {
-            if ( phraseList == Nil )
-            {
-                false
-            }
-            else
-            {
-                phrase.set( phraseList.head )
-                phraseList = phraseList.tail
-                true
-            }
-        }
-    }
     
     test( "Phrase map etc" )
     {
         // Parse all words from a text
-        val wordSource = new WordSource( List( "on", "the", "first", "day", "of", "christmas", "my", "true", "love", "sent", "to", "me" ) )
-        val phraseSource = new PhraseSource( List( "on", "on the first", "first day", "on the first day of christmas", "my true love", "true love" ) )
+        val wordSource = List[(String, Int)]( ("on", 10), ("the", 10), ("first", 10), ("day", 10), ("of", 10), ("christmas", 10), ("my", 10), ("true", 10), ("love", 10), ("sent", 10), ("to", 10), ("me", 10) )
+        val phraseSource = List[(String, List[(String, Int)])]( ("on", Nil), ("on the first", Nil), ("first day", Nil), ("on the first day of christmas", Nil), ("my true love", Nil), ("true love", Nil) )
         
         // Then a few parse phrases and save all out       
         {
-            val wb = new WikiBatch.PhraseMapBuilder( "wordMap", "phraseMap" )
-            val wordMap = wb.buildWordMap( wordSource )
-            val phraseMap = wb.parseSurfaceForms( phraseSource )
+            val wb = new PhraseMapBuilder( "wordMap", "phraseMap" )
+            val wordMap = wb.buildWordMap( wordSource.iterator )
+            val phraseMap = wb.parseSurfaceForms( phraseSource.iterator )
             
-            val pml = new WikiBatch.PhraseMapLookup( wordMap, phraseMap )
+            val pml = new PhraseMapLookup( wordMap, phraseMap )
             pml.save( new DataOutputStream( new FileOutputStream( new File( "disambigTest.bin" ) ) ) )
         }
         
         // Then re-run and check that the phrases exist
         {
-            val pml = new WikiBatch.PhraseMapLookup()
+            val pml = new PhraseMapLookup()
             pml.load( new DataInputStream( new FileInputStream( new File( "disambigTest.bin" ) ) ) )
-            val rb = new WikiBatch.PhraseMapReader( pml )
+            val rb = pml.getIter()
             
             assert( rb.find( "chicken tikka" ) === -1 )
             assert( rb.find( "on the first day of christmas bloo" ) === -1 )
             assert( rb.find( "bloo on the first day of christmas" ) === -1 )
 
-            assert( rb.phraseByIndex( rb.find( "on" ) ) === List("on") )
-            assert( rb.phraseByIndex( rb.find( "on the first" ) ) === List("on", "the", "first") )
-            assert( rb.phraseByIndex( rb.find( "first day" ) ) === List("first", "day") )
-            assert( rb.phraseByIndex( rb.find( "on the first day of christmas" ) ) === List("on", "the", "first", "day", "of", "christmas") )
+            assert( pml.phraseByIndex( rb.find( "on" ) ) === List("on") )
+            assert( pml.phraseByIndex( rb.find( "on the first" ) ) === List("on", "the", "first") )
+            assert( pml.phraseByIndex( rb.find( "first day" ) ) === List("first", "day") )
+            assert( pml.phraseByIndex( rb.find( "on the first day of christmas" ) ) === List("on", "the", "first", "day", "of", "christmas") )
         }
     }
 }
