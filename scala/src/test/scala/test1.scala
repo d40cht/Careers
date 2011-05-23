@@ -21,7 +21,7 @@ import scala.util.Sorting._
 
 import resource._
 
-import java.io.{DataInput, DataOutput}
+import java.io.{DataInput, DataOutput, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
 
 class SizeTests extends FunSuite
 {
@@ -44,11 +44,11 @@ class SizeTests extends FunSuite
         val sorted = data.sortWith( _.value.toInt < _.value.toInt )
         
         println( "Saving" )
-        sorted.save( new File("largeTest.bin" ) )
+        sorted.save( new DataOutputStream( new FileOutputStream( new File("largeTest.bin" ) ) ) )
         
         println( "Loading" )
         val larr = new EfficientArray[FixedLengthString](0)
-        larr.load( new File("largeTest.bin") )
+        larr.load( new DataInputStream( new FileInputStream( new File("largeTest.bin") ) ) )
         
         println( "Validating" )
         assert( larr.size === count )
@@ -72,10 +72,10 @@ class SizeTests extends FunSuite
         val arr = builder.result()
         assert( arr.length === 5 )
         
-        arr.save( new File( "testEArr.bin" ) )
+        arr.save( new DataOutputStream( new FileOutputStream( new File( "testEArr.bin" ) ) ) )
         
         val larr = new EfficientArray[FixedLengthString](0)
-        larr.load( new File( "testEArr.bin" ) )
+        larr.load( new DataInputStream( new FileInputStream( new File( "testEArr.bin" ) ) ) )
         
         assert( arr.length === larr.length )
         for ( i <- 0 until arr.length )

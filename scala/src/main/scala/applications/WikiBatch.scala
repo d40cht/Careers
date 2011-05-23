@@ -8,7 +8,7 @@ import org.apache.hadoop.io.{Text}
 import org.apache.hadoop.filecache.DistributedCache
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
-import java.io.File
+import java.io.{File, DataOutputStream, DataInputStream, FileOutputStream, FileInputStream}
 import java.util.ArrayList
 
 import org.seacourt.sql.SqliteWrapper
@@ -74,19 +74,41 @@ class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable]( val conf : C
 
 object WikiBatch
 {
-    class PhraseMapReader( wordMapBase : String, phraseMapBase : String, maxPhraseLength : Int )
+    class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phraseMap : ArrayList[EfficientArray[EfficientIntPair]] )
     {
-        val wordMap = new EfficientArray[FixedLengthString](0)
-        wordMap.load( new File(wordMapBase + ".bin") )
+        def this() = this( new EfficientArray[FixedLengthString](0), new ArrayList[EfficientArray[EfficientIntPair]]() )
         
-        val phraseMap = new ArrayList[EfficientArray[EfficientIntPair]]()
-        for ( i <- 0 until maxPhraseLength )
+        // sortedWordArray.save( new File(wordMapBase + ".bin") )
+        // phraseMap.result().save( new File( phraseMapBase + i + ".bin" ) )
+        
+        def save( outStream : DataOutputStream )
         {
-            val phraseLevel = new EfficientArray[EfficientIntPair](0)
-            phraseLevel.load( new File(phraseMapBase + i + ".bin") )
-            phraseMap.add( phraseLevel )
+            wordMap.save( outStream )
+            outStream.writeInt( phraseMap.size )
+            for ( i <- 0 until phraseMap.size )
+            {
+                phraseMap.get(i).save( outStream )
+            }
         }
         
+        def load( inStream : DataInputStream )
+        {
+            wordMap.clear()
+            wordMap.load( inStream )
+            val depth = inStream.readInt()
+            phraseMap.clear()
+            for ( i <- 0 until depth )
+            {
+                val level = new EfficientArray[EfficientIntPair](0)
+                level.load( inStream )
+                phraseMap.add( level )
+            }
+        }
+    }
+    
+    
+    class PhraseMapReader( val pml : PhraseMapLookup )
+    {
         def phraseByIndex( index : Int ) : List[String] =
         {
             var level = 0
@@ -94,7 +116,7 @@ object WikiBatch
             var iter = index
             while (!found)
             {
-                val length = phraseMap.get(level).length
+                val length = pml.phraseMap.get(level).length
                 if ( iter >= length )
                 {
                     iter -= length
@@ -110,9 +132,9 @@ object WikiBatch
             var res = List[String]()
             while (level != -1)
             {
-                val el = phraseMap.get(level)( iter )
+                val el = pml.phraseMap.get(level)( iter )
                 
-                res = (wordMap(el.second).value) :: res
+                res = (pml.wordMap(el.second).value) :: res
                 iter = el.first
                 level -= 1
             }
@@ -126,7 +148,7 @@ object WikiBatch
             
             val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
             
-            var wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), wordMap, comp ) )
+            var wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), pml.wordMap, comp ) )
             
             //println( phrase + ": " + wordIds )
             
@@ -136,13 +158,13 @@ object WikiBatch
 
             while ( (wordIds != Nil) )
             {
-                if ( i >= phraseMap.size)
+                if ( i >= pml.phraseMap.size)
                 {
                     return -1
                 }
                 
                 val wordId = wordIds.head
-                val thisLevel = phraseMap.get(i)
+                val thisLevel = pml.phraseMap.get(i)
                 wordId match
                 {
                     case Some( wordIndex ) =>
@@ -178,8 +200,12 @@ object WikiBatch
         }
     }
     
+    
+    
     class PhraseMapBuilder( wordMapBase : String, phraseMapBase : String )
     {
+        val pml = new PhraseMapLookup()
+        
         def buildWordMap( wordSource : KVWritableIterator[Text, IntWritable] ) =
         {
             println( "Building word dictionary" )
@@ -210,7 +236,7 @@ object WikiBatch
                 index += 1
             }
             println( "Array length: " + sortedWordArray.length )
-            sortedWordArray.save( new File(wordMapBase + ".bin") )
+            sortedWordArray.save( new DataOutputStream( new FileOutputStream( new File(wordMapBase + ".bin") ) ) )
             
             sortedWordArray
         }
@@ -220,7 +246,7 @@ object WikiBatch
             println( "Parsing surface forms" )
             
             val wordMap = new EfficientArray[FixedLengthString](0)
-            wordMap.load( new File(wordMapBase + ".bin") )
+            wordMap.load( new DataInputStream( new FileInputStream( new File(wordMapBase + ".bin") ) ) )
             
             val builder = new EfficientArray[FixedLengthString](0).newBuilder
 
@@ -273,6 +299,7 @@ object WikiBatch
             
             var idToIndexMap = new TreeMap[Int, Int]()
             
+            var arrayData = new ArrayList[EfficientArray[EfficientIntPair]]()
             for ( i <- 0 until phraseData.size )
             {
                 println( "  Phrasedata pass: " + i )
@@ -299,28 +326,13 @@ object WikiBatch
                     count += 1
                 }
                 
-                /*var count = 0
-                val builder2 = new EfficientArray[EfficientIntPair](0).newBuilder
-                for ( ((parentId, wordId), thisId) <- treeData )
-                {
-                    newIdToIndexMap = newIdToIndexMap.insert( thisId, count )
-                    val parentArrayIndex = if (parentId == -1) -1 else idToIndexMap( parentId )
-                    
-                    builder2 += new EfficientIntPair( parentArrayIndex, wordId )
-                    
-                    count += 1
-                }
-                
-                val sortedArray = builder2.result().sortWith( _.less(_) )
-                sortedArray.save( new File( phraseMapBase + i + ".bin" ) )*/
-                builder2.result().save( new File( phraseMapBase + i + ".bin" ) )
-                
+                arrayData.add( builder2.result() )
                 idToIndexMap = newIdToIndexMap
                 
                 phraseData.set( i, null )
             }
             
-            phraseData.size
+            arrayData
         }
     }
 
@@ -329,17 +341,19 @@ object WikiBatch
     {
         val wordSource = new SeqFilesIterator[Text, IntWritable]( conf, fs, basePath, "wordInTopicCount" )
         val wpm = new PhraseMapBuilder( "lookup/wordMap", "lookup/phraseMap" )
-        wpm.buildWordMap( wordSource )
+        val wordMap = wpm.buildWordMap( wordSource )
         
         val sfSource = new SeqFilesIterator[Text, TextArrayCountWritable]( conf, fs, basePath, "surfaceForms" )
-        val phraseDepth = wpm.parseSurfaceForms( sfSource )
+        val phraseMap = wpm.parseSurfaceForms( sfSource )
+        
+        val pml = new PhraseMapLookup( wordMap, phraseMap )
         
         
         // Then validate
         println( "Validating surface forms" )
         
         {
-            val rb = new WikiBatch.PhraseMapReader( "lookup/wordMap", "lookup/phraseMap", phraseDepth )
+            val rb = new WikiBatch.PhraseMapReader( pml )
             
             val sfSource2 = new SeqFilesIterator[Text, TextArrayCountWritable]( conf, fs, basePath, "surfaceForms" )
             
@@ -355,6 +369,7 @@ object WikiBatch
             println( "Found " + countFound + ", total: " + count )
         }
         
+        pml.save( new DataOutputStream( new FileOutputStream( new File( "phraseMap.bin" ) ) ) )
         
         // Now copy the lookup over to HDFS and hence to the distributed cache
         

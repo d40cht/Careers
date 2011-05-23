@@ -173,20 +173,18 @@ class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length
     
     def clear() = resize(0)
     
-    def save( file : File )
+    def save( outStream : DataOutputStream )
     {
-        val stream = new FileOutputStream( file )
-        stream.write( buffer )
+        outStream.writeInt( buffer.length )
+        outStream.write( buffer )
     }
     
-    def load( file : File )
+    def load( inStream : DataInputStream )
     {
-        val flen = file.length.toInt
-        buffer = new Array[Byte]( flen )
-        val stream = new FileInputStream( file )
-        
-        stream.read( buffer )
-        _length = flen / elementSize
+        val length = inStream.readInt()
+        buffer = new Array[Byte]( length )
+        inStream.read( buffer)
+        _length = length / elementSize
     }
 }
 

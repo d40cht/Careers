@@ -8,7 +8,7 @@ import org.apache.hadoop.io.SequenceFile.{createWriter, Reader => HadoopReader}
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 import java.util.{TreeMap, HashMap, HashSet}
 
-import java.io.File
+import java.io.{File, FileOutputStream, DataOutputStream}
 
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
@@ -158,7 +158,7 @@ object PhraseMap
             }
             println( "Verifying array." )
             
-            sortedWordArray.save( new File("allWords.bin") )
+            sortedWordArray.save( new DataOutputStream( new FileOutputStream( new File("allWords.bin") ) ) )
         }
         
         {

@@ -1,7 +1,7 @@
 import org.scalatest.FunSuite
 import scala.io.Source._
 
-import java.io.{File, BufferedReader, FileReader}
+import java.io.{File, BufferedReader, FileReader, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.immutable.TreeSet
 
@@ -63,20 +63,21 @@ class WikiBatchPhraseDictTest extends FunSuite
         val wordSource = new WordSource( List( "on", "the", "first", "day", "of", "christmas", "my", "true", "love", "sent", "to", "me" ) )
         val phraseSource = new PhraseSource( List( "on", "on the first", "first day", "on the first day of christmas", "my true love", "true love" ) )
         
-        // Then a few parse phrases and save all out
-        var phraseDepth = 0
-        
+        // Then a few parse phrases and save all out       
         {
             val wb = new WikiBatch.PhraseMapBuilder( "wordMap", "phraseMap" )
-            wb.buildWordMap( wordSource )
-            phraseDepth = wb.parseSurfaceForms( phraseSource )
+            val wordMap = wb.buildWordMap( wordSource )
+            val phraseMap = wb.parseSurfaceForms( phraseSource )
+            
+            val pml = new WikiBatch.PhraseMapLookup( wordMap, phraseMap )
+            pml.save( new DataOutputStream( new FileOutputStream( new File( "disambigTest.bin" ) ) ) )
         }
-        
-        assert( phraseDepth === 6 )
         
         // Then re-run and check that the phrases exist
         {
-            val rb = new WikiBatch.PhraseMapReader( "wordMap", "phraseMap", phraseDepth )
+            val pml = new WikiBatch.PhraseMapLookup()
+            pml.load( new DataInputStream( new FileInputStream( new File( "disambigTest.bin" ) ) ) )
+            val rb = new WikiBatch.PhraseMapReader( pml )
             
             assert( rb.find( "chicken tikka" ) === -1 )
             assert( rb.find( "on the first day of christmas bloo" ) === -1 )
