@@ -105,7 +105,7 @@ object WikiBatch
 {
     private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
     {
-        val wordSource = new SeqFilesIterator( conf, fs, basePath, "wordInTopicCount", new WrappedString(), new WrappedInt() )
+        /*val wordSource = new SeqFilesIterator( conf, fs, basePath, "wordInTopicCount", new WrappedString(), new WrappedInt() )
         val wpm = new PhraseMapBuilder( "lookup/wordMap", "lookup/phraseMap" )
         val wordMap = wpm.buildWordMap( wordSource )
         
@@ -114,26 +114,28 @@ object WikiBatch
         
         val pml = new PhraseMapLookup( wordMap, phraseMap )
         
+        pml.save( new DataOutputStream( new FileOutputStream( new File( "phraseMap.bin" ) ) ) )*/
+        
         
         // Then validate
         println( "Validating surface forms" )
         
         {
-            val rb = pml.getIter()
-            
+            val lookup = new PhraseMapLookup()
+            lookup.load( new DataInputStream( new FileInputStream( new File( "phraseMap.bin" ) ) ) )
             val sfSource2 = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
             
             var count = 0
             var countFound = 0
             for ( (surfaceForm, targets) <- sfSource2 )
             {
-                if ( rb.find( surfaceForm ) != -1 ) countFound += 1
+                if ( lookup.getIter().find( surfaceForm ) != -1 ) countFound += 1
                 count += 1
             }
             println( "Found " + countFound + ", total: " + count )
         }
         
-        pml.save( new DataOutputStream( new FileOutputStream( new File( "phraseMap.bin" ) ) ) )
+        
         
         // Now copy the lookup over to HDFS and hence to the distributed cache
         
