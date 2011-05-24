@@ -103,9 +103,11 @@ class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable, ConvKeyType, 
 
 object WikiBatch
 {
+    val phraseMapFileName = "phraseMap.bin"
+    
     private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
     {
-        /*val wordSource = new SeqFilesIterator( conf, fs, basePath, "wordInTopicCount", new WrappedString(), new WrappedInt() )
+        val wordSource = new SeqFilesIterator( conf, fs, basePath, "wordInTopicCount", new WrappedString(), new WrappedInt() )
         val wpm = new PhraseMapBuilder( "lookup/wordMap", "lookup/phraseMap" )
         val wordMap = wpm.buildWordMap( wordSource )
         
@@ -114,15 +116,16 @@ object WikiBatch
         
         val pml = new PhraseMapLookup( wordMap, phraseMap )
         
-        pml.save( new DataOutputStream( new FileOutputStream( new File( "phraseMap.bin" ) ) ) )*/
+        pml.save( new DataOutputStream( new FileOutputStream( new File( phraseMapFileName ) ) ) )
         
         
         // Then validate
-        println( "Validating surface forms" )
-        
+        if ( false )
         {
+            println( "Validating surface forms" )
+            
             val lookup = new PhraseMapLookup()
-            lookup.load( new DataInputStream( new FileInputStream( new File( "phraseMap.bin" ) ) ) )
+            lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
             val sfSource2 = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
             
             var count = 0
@@ -139,13 +142,13 @@ object WikiBatch
         
         // Now copy the lookup over to HDFS and hence to the distributed cache
         
-        /*println( "Copying to HDFS" )
-        val remoteMapPath = basePath + "/" + wordMapName
-        fs.copyFromLocalFile( false, true, new Path( wordMapName ), new Path( remoteMapPath ) )
+        println( "Copying to HDFS" )
+        val remoteMapPath = basePath + "/" + phraseMapFileName
+        fs.copyFromLocalFile( false, true, new Path( phraseMapFileName ), new Path( remoteMapPath ) )
         println( "  complete" )
         
         // Run phrasecounter so it only counts phrases that exist as surface forms
-        conf.set( "wordMap", remoteMapPath )*/
+        conf.set( "org.seacourt.phrasemap", remoteMapPath )
     }
 
     def main(args:Array[String]) : Unit =

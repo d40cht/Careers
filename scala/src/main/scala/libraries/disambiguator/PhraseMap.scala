@@ -92,6 +92,11 @@ class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phra
         res
     }
     
+    
+    private val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
+    
+    def lookupWord( word : String ) = Utils.binarySearch( new FixedLengthString(word), wordMap, comp )
+    
     def getIter() = new PhraseMapIter()
     
     class PhraseMapIter()
@@ -131,8 +136,7 @@ class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phra
         def find( phrase : String ) : Int =
         {
             val wordList = Utils.luceneTextTokenizer( phrase )
-            
-            val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
+
             var wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), wordMap, comp ) )
                         
             var foundIndex = 0
