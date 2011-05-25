@@ -45,7 +45,7 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
             val fileName = new File( localCacheFiles(0).toString )
          
             // Load the entire phrase map file into RAM   
-            pml.load( new DataInputStream( new FileInputStream( dirFiles(0) ) ) )
+            pml.load( new DataInputStream( new FileInputStream( fileName ) ) )
             //val phraseDbFileName = config.get(phraseDbKey)
             //pml.load( fs.open(  ) )
         }
