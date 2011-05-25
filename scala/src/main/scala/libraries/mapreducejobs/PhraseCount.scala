@@ -139,7 +139,7 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
         job.setMapperClass(classOf[JobMapper])
         job.setReducerClass(classOf[JobReducer])
         
-        //job.setProfileEnabled(true)
+        job.setProfileEnabled(true)
 
         // Copy the phrase db to distributed cache
         val phraseDbFileName = config.get(phraseDbKey)
