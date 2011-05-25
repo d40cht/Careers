@@ -35,10 +35,14 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
             val localCacheFiles = context.getLocalCacheFiles()
 
             require( localCacheFiles.length == 1 )
-            val localDir = new File( localCacheFiles(0).toString )
+            
+            /*val localDir = new File( localCacheFiles(0).toString )
             val dirFiles = localDir.listFiles( new FilenameFilter { override def accept(dir: File, name : String) = name.endsWith(".bin") } )
             require( dirFiles.length != 0 )
             require( dirFiles.length == 1 )
+            val fileName = dirFiles(0)*/
+            
+            val fileName = new File( localCacheFiles(0).toString )
          
             // Load the entire phrase map file into RAM   
             pml.load( new DataInputStream( new FileInputStream( dirFiles(0) ) ) )
