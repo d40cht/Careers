@@ -1,11 +1,12 @@
 package org.seacourt.mapreducejobs
 
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.{Text, IntWritable}
 import org.apache.hadoop.mapred.JobConf
 import org.apache.hadoop.filecache.DistributedCache
 
 import java.net.URI
-import java.io.{File, DataInputStream, FileInputStream}
+import java.io.{File, DataInputStream, FileInputStream, FilenameFilter}
 
 import scala.collection.JavaConversions._
 
@@ -30,11 +31,19 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
         
         override def setup( context : MapperType#Context )
         {
-            val localCacheFiles = context.getLocalCacheArchives()
+            val fs = FileSystem.get( context.getConfiguration() )
+            val localCacheFiles = context.getLocalCacheFiles()
+
             require( localCacheFiles.length == 1 )
+            val localDir = new File( localCacheFiles(0).toString )
+            val dirFiles = localDir.listFiles( new FilenameFilter { override def accept(dir: File, name : String) = name.endsWith(".bin") } )
+            require( dirFiles.length != 0 )
+            require( dirFiles.length == 1 )
          
             // Load the entire phrase map file into RAM   
-            pml.load( new DataInputStream( new FileInputStream( new File(localCacheFiles(0).toString ) ) ) )
+            pml.load( new DataInputStream( new FileInputStream( dirFiles(0) ) ) )
+            //val phraseDbFileName = config.get(phraseDbKey)
+            //pml.load( fs.open(  ) )
         }
         
         override def cleanup( context : MapperType#Context )
@@ -130,8 +139,9 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
 
         // Copy the phrase db to distributed cache
         val phraseDbFileName = config.get(phraseDbKey)
-        println( "Adding archive to local cache" )
-        job.addCacheArchive( new URI(phraseDbFileName) )
+        println( "Adding archive to local cache: " + phraseDbFileName )
+        job.createSymlink()
+        job.addCacheFile( new URI(phraseDbFileName) )
         job.createSymlink()
         println( "  complete" )
     }

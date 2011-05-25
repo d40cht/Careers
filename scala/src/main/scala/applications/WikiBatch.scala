@@ -146,9 +146,6 @@ object WikiBatch
         val remoteMapPath = basePath + "/" + phraseMapFileName
         fs.copyFromLocalFile( false, true, new Path( phraseMapFileName ), new Path( remoteMapPath ) )
         println( "  complete" )
-        
-        // Run phrasecounter so it only counts phrases that exist as surface forms
-        conf.set( "org.seacourt.phrasemap", remoteMapPath )
     }
 
     def main(args:Array[String]) : Unit =
@@ -157,26 +154,28 @@ object WikiBatch
         val conf = new Configuration()
         conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"))
         conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
-        val fs = FileSystem.get(conf)   
+        val fs = FileSystem.get(conf)
 
         val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
         
         val inputFile = args(0)
         val outputPathBase = args(1)
         val numReduces = args(2).toInt
+        
+        conf.set( "org.seacourt.phrasemap", outputPathBase + "/" + phraseMapFileName )
 
         // TODO: An additional parse run that runs over all the topics of relevance, and a fn in Utils to
         //       specify relevance to be used in all the jobs below.
         
-        //WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        //SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
+        WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
+        SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
         
         buildWordAndSurfaceFormsMap( conf, fs, outputPathBase )
         
-        //PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
+        PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
         
-        //RedirectParser.run( "RedirectParser", conf, inputFile, outputPathBase + "/redirects", numReduces )
-        //CategoriesAndContexts.run( "CategoriesAndContexts", conf, inputFile, outputPathBase + "/categoriesAndContexts", numReduces )
+        RedirectParser.run( "RedirectParser", conf, inputFile, outputPathBase + "/redirects", numReduces )
+        CategoriesAndContexts.run( "CategoriesAndContexts", conf, inputFile, outputPathBase + "/categoriesAndContexts", numReduces )
     }
 }
 
