@@ -158,9 +158,9 @@ object WikiBatch
 
         val otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs
         
-        val inputFile = args(0)
-        val outputPathBase = args(1)
-        val numReduces = args(2).toInt
+        val inputFile = otherArgs(0)
+        val outputPathBase = otherArgs(1)
+        val numReduces = otherArgs(2).toInt
         
         conf.set( "org.seacourt.phrasemap", outputPathBase + "/" + phraseMapFileName )
 
