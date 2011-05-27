@@ -52,7 +52,6 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
         
         override def cleanup( context : MapperType#Context )
         {
-            pml = null
         }
     
         def mapWork( topicTitle : String, topicText : String, output : (Int, Int) => Unit )

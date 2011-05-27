@@ -16,6 +16,17 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
 {
     class JobMapper extends MapperType
     {
+        override def setup( context : MapperType#Context )
+        {
+            // The phrase map binary file is ~ 300Mb so no point launching a task without
+            // a decent amount more memory
+            val r = Runtime.getRuntime()
+            require( (r.maxMemory() / (1024*1024)) >= 600 )
+            
+            
+            require( false )
+        }
+        
         def mapWork( topicTitle : String, topicText : String, output : (String, Int) => Unit )
         {
             try

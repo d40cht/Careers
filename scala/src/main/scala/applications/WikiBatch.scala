@@ -119,33 +119,30 @@ object WikiBatch
         pml.save( new DataOutputStream( new FileOutputStream( new File( phraseMapFileName ) ) ) )
         
         
-        // Then validate
-        if ( false )
-        {
-            println( "Validating surface forms" )
-            
-            val lookup = new PhraseMapLookup()
-            lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
-            val sfSource2 = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
-            
-            var count = 0
-            var countFound = 0
-            for ( (surfaceForm, targets) <- sfSource2 )
-            {
-                if ( lookup.getIter().find( surfaceForm ) != -1 ) countFound += 1
-                count += 1
-            }
-            println( "Found " + countFound + ", total: " + count )
-        }
-        
-        
-        
         // Now copy the lookup over to HDFS and hence to the distributed cache
         
         println( "Copying to HDFS" )
         val remoteMapPath = basePath + "/" + phraseMapFileName
         fs.copyFromLocalFile( false, true, new Path( phraseMapFileName ), new Path( remoteMapPath ) )
         println( "  complete" )
+    }
+    
+    def validatePhraseMap( conf : Configuration, fs : FileSystem, basePath : String )
+    {
+        println( "Validating surface forms" )
+        
+        val lookup = new PhraseMapLookup()
+        lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
+        val sfSource2 = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
+        
+        var count = 0
+        var countFound = 0
+        for ( (surfaceForm, targets) <- sfSource2 )
+        {
+            if ( lookup.getIter().find( surfaceForm ) != -1 ) countFound += 1
+            count += 1
+        }
+        println( "Found " + countFound + ", total: " + count )
     }
 
     def main(args:Array[String]) : Unit =
@@ -168,9 +165,10 @@ object WikiBatch
         //       specify relevance to be used in all the jobs below.
         
         /*WordInTopicCounter.run( "WordInTopicCounter", conf, inputFile, outputPathBase + "/wordInTopicCount", numReduces )
-        SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )
+        SurfaceFormsGleaner.run( "SurfaceFormsGleaner", conf, inputFile, outputPathBase + "/surfaceForms", numReduces )*/
         
-        buildWordAndSurfaceFormsMap( conf, fs, outputPathBase )*/
+        //buildWordAndSurfaceFormsMap( conf, fs, outputPathBase )
+        //validatePhraseMap( conf, fs, outputPathBase )
         
         PhraseCounter.run( "PhraseCounter", conf, inputFile, outputPathBase + "/phraseCounts", numReduces )
         
