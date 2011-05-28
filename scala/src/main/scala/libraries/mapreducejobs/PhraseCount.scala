@@ -105,7 +105,8 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
                 
                 for ( (phraseId, count) <- foundPhrases )
                 {
-                    output( phraseId, count )
+                    //output( phraseId, count )
+                    output( phraseId, 1 )
                 }
             }
             catch
