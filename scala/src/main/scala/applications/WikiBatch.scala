@@ -159,6 +159,7 @@ object WikiBatch
         val outputPathBase = otherArgs(1)
         val numReduces = otherArgs(2).toInt
         
+        conf.set( "mapred.compress.map.output", "true" )
         conf.set( "org.seacourt.phrasemap", outputPathBase + "/" + phraseMapFileName )
 
         // TODO: An additional parse run that runs over all the topics of relevance, and a fn in Utils to

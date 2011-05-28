@@ -117,7 +117,15 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
         
         override def map( topicTitle : Text, topicText : Text, output : MapperType#Context )
         {
-            mapWork( topicTitle.toString, topicText.toString, (key, value) => output.write( new IntWritable(key), new IntWritable(value) ) )
+            val keyW = new IntWritable(0)
+            val valueW = new IntWritable(0)
+            
+            mapWork( topicTitle.toString, topicText.toString, (key, value) =>
+            {
+                keyW.set( key )
+                valueW.set( value )
+                output.write( keyW, valueW ) 
+            } )
         }
     }
     
@@ -138,8 +146,15 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
     {
         job.setMapperClass(classOf[JobMapper])
         job.setReducerClass(classOf[JobReducer])
+        job.setCombinerClass(classOf[JobReducer])
         
-        job.setProfileEnabled(true)
+        //job.setProfileEnabled(true)
+        
+        
+        // Tuning the reduce (http://www.cloudera.com/blog/2009/12/7-tips-for-improving-mapreduce-performance/):
+        // * mapred.compress.map.output to true
+        // * Add a combiner (done)
+        
 
         // Copy the phrase db to distributed cache
         val phraseDbFileName = config.get(phraseDbKey)
