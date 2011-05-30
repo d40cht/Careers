@@ -8,7 +8,7 @@ import org.apache.hadoop.io.SequenceFile.{createWriter, Reader => HadoopReader}
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 import java.util.{TreeMap, HashMap, HashSet}
 
-import java.io.{File, FileOutputStream, DataOutputStream}
+import java.io.{File, FileOutputStream, DataOutputStream, DataInputStream, FileInputStream}
 
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
@@ -17,6 +17,8 @@ import org.apache.lucene.analysis.standard.StandardTokenizer
 
 import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
+
+import org.seacourt.disambiguator.{PhraseMapLookup}
 
 object PhraseMap
 {
@@ -50,10 +52,10 @@ object PhraseMap
 
         db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
         db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
-        //db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER, UNIQUE(name))" )
-        //db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
-        db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, count INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
+        db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, relevance DOUBLE, FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
         db.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
+        
+        db.exec( "CREATE TABLE phraseCounts( phraseId INTEGER, phraseCount INTEGER )" )
         
         var count = 0
         
@@ -110,81 +112,7 @@ object PhraseMap
         
         val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory 
         val sql = new SQLiteWriter( outputFilePath )
-        
-        /*{
-            println( "Building word dictionary" )
-            
-            val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
-            
-            val builder = new EfficientArray[FixedLengthString](0).newBuilder
-        
-            val wordInsert = sql.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
-            //id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER
-            for ( filePath <- fileList )
-            {
-                println( "  " + filePath )
-                val word = new Text()
-                val count = new IntWritable()
-                
-                
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( word, count ) )
-                {
-                    if ( count.get() > 2 )
-                    {
-                        val str = word.toString()
-                       
-                        //if ( str.length < (FixedLengthString.size-4) )
-                        if ( str.length < 8 )
-                        {
-                            builder += new FixedLengthString( str )
-                        }
-                    }
-                }
-            }
-            
-            println( "Sorting array." )
-            val sortedWordArray = builder.result().sortWith( _.value < _.value )
-            
-            println( "Array length: " + sortedWordArray.length )
-            
-            val comp = (x : FixedLengthString, y : FixedLengthString) => x.value < y.value
-            for ( i <- 0 until sortedWordArray.length )
-            {
-                val value = sortedWordArray(i)
-                
-                val findIndex = Utils.binarySearch( value, sortedWordArray, comp )
-                assert( findIndex == Some(i) )
-            }
-            println( "Verifying array." )
-            
-            sortedWordArray.save( new DataOutputStream( new FileOutputStream( new File("allWords.bin") ) ) )
-        }
-        
-        {
-            println( "Adding words" )
-            val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
-        
-            val wordInsert = sql.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
-            //id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER
-            for ( filePath <- fileList )
-            {
-                println( "  " + filePath )
-                val word = new Text()
-                val count = new IntWritable()
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( word, count ) )
-                {
-                    if ( count.get > 2 )
-                    {
-                        wordInsert.exec( word.toString, count.get )
-                        sql.manageTransactions()
-                    }
-                }
-            }
-            sql.sync()
-        }*/
-        
+      
         {
             println( "Building topic index" )
             val topicIndexIterator = new SeqFilesIterator( conf, fs, basePath, "categoriesAndContexts", new WrappedString(), new WrappedTextArrayWritable() )
@@ -248,95 +176,43 @@ object PhraseMap
             sql.exec( "CREATE INDEX topicCountAsContextIndex ON topicCountAsContext(topicId)" )
             sql.sync()
         }
-
-                
-
-        /*{
-            println( "Adding surface forms" )
-            val fileList = getJobFiles( fs, basePath, "surfaceForms" )
         
-            //val wordInsert = sql.prepare( "INSERT INTO words VALUES( NULL, ?, ? )", HNil )
-            //id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER
-            for ( filePath <- fileList )
+        {
+            val insertPhraseCount = sql.prepare( "INSERT INTO phraseCounts VALUES(?, ?)", HNil )
+            val phraseCountIterator = new SeqFilesIterator( conf, fs, basePath, "phraseCounts", new WrappedInt(), new WrappedInt() )
+            for ( (phraseId, numTopicsPhraseFoundIn) <- phraseCountIterator )
             {
-                println( "  " + filePath )
+                // Build a sqlite dictionary for this
+                insertPhraseCount.exec( phraseId, numTopicsPhraseFoundIn )
+                sql.manageTransactions()
+            }
+        }
+        sql.exec( "CREATE INDEX phraseCountIndex ON phraseCounts(phraseId)" )
+        sql.sync()
+        
+        // Cross-link with phraseCounts
+        val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?), (SELECT CAST(? AS DOUBLE)/phraseCount FROM phraseCounts WHERE phraseId=?) )", HNil )
+        
+        {
+            val pml = new PhraseMapLookup()
+            pml.load( new DataInputStream( new FileInputStream( new File( "phraseMap.bin" ) ) ) )
+            
+            val surfaceFormIterator = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
+            for ( (surfaceForm, topics) <- surfaceFormIterator )
+            {
+                // Get the id of the surface form
+                val sfId = pml.getIter().find( surfaceForm )
                 
-                val surfaceForm = new Text()
-                val topics = new TextArrayCountWritable()
-                
-                // TODO: Get total number of topics, then additionally calculate word weight:
-                // word weight = (#topics / #topics this word is in)
-                // And surface form weight = log(sum(word weights))
-                
-                
-                val getWordId = sql.prepare( "SELECT id FROM words WHERE name=?", Col[Int]::HNil )
-                val getPhraseTreeNodeId = sql.prepare( "SELECT id FROM phraseTreeNodes WHERE parentId=? AND wordId=?", Col[Long]::HNil )
-                val addPhraseTreeNodeId = sql.prepare( "INSERT INTO phraseTreeNodes VALUES( NULL, ?, ? )", HNil )
-                //val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?) )", HNil )
-                val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?), ? )", HNil )
-                
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( surfaceForm, topics ) )
+                for ( (topic, number) <- topics )
                 {
-                    var parentId = -1L
-                    
-                    class WordNotFoundException extends Exception
-                    
-                    val surfaceFormWords = Utils.luceneTextTokenizer( surfaceForm.toString )
-                    try
-                    {
-                        // Add phrase to phrase map
-                        //println( "Adding surface forms" )
-                        for ( word <- surfaceFormWords )
-                        {
-                            getWordId.bind( word )
-                            val ids = getWordId.toList
-                            if ( ids == Nil )
-                            {
-                                //println( "Word in phrase missing from lookup: '" + word +"'" )
-                                throw new WordNotFoundException()
-                            }
-                            else
-                            {
-                                assert( ids.length == 1 )
-                                val wordId = _1(ids.head).get
-                                //println( "Found word " + word + " " + wordId )
-                                getPhraseTreeNodeId.bind( parentId, wordId )
-                                val ptnIds = getPhraseTreeNodeId.toList
-                                
-                                if ( ptnIds != Nil )
-                                {
-                                    assert( ptnIds.length == 1 )
-                                    parentId = _1(ptnIds.head).get
-                                }
-                                else
-                                {
-                                    addPhraseTreeNodeId.exec( parentId, wordId )
-                                    parentId = sql.getLastInsertId()
-                                }
-                            }
-                            sql.manageTransactions()
-                        }
-                        
-                        //println( "Adding topics against phrase map" )
-                        // Add all topics against phrase map terminal id
-                        for ( (topic, number) <- topics.elements )
-                        {
-                            // TODO: Take number of times this surface form points to this target into account.
-                            addTopicToPhrase.exec( parentId, topic.toString, number )
-                            sql.manageTransactions()
-                        }
-                    }
-                    catch
-                    {
-                        case e : WordNotFoundException =>
-                    }
+                    // TODO: Take number of times this surface form points to this target into account.
+                    addTopicToPhrase.exec( sfId, topic.toString, number, sfId )
+                    sql.manageTransactions()
                 }
             }
-        }*/
+        }
         
         println( "Building indices" )
-        //sql.exec( "CREATE INDEX phraseTopicIndex ON phraseTopics(phraseTreeNodeId)" )
         sql.exec( "CREATE INDEX categoryContextIndex ON categoriesAndContexts(topicId)" )
 
         sql.close()
