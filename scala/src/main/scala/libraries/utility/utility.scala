@@ -1,5 +1,11 @@
 package org.seacourt.utility
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.io.SequenceFile.{Reader => HadoopReader}
+import org.apache.hadoop.io.{Writable, Text, IntWritable}
+
+
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
@@ -381,6 +387,8 @@ object Utils
 
         searchBetween(0, xs.length-1)
     }
+    
+
 }
 
 class LinkExtractor
@@ -434,5 +442,88 @@ class LinkExtractor
     }
 }
 
+trait WrappedWritable[From <: Writable, To]
+{
+    val writable : From
+    def get : To
+}
+
+final class WrappedString extends WrappedWritable[Text, String]
+{
+    val writable = new Text() 
+    def get = writable.toString()
+}
+
+final class WrappedInt extends WrappedWritable[IntWritable, Int]
+{
+    val writable = new IntWritable() 
+    def get = writable.get()
+}
+
+final class WrappedTextArrayWritable extends WrappedWritable[TextArrayWritable, List[String]]
+{
+    val writable = new TextArrayWritable()
+    def get = writable.elements
+}
+
+final class WrappedTextArrayCountWritable extends WrappedWritable[TextArrayCountWritable, List[(String, Int)]]
+{
+    val writable = new TextArrayCountWritable()
+    def get = writable.elements
+}
+
+class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable, ConvKeyType, ConvValueType]( val conf : Configuration, val fs : FileSystem, val basePath : String, val seqFileName : String, val keyField : WrappedWritable[KeyType, ConvKeyType], val valueField : WrappedWritable[ValueType, ConvValueType] ) extends Iterator[(ConvKeyType, ConvValueType)]
+{
+    var fileList = getJobFiles( fs, basePath, seqFileName )
+    var currFile = advanceFile()
+    private var _hasNext = advance( keyField.writable, valueField.writable )
+    
+    private def getJobFiles( fs : FileSystem, basePath : String, directory : String ) =
+    {
+        val fileList = fs.listStatus( new Path( basePath + "/" + directory ) ).toList
+        
+        fileList.map( _.getPath ).filter( !_.toString.endsWith( "_SUCCESS" ) )
+    }
+    
+    private def advanceFile() : HadoopReader =
+    {
+        if ( fileList == Nil )
+        {
+            null
+        }
+        else
+        {
+            println( "Reading file: " + fileList.head )
+            val reader = new HadoopReader( fs, fileList.head, conf )
+            fileList = fileList.tail
+            reader
+        }
+    }
+    
+    private def advance( key : KeyType, value : ValueType ) : Boolean =
+    {
+        var success = currFile.next( key, value )
+        if ( !success )
+        {
+            currFile = advanceFile()
+            
+            if ( currFile != null )
+            {
+                success = currFile.next( key, value )
+            }
+        }
+        success
+    }
+    
+    
+    override def hasNext() : Boolean = _hasNext
+    override def next() : (ConvKeyType, ConvValueType) =
+    {
+        val current = (keyField.get, valueField.get)
+        _hasNext = advance( keyField.writable, valueField.writable )
+        
+        current
+    }
+}
 
 

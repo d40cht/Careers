@@ -50,8 +50,8 @@ object PhraseMap
 
         db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
         db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
-        db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER, UNIQUE(name))" )
-        db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
+        //db.exec( "CREATE TABLE words( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, count INTEGER, UNIQUE(name))" )
+        //db.exec( "CREATE TABLE phraseTreeNodes( id INTEGER PRIMARY KEY, parentId INTEGER, wordId INTEGER, FOREIGN KEY(parentId) REFERENCES phrases(id), FOREIGN KEY(wordId) REFERENCES words(id), UNIQUE(parentId, wordId) )" )
         db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, count INTEGER, FOREIGN KEY(phraseTreeNodeId) REFERENCES phraseTreeNodes(id), FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
         db.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
         
@@ -111,7 +111,7 @@ object PhraseMap
         val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory 
         val sql = new SQLiteWriter( outputFilePath )
         
-        {
+        /*{
             println( "Building word dictionary" )
             
             val fileList = getJobFiles( fs, basePath, "wordInTopicCount" )
@@ -183,27 +183,17 @@ object PhraseMap
                 }
             }
             sql.sync()
-        }
+        }*/
         
         {
             println( "Building topic index" )
+            val topicIndexIterator = new SeqFilesIterator( conf, fs, basePath, "categoriesAndContexts", new WrappedString(), new WrappedTextArrayWritable() )
             val insertTopic = sql.prepare( "INSERT INTO topics VALUES( NULL, ? )", HNil )
             
-            val fileList = getJobFiles( fs, basePath, "categoriesAndContexts" )
-
-            for ( filePath <- fileList )
+            for ( (topic, links) <- topicIndexIterator )
             {
-                println( "  " + filePath )
-                
-                val topic = new Text()
-                val links = new TextArrayWritable()
-                
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( topic, links ) )
-                {
-                    insertTopic.exec( topic.toString )
-                    sql.manageTransactions()
-                }
+                insertTopic.exec( topic )
+                sql.manageTransactions()
             }
         }
         
@@ -211,20 +201,12 @@ object PhraseMap
             println( "Parsing redirects" )
             val insertRedirect = sql.prepare( "INSERT OR IGNORE INTO redirects VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?) )", HNil )
             
-            val fileList = getJobFiles( fs, basePath, "redirects" )
-            for ( filePath <- fileList )
+            val redirectIterator = new SeqFilesIterator( conf, fs, basePath, "redirects", new WrappedString(), new WrappedString() )
+            
+            for ( (fromTopic, toTopic) <- redirectIterator )
             {
-                println( "  " + filePath )
-                
-                val fromTopic = new Text()
-                val toTopic = new Text()
-                
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( fromTopic, toTopic ) )
-                {
-                    insertRedirect.exec( fromTopic.toString, toTopic.toString )
-                    sql.manageTransactions()
-                }
+                insertRedirect.exec( fromTopic, toTopic )
+                sql.manageTransactions()
             }
             
             println( "Tidying redirects" )
@@ -245,25 +227,19 @@ object PhraseMap
         {
             println( "Adding categories and contexts" )
             
-            val fileList = getJobFiles( fs, basePath, "categoriesAndContexts" )
+            val categoryContextIterator = new SeqFilesIterator( conf, fs, basePath, "categoriesAndContexts", new WrappedString(), new WrappedTextArrayWritable() )
+            
             val insertContext = sql.prepare( "INSERT OR IGNORE INTO categoriesAndContexts VALUES ((SELECT id FROM topicNameToId WHERE name=?), (SELECT id FROM topicNameToId WHERE name=?))", HNil )
-            for ( filePath <- fileList )
+            
+            for ( (topic, links) <- categoryContextIterator )
             {
-                println( "  " + filePath )
-                
-                val topic = new Text()
-                val links = new TextArrayWritable()
-                
-                val file = new HadoopReader( fs, filePath, conf )
-                while ( file.next( topic, links ) )
+                for ( linkTo <- links )
                 {
-                    for ( linkTo <- links.elements )
-                    {
-                        insertContext.exec( topic.toString, linkTo.toString )
-                        sql.manageTransactions()
-                    }
+                    insertContext.exec( topic, linkTo.toString )
+                    sql.manageTransactions()
                 }
             }
+            
             sql.sync()
             
             println( "Building category and context counts" )
@@ -272,11 +248,10 @@ object PhraseMap
             sql.exec( "CREATE INDEX topicCountAsContextIndex ON topicCountAsContext(topicId)" )
             sql.sync()
         }
-        
-        // ****************************
-        // TODO: MAKE THIS BIT WORK!!!!
-        // ****************************
-        {
+
+                
+
+        /*{
             println( "Adding surface forms" )
             val fileList = getJobFiles( fs, basePath, "surfaceForms" )
         
@@ -358,10 +333,10 @@ object PhraseMap
                     }
                 }
             }
-        }
+        }*/
         
         println( "Building indices" )
-        sql.exec( "CREATE INDEX phraseTopicIndex ON phraseTopics(phraseTreeNodeId)" )
+        //sql.exec( "CREATE INDEX phraseTopicIndex ON phraseTopics(phraseTreeNodeId)" )
         sql.exec( "CREATE INDEX categoryContextIndex ON categoriesAndContexts(topicId)" )
 
         sql.close()
