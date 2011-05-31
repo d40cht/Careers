@@ -3,7 +3,7 @@ package org.seacourt.disambiguator
 import scala.collection.immutable.TreeSet
 import java.util.TreeMap
 import math.{max, log}
-import java.io.{File}
+import java.io.{File, DataInputStream, FileInputStream}
 
 import scala.util.matching.Regex
 
@@ -23,6 +23,39 @@ import org.seacourt.utility._
 
 
 // * Important ratio: #topics surface form occurs in / #topics surface form phrase occurs in. Need a hadoop join
+
+/*
+db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
+db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
+db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, relevance DOUBLE, FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
+db.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
+
+db.exec( "CREATE TABLE phraseCounts( phraseId INTEGER, phraseCount INTEGER )" )
+*/
+
+class Disambiguator2( phraseMapFileName : String, topicFileName : String )
+{
+    val lookup = new PhraseMapLookup()
+    lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
+    
+    val topicDb = new SQLiteWrapper( new File(topicFileName) )
+    
+    def phraseQuery( phrase : String ) =
+    {
+        val id = lookup.getIter().find( phrase )
+        val sfQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
+        sfQuery.bind(id)
+        val relevance = _1(sfQuery.toList.head).get
+        
+        val topicQuery = topicDb.prepare( "SELECT t2.name, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE t1.phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::HNil )
+        topicQuery.bind(id)
+
+
+        val topicIds = for ( el <- topicQuery ) yield (_1(el).get, _2(el).get)
+        
+        (id, relevance, topicIds)
+    }
+}
 
 object Disambiguator
 {

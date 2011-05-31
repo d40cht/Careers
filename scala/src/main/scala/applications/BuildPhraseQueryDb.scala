@@ -52,7 +52,8 @@ object PhraseMap
 
         db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
         db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
-        db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, relevance DOUBLE, FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
+        db.exec( "CREATE TABLE surfaceForms( phraseTreeNodeId INTEGER, occursIn DOUBLE, UNIQUE(phraseTreeNodeId) )" )
+        db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, count INTEGER, FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
         db.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
         
         db.exec( "CREATE TABLE phraseCounts( phraseId INTEGER, phraseCount INTEGER )" )
@@ -113,85 +114,89 @@ object PhraseMap
         val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory 
         val sql = new SQLiteWriter( outputFilePath )
       
-        {
-            println( "Building topic index" )
-            val topicIndexIterator = new SeqFilesIterator( conf, fs, basePath, "categoriesAndContexts", new WrappedString(), new WrappedTextArrayWritable() )
-            val insertTopic = sql.prepare( "INSERT INTO topics VALUES( NULL, ? )", HNil )
-            
-            for ( (topic, links) <- topicIndexIterator )
+      if ( true )
+      {
             {
-                insertTopic.exec( topic )
-                sql.manageTransactions()
-            }
-        }
-        
-        {
-            println( "Parsing redirects" )
-            val insertRedirect = sql.prepare( "INSERT OR IGNORE INTO redirects VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?) )", HNil )
-            
-            val redirectIterator = new SeqFilesIterator( conf, fs, basePath, "redirects", new WrappedString(), new WrappedString() )
-            
-            for ( (fromTopic, toTopic) <- redirectIterator )
-            {
-                insertRedirect.exec( fromTopic, toTopic )
-                sql.manageTransactions()
-            }
-            
-            println( "Tidying redirects" )
-            sql.sync()
-            sql.exec( "DELETE FROM redirects WHERE toId IS NULL" )
-            sql.exec( "DELETE FROM redirects WHERE fromId=toId" )
-            // Now need to sanitise redirects. I.e. if a toTopic refers to a fromTopic elsewhere,
-            // redirect again. Although experimentation suggest there may only be a few.
-            
-            println( "Building redirect aware topic id lookup" )
-            sql.exec( "CREATE TABLE topicNameToId (name TEXT, id INTEGER, FOREIGN KEY(id) REFERENCES topic(id), UNIQUE(name))" )
-            sql.exec( "INSERT INTO topicNameToId SELECT t1.name, case WHEN t2.toId IS NULL THEN t1.id ELSE t2.toId END FROM topics AS t1 LEFT JOIN redirects AS t2 ON t1.id=t2.fromId" )
-            sql.sync()
-        }
-        
-        
-        
-        {
-            println( "Adding categories and contexts" )
-            
-            val categoryContextIterator = new SeqFilesIterator( conf, fs, basePath, "categoriesAndContexts", new WrappedString(), new WrappedTextArrayWritable() )
-            
-            val insertContext = sql.prepare( "INSERT OR IGNORE INTO categoriesAndContexts VALUES ((SELECT id FROM topicNameToId WHERE name=?), (SELECT id FROM topicNameToId WHERE name=?))", HNil )
-            
-            for ( (topic, links) <- categoryContextIterator )
-            {
-                for ( linkTo <- links )
+                println( "Building topic index" )
+                val topicIndexIterator = new SeqFilesIterator( conf, fs, basePath, "categoriesAndContexts", new WrappedString(), new WrappedTextArrayWritable() )
+                val insertTopic = sql.prepare( "INSERT INTO topics VALUES( NULL, ? )", HNil )
+                
+                for ( (topic, links) <- topicIndexIterator )
                 {
-                    insertContext.exec( topic, linkTo.toString )
+                    insertTopic.exec( topic )
                     sql.manageTransactions()
                 }
             }
             
-            sql.sync()
-            
-            println( "Building category and context counts" )
-            sql.exec( "CREATE TABLE topicCountAsContext(topicId INTEGER, count INTEGER)" )
-            sql.exec( "INSERT INTO topicCountAsContext SELECT contextTopicId, sum(1) FROM categoriesAndContexts GROUP BY contextTopicId" )
-            sql.exec( "CREATE INDEX topicCountAsContextIndex ON topicCountAsContext(topicId)" )
-            sql.sync()
-        }
-        
-        {
-            val insertPhraseCount = sql.prepare( "INSERT INTO phraseCounts VALUES(?, ?)", HNil )
-            val phraseCountIterator = new SeqFilesIterator( conf, fs, basePath, "phraseCounts", new WrappedInt(), new WrappedInt() )
-            for ( (phraseId, numTopicsPhraseFoundIn) <- phraseCountIterator )
             {
-                // Build a sqlite dictionary for this
-                insertPhraseCount.exec( phraseId, numTopicsPhraseFoundIn )
-                sql.manageTransactions()
+                println( "Parsing redirects" )
+                val insertRedirect = sql.prepare( "INSERT OR IGNORE INTO redirects VALUES( (SELECT id FROM topics WHERE name=?), (SELECT id FROM topics WHERE name=?) )", HNil )
+                
+                val redirectIterator = new SeqFilesIterator( conf, fs, basePath, "redirects", new WrappedString(), new WrappedString() )
+                
+                for ( (fromTopic, toTopic) <- redirectIterator )
+                {
+                    insertRedirect.exec( fromTopic, toTopic )
+                    sql.manageTransactions()
+                }
+                
+                println( "Tidying redirects" )
+                sql.sync()
+                sql.exec( "DELETE FROM redirects WHERE toId IS NULL" )
+                sql.exec( "DELETE FROM redirects WHERE fromId=toId" )
+                // Now need to sanitise redirects. I.e. if a toTopic refers to a fromTopic elsewhere,
+                // redirect again. Although experimentation suggest there may only be a few.
+                
+                println( "Building redirect aware topic id lookup" )
+                sql.exec( "CREATE TABLE topicNameToId (name TEXT, id INTEGER, FOREIGN KEY(id) REFERENCES topic(id), UNIQUE(name))" )
+                sql.exec( "INSERT INTO topicNameToId SELECT t1.name, case WHEN t2.toId IS NULL THEN t1.id ELSE t2.toId END FROM topics AS t1 LEFT JOIN redirects AS t2 ON t1.id=t2.fromId" )
+                sql.sync()
             }
+            
+            
+            
+            {
+                println( "Adding categories and contexts" )
+                
+                val categoryContextIterator = new SeqFilesIterator( conf, fs, basePath, "categoriesAndContexts", new WrappedString(), new WrappedTextArrayWritable() )
+                
+                val insertContext = sql.prepare( "INSERT OR IGNORE INTO categoriesAndContexts VALUES ((SELECT id FROM topicNameToId WHERE name=?), (SELECT id FROM topicNameToId WHERE name=?))", HNil )
+                
+                for ( (topic, links) <- categoryContextIterator )
+                {
+                    for ( linkTo <- links )
+                    {
+                        insertContext.exec( topic, linkTo.toString )
+                        sql.manageTransactions()
+                    }
+                }
+                
+                sql.sync()
+                
+                println( "Building category and context counts" )
+                sql.exec( "CREATE TABLE topicCountAsContext(topicId INTEGER, count INTEGER)" )
+                sql.exec( "INSERT INTO topicCountAsContext SELECT contextTopicId, sum(1) FROM categoriesAndContexts GROUP BY contextTopicId" )
+                sql.exec( "CREATE INDEX topicCountAsContextIndex ON topicCountAsContext(topicId)" )
+                sql.sync()
+            }
+            
+            {
+                val insertPhraseCount = sql.prepare( "INSERT INTO phraseCounts VALUES(?, ?)", HNil )
+                val phraseCountIterator = new SeqFilesIterator( conf, fs, basePath, "phraseCounts", new WrappedInt(), new WrappedInt() )
+                for ( (phraseId, numTopicsPhraseFoundIn) <- phraseCountIterator )
+                {
+                    // Build a sqlite dictionary for this
+                    insertPhraseCount.exec( phraseId, numTopicsPhraseFoundIn )
+                    sql.manageTransactions()
+                }
+            }
+            sql.exec( "CREATE INDEX phraseCountIndex ON phraseCounts(phraseId)" )
+            sql.sync()
         }
-        sql.exec( "CREATE INDEX phraseCountIndex ON phraseCounts(phraseId)" )
-        sql.sync()
         
         // Cross-link with phraseCounts
-        val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?), (SELECT CAST(? AS DOUBLE)/phraseCount FROM phraseCounts WHERE phraseId=?) )", HNil )
+        //val addSurfaceForm = sql.prepare( "INSERT OR IGNORE INTO surfaceForms VALUES( ?, (SELECT CAST(? AS DOUBLE)/phraseCount FROM phraseCounts WHERE phraseId=?) )", HNil )
+        val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?), ? )", HNil )
         
         {
             val pml = new PhraseMapLookup()
@@ -203,17 +208,25 @@ object PhraseMap
                 // Get the id of the surface form
                 val sfId = pml.getIter().find( surfaceForm )
                 
-                for ( (topic, number) <- topics )
+                if ( sfId != -1 )
                 {
-                    // TODO: Take number of times this surface form points to this target into account.
-                    addTopicToPhrase.exec( sfId, topic.toString, number, sfId )
-                    sql.manageTransactions()
+                    var inTopicCount = 0
+                    for ( (topic, number) <- topics )
+                    {
+                        // TODO: Take number of times this surface form points to this target into account.
+                        addTopicToPhrase.exec( sfId, topic.toString, number )
+                        sql.manageTransactions()
+                        inTopicCount += number
+                    }
+                    
+                    //println( surfaceForm, sfId )
+                    //addSurfaceForm.exec( sfId, inTopicCount, sfId )
                 }
             }
         }
         
         println( "Building indices" )
-        sql.exec( "CREATE INDEX categoryContextIndex ON categoriesAndContexts(topicId)" )
+        //sql.exec( "CREATE INDEX categoryContextIndex ON categoriesAndContexts(topicId)" )
 
         sql.close()
         println( "*** Parse complete ***" )

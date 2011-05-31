@@ -119,21 +119,6 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                 }
                 output.write( surfaceForm, outValues )
             }
-            
-            
-            /*val seen = new HashSet[Text]
-            val outValues = new TextArrayWritable()
-            var count = 0
-            for ( target <- targets )
-            {
-                if ( !seen.contains(value) )
-                {
-                    outValues.append( value.toString() )
-                    count += 1
-                }
-                if ( count > 1000 ) return Unit
-            }
-            output.write( surfaceForm, outValues )*/
         }
     }
     
