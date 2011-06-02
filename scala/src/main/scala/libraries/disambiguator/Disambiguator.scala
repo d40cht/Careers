@@ -50,10 +50,17 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
         val topicQuery = topicDb.prepare( "SELECT t2.name, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE t1.phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::HNil )
         topicQuery.bind(id)
 
-
-        val topicIds = for ( el <- topicQuery ) yield (_1(el).get, _2(el).get)
+        var totalOccurrences = 0
+        var topicIds = List[(String, Int)]()
+        for ( el <- topicQuery )
+        {
+            val topicName = _1(el).get
+            val topicCount = _2(el).get
+            topicIds = (topicName, topicCount) :: topicIds
+            totalOccurrences += topicCount
+        }
         
-        println( "Word id: " + id + ", relevance: " + relevance )
+        println( "Word id: " + id + ", relevance: " + ((totalOccurrences+0.0) / (relevance+0.0)) )
         for ( topic <- topicIds ) println( "  " + topic )
     }
 }
