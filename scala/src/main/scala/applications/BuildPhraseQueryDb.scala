@@ -112,7 +112,7 @@ object PhraseMap
         val fs = FileSystem.get(conf)   
         
         val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory 
-        val sql = new SQLiteWriter( outputFilePath )
+        
         
         val surfaceFormIterator = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
         for ( (surfaceForm, topics) <- surfaceFormIterator )
@@ -129,6 +129,7 @@ object PhraseMap
         
         return
       
+      val sql = new SQLiteWriter( outputFilePath )
       if ( true )
       {
             {
