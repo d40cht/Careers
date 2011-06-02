@@ -113,6 +113,21 @@ object PhraseMap
         
         val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory 
         val sql = new SQLiteWriter( outputFilePath )
+        
+        val surfaceFormIterator = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
+        for ( (surfaceForm, topics) <- surfaceFormIterator )
+        {
+            if ( surfaceForm == "condoleezza rice" )
+            {
+                println( ":: " + surfaceForm )
+                for ( (topic, number) <- topics )
+                {
+                    println( "  " + topic + ", " + number )
+                }
+            }
+        }
+        
+        return
       
       if ( true )
       {

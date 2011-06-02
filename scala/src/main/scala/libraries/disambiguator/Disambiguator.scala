@@ -65,6 +65,8 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
     }
 }
 
+// Richard Armitage, 'The Vulcans', Scooter Libby
+
 object Disambiguator
 {
 	val bannedRegex = new Regex("[0-9]{4}")
