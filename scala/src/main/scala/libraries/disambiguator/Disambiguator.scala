@@ -60,8 +60,8 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
             totalOccurrences += topicCount
         }
         
-        println( "Word id: " + id + ", relevance: " + ((totalOccurrences+0.0) / (relevance+0.0)) )
-        for ( topic <- topicIds ) println( "  " + topic )
+        println( "Word id: " + id + ", relevance: " + ((totalOccurrences+0.0) / (relevance+0.0)) + " (" + relevance + ")" )
+        for ( topic <- topicIds.reverse ) println( "  " + topic )
     }
 }
 
