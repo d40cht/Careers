@@ -53,7 +53,8 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
 
         val topicIds = for ( el <- topicQuery ) yield (_1(el).get, _2(el).get)
         
-        (id, relevance, topicIds)
+        println( "Word id: " + id + ", relevance: " + relevance )
+        for ( topic <- topicIds ) println( "  " + topic )
     }
 }
 
