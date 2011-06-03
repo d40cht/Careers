@@ -246,6 +246,8 @@ object PhraseMap
                     
                     for ( ((sfId, topicId), number) <- sfIdToTopicMap )
                     {
+                        println( surfaceForm + " " + sfId + " " + topicId + " " + number )
+                        
                         addTopicToPhrase.exec( sfId, topicId, number )
                         sql.manageTransactions()
                     }
