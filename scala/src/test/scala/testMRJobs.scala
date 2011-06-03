@@ -176,18 +176,18 @@ class CategoryMembershipTest extends FunSuite
             ("soundtrack", "Main:Soundtrack album") ::
             ("rock", "Main:Rock music") ::
             ("richard marlow", "Main:Richard Marlow") ::
-            ("post-rock", "Main:Post-rock") ::
-            ("post-rock", "Main:Post-Rock") ::
+            ("post rock", "Main:Post-rock") ::
+            ("post rock", "Main:Post-Rock") ::
             ("perri alleyne", "Main:Perri Alleyne") ::
             ("original score", "Main:Film score") ::
             ("millions", "Main:Millions") ::
             ("metro 2033", "Main:Metro 2033") ::
-            ("kick-ass", "Main:Kick-Ass (film)") ::
+            ("kick ass", "Main:Kick-Ass (film)") ::
             ("john murphy", "Main:John Murphy (composer)") ::
             ("jacknife lee", "Main:Jacknife Lee") ::
             ("instrumental", "Main:Instrumental") ::
             ("grandaddy", "Main:Grandaddy") ::
-            ("godspeed you! black emperor", "Main:Godspeed You! Black Emperor") ::
+            ("godspeed you black emperor", "Main:Godspeed You! Black Emperor") ::
             ("faures requiem in d minor", "Main:Requiem (Faure)") ::
             ("electronica", "Main:Electronica") ::
             ("east hastings", "Main:East Hastings") ::

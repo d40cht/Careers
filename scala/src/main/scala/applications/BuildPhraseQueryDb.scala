@@ -224,14 +224,14 @@ object PhraseMap
                 {
                     for ( (topic, number) <- topics )
                     {
-                        println( surfaceForm + " " + sfId + " " + topic + " " + number )
+                        //println( surfaceForm + " " + sfId + " " + topic + " " + number )
                         lookupTopicId.bind( topic )
                         
                         val results = lookupTopicId.toList
                         
                         if ( results != Nil )
                         {
-                            val topicId = _1(lookupTopicId.toList.head).get
+                            val topicId = _1(results.head).get
                             
                             var count = 0
                             val key = (sfId, topicId)
