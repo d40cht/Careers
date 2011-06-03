@@ -203,7 +203,7 @@ object PhraseMap
         
         // Cross-link with phraseCounts
         //val addSurfaceForm = sql.prepare( "INSERT OR IGNORE INTO surfaceForms VALUES( ?, (SELECT CAST(? AS DOUBLE)/phraseCount FROM phraseCounts WHERE phraseId=?) )", HNil )
-        val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, ?, ? )", HNil )
+        val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, ?, ? )", HNil )
         val lookupTopicId = sql.prepare( "SELECT id FROM topicNameToId WHERE name=?", Col[Int]::HNil )
         
         // :: condoleezza rice: count should be:  Main:Condoleezza Rice, 1032
@@ -224,14 +224,14 @@ object PhraseMap
                 {
                     for ( (topic, number) <- topics )
                     {
-                        println( surfaceForm + " " + sfId + " " + topic + " " + number )
+                        //println( surfaceForm + " " + sfId + " " + topic + " " + number )
                         lookupTopicId.bind( topic )
                         
                         val results = lookupTopicId.toList
                         
                         if ( results != Nil )
                         {
-                            val topicId = _1(lookupTopicId.toList.head).get
+                            val topicId = _1(results.toList.head).get
                             
                             var count = 0
                             val key = (sfId, topicId)
