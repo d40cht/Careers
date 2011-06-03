@@ -226,16 +226,22 @@ object PhraseMap
                     {
                         println( surfaceForm + " " + sfId + " " + topic + " " + number )
                         lookupTopicId.bind( topic )
-                        val topicId = _1(lookupTopicId.toList.head).get
                         
-                        var count = 0
-                        val key = (sfId, topicId)
-                        if ( sfIdToTopicMap.contains( key ) )
+                        val results = lookupTopicId.toList
+                        
+                        if ( results != Nil )
                         {
-                            count += sfIdToTopicMap( key )
+                            val topicId = _1(lookupTopicId.toList.head).get
+                            
+                            var count = 0
+                            val key = (sfId, topicId)
+                            if ( sfIdToTopicMap.contains( key ) )
+                            {
+                                count += sfIdToTopicMap( key )
+                            }
+                            
+                            sfIdToTopicMap = sfIdToTopicMap.updated( key, count )
                         }
-                        
-                        sfIdToTopicMap = sfIdToTopicMap.updated( key, count )
                     }
                     
                     for ( ((sfId, topicId), number) <- sfIdToTopicMap )
