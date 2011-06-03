@@ -52,7 +52,7 @@ object PhraseMap
         db.exec( "PRAGMA journal_mode=off" )
         db.exec( "PRAGMA synchronous=off" )
 
-        if ( false )
+        if ( true )
         {
             db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
             db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
@@ -120,7 +120,7 @@ object PhraseMap
         
         val sql = new SQLiteWriter( outputFilePath )
         
-        if (false)
+        if (true)
         {
             {
                 println( "Building topic index" )
@@ -217,11 +217,11 @@ object PhraseMap
             {
                 // Get the id of the surface form
                 val sfId = pml.getIter().find( surfaceForm )
-                
-                var sfIdToTopicMap = TreeMap[(Int, Int), Int]()
-                
+
                 if ( sfId != -1 )
                 {
+                    var sfIdToTopicMap = TreeMap[(Int, Int), Int]()
+                    
                     for ( (topic, number) <- topics )
                     {
                         //println( surfaceForm + " " + sfId + " " + topic + " " + number )
