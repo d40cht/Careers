@@ -231,9 +231,9 @@ object PhraseMap
                         
                         if ( results != Nil )
                         {
-                            val topicId = _1(results.toList.head).get
+                            val topicId = _1(results.head).get
                             
-                            var count = 0
+                            var count = number
                             val key = (sfId, topicId)
                             if ( sfIdToTopicMap.contains( key ) )
                             {
@@ -246,6 +246,8 @@ object PhraseMap
                     
                     for ( ((sfId, topicId), number) <- sfIdToTopicMap )
                     {
+                        //println( surfaceForm + " " + sfId + " " + topicId + " " + number )
+                        
                         addTopicToPhrase.exec( sfId, topicId, number )
                         sql.manageTransactions()
                     }

@@ -297,6 +297,14 @@ object Utils
         return wordList.reverse
     }
     
+    def normalizeSF( in : String ) : String =
+    {
+        val rawNormed = normalize(in)
+        val els = luceneTextTokenizer( rawNormed )
+        
+        els.mkString(" ")
+    }
+    
     def wikiParse( pageName : String, pageText : String ) : PageNode =
     {
         val markupParser = WikiParser()
