@@ -6,7 +6,9 @@ import org.apache.hadoop.conf.Configuration
 
 import org.apache.hadoop.io.SequenceFile.{createWriter, Reader => HadoopReader}
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
-import java.util.{TreeMap, HashMap, HashSet}
+import java.util.{HashMap, HashSet}
+
+import scala.collection.immutable.TreeMap
 
 import java.io.{File, FileOutputStream, DataOutputStream, DataInputStream, FileInputStream}
 
@@ -201,7 +203,8 @@ object PhraseMap
         
         // Cross-link with phraseCounts
         //val addSurfaceForm = sql.prepare( "INSERT OR IGNORE INTO surfaceForms VALUES( ?, (SELECT CAST(? AS DOUBLE)/phraseCount FROM phraseCounts WHERE phraseId=?) )", HNil )
-        val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, (SELECT id FROM topicNameToId WHERE name=?), ? )", HNil )
+        val addTopicToPhrase = sql.prepare( "INSERT INTO phraseTopics VALUES( ?, ?, ? )", HNil )
+        val lookupTopicId = sql.prepare( "SELECT id FROM topicNameToId WHERE name=?", Col[Int]::HNil )
         
         // :: condoleezza rice: count should be:  Main:Condoleezza Rice, 1032
 
@@ -215,19 +218,30 @@ object PhraseMap
                 // Get the id of the surface form
                 val sfId = pml.getIter().find( surfaceForm )
                 
+                var sfIdToTopicMap = TreeMap[(Int, Int), Int]()
+                
                 if ( sfId != -1 )
                 {
-                    var inTopicCount = 0
                     for ( (topic, number) <- topics )
                     {
-                        println( ":: " + sfId + " " + surfaceForm + " -> " + topic + ", " + number )
+                        lookupTopicId.bind( topic )
+                        val topicId = _1(lookupTopicId.toList.head).get
                         
-                        // TODO: Take number of times this surface form points to this target into account.
-                        addTopicToPhrase.exec( sfId, topic.toString, number )
-                        sql.manageTransactions()
-                        inTopicCount += number
+                        var count = 0
+                        val key = (sfId, topicId)
+                        if ( sfIdToTopicMap.contains( key ) )
+                        {
+                            count += sfIdToTopicMap( key )
+                        }
+                        
+                        sfIdToTopicMap = sfIdToTopicMap.updated( key, count )
                     }
                     
+                    for ( ((sfId, topicId), number) <- sfIdToTopicMap )
+                    {
+                        addTopicToPhrase.exec( sfId, topicId, number )
+                        sql.manageTransactions()
+                    }
                     //println( surfaceForm, sfId )
                     //addSurfaceForm.exec( sfId, inTopicCount, sfId )
                 }
