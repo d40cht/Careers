@@ -220,6 +220,8 @@ object PhraseMap
                     var inTopicCount = 0
                     for ( (topic, number) <- topics )
                     {
+                        println( ":: " + sfId + " " + surfaceForm + " -> " + topic + ", " + number )
+                        
                         // TODO: Take number of times this surface form points to this target into account.
                         addTopicToPhrase.exec( sfId, topic.toString, number )
                         sql.manageTransactions()
