@@ -47,21 +47,33 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
         sfQuery.bind(id)
         val relevance = _1(sfQuery.toList.head).get
         
-        val topicQuery = topicDb.prepare( "SELECT t2.name, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE t1.phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::HNil )
+        val topicQuery = topicDb.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE t1.phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::Col[Int]::HNil )
         topicQuery.bind(id)
 
+        val categoryQuery = topicDb.prepare( "SELECT t1.name FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::HNil )
+
         var totalOccurrences = 0
-        var topicIds = List[(String, Int)]()
+        var topicIds = List[(String, Int, Int)]()
         for ( el <- topicQuery )
         {
             val topicName = _1(el).get
-            val topicCount = _2(el).get
-            topicIds = (topicName, topicCount) :: topicIds
+            val topicId = _2(el).get
+            val topicCount = _3(el).get
+            topicIds = (topicName, topicId, topicCount) :: topicIds
             totalOccurrences += topicCount
         }
         
         println( "Word id: " + id + ", relevance: " + ((totalOccurrences+0.0) / (relevance+0.0)) + " (" + relevance + ")" )
-        for ( topic <- topicIds.reverse ) println( "  " + topic )
+        for ( (topicName, topicId, topicCount) <- topicIds.reverse )
+        {
+            println( "  " + topicName + ", " + topicCount )
+            
+            categoryQuery.bind( topicId )
+            for ( category <- categoryQuery )
+            {
+                println( "    " + _1(category).get )
+            }
+        }
     }
 }
 

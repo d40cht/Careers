@@ -22,9 +22,6 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
             // a decent amount more memory
             val r = Runtime.getRuntime()
             require( (r.maxMemory() / (1024*1024)) >= 600 )
-            
-            
-            require( false )
         }
         
         def mapWork( topicTitle : String, topicText : String, output : (String, Int) => Unit )
