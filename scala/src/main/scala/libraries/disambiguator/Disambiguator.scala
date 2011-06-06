@@ -1,7 +1,7 @@
 package org.seacourt.disambiguator
 
-import scala.collection.immutable.TreeSet
-import java.util.TreeMap
+import scala.collection.immutable.{TreeSet, TreeMap}
+import java.util.{TreeMap => JTreeMap}
 import math.{max, log}
 import java.io.{File, DataInputStream, FileInputStream}
 
@@ -45,7 +45,7 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
         val id = lookup.getIter().find( phrase )
         val sfQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
         sfQuery.bind(id)
-        val relevance = _1(sfQuery.toList.head).get
+        val relevance = _1(sfQuery.onlyRow).get
         
         val topicQuery = topicDb.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE t1.phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::Col[Int]::HNil )
         topicQuery.bind(id)
@@ -75,9 +75,110 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
             }
         }
     }
+        
+    def disambiguate( text : String )
+    {
+        val words = Utils.luceneTextTokenizer( Utils.normalize( text.mkString( " " ) ) )
+        
+        val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
+        val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC", Col[Int]::Col[Int]::HNil )
+        val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId FROM categoriesAndContexts WHERE topicId=?", Col[Int]::HNil )
+        //sfQuery.bind(id)
+        //val relevance = _1(sfQuery.toList.head).get
+        
+        var possiblePhrases = List[(Int, Int, Int, List[(Int, Int)])]()
+        var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
+        
+        var wordIndex = 0
+        var topicSet = TreeSet[Int]()
+        var topicCategoryMap = TreeMap[Int, List[Int]]()
+        for ( word <- words )
+        {
+            val wordLookup = lookup.lookupWord( word )
+                    
+            wordLookup match
+            {
+                case Some(wordId) =>
+                {
+                    val newPhrase = lookup.getIter()
+                    activePhrases = (wordIndex, newPhrase) :: activePhrases
+                    
+                    var newPhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
+                    for ( (fromIndex, phrase) <- activePhrases )
+                    {
+                        val phraseId = phrase.update(wordId)
+                        if ( phraseId != -1 )
+                        {
+                            topicQuery.bind(phraseId)
+                            val sfTopics = topicQuery.toList
+                            
+                            if ( sfTopics != Nil )
+                            {
+                                // This surface form has topics. Query phrase relevance and push back details
+                                phraseCountQuery.bind(phraseId)
+                                
+                                val phraseCount = _1(phraseCountQuery.onlyRow).get
+                                val toIndex = wordIndex
+                                
+                                // TODO: Do something with this result
+                                //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])
+                                
+                                
+                                val topicDetails = for ( td <- sfTopics ) yield (_1(td).get, _2(td).get)
+                                for ( (topicId, topicCount) <- topicDetails )
+                                {
+                                    topicSet = topicSet + topicId
+                                    if ( !topicCategoryMap.contains(topicId) )
+                                    {
+                                        topicCategoryQuery.bind( topicId )
+                                        val topicCategoryIds = for ( cid <- topicCategoryQuery ) yield _1(cid).get
+                                        topicCategoryMap = topicCategoryMap.updated(topicId, topicCategoryIds.toList )
+                                        
+                                        for ( topicCategoryId <- topicCategoryIds )
+                                        {
+                                            topicSet = topicSet + topicCategoryId
+                                        }
+                                    }
+                                }
+                                
+                                
+                                possiblePhrases = (fromIndex, toIndex, phraseCount, topicDetails) :: possiblePhrases
+                                
+                                newPhrases = (fromIndex, phrase) :: newPhrases
+                            }
+                        }
+                    }
+                    activePhrases = newPhrases
+                }
+                case _ =>
+            }
+            wordIndex += 1
+        }
+        
+        val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
+        var topicNameMap = TreeMap[Int, String]()
+        for ( topicId <- topicSet )
+        {
+            topicNameQuery.bind(topicId)
+            val topicName = _1(topicNameQuery.onlyRow).get
+            
+            topicNameMap = topicNameMap.updated( topicId, topicName )
+        }
+        
+        for ( (fromIndex, toIndex, phraseCount, topicDetails) <- possiblePhrases )
+        {
+            for ( (topicId, topicCount) <- topicDetails )
+            {
+                val topicCategories = topicCategoryMap(topicId)
+                
+                // Do something sensible here
+            }
+        }
+    }
 }
 
 // Richard Armitage, 'The Vulcans', Scooter Libby
+
 
 object Disambiguator
 {
@@ -175,7 +276,7 @@ object Disambiguator
             topicDetails ++ children.foldLeft(List[TopicDetails]())( _ ++ _.getTopicDetails() )
         }
         
-        def weightedCategories( localWeights : TreeMap[Int, Double] )
+        def weightedCategories( localWeights : JTreeMap[Int, Double] )
         {
             for ( topicDetail <- topicDetails )
             {
@@ -271,52 +372,13 @@ object Disambiguator
             disambiguator.build()
             disambiguator.resolve( maxAlternatives )
         }
-        
-        def surfaceForm( str : String )
-        {
-            val words = Utils.luceneTextTokenizer( Utils.normalize( str ) )
-            var parentId = -1
-            
-            val sfQuery = db.prepare( "SELECT t1.id, t2.count FROM phraseTreeNodes AS t1 INNER JOIN words AS t2 ON t1.wordId=t2.id WHERE t2.name=? AND t1.parentId=?", Col[Int]::Col[Int]::HNil )
-            for ( word <- words )
-            {
-                sfQuery.bind( word, parentId )
-                val res = sfQuery.toList
-                assert( res.length == 1 )
-                parentId = _1(res(0)).get
-                val count = _2(res(0)).get
-                println( ":: " + word + ", " + count )
-            }
-            
-            //phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, count INTEGER
-            val topicQuery = db.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::Col[Int]::HNil )
-            topicQuery.bind( parentId )
-            val topicDetails = topicQuery.toList
-            
-            val contextQuery = db.prepare( "SELECT t2.name, t3.count FROM categoriesAndContexts AS t1 INNER JOIN topics AS t2 ON t1.contextTopicId=t2.id INNER JOIN topicCountAsContext AS t3 on t3.topicId=t2.id WHERE t1.topicId=? ORDER BY t3.count DESC", Col[String]::Col[Int]::HNil )
-            for ( topic <- topicDetails )
-            {
-                val name    = _1(topic).get
-                val id      = _2(topic).get
-                val count   = _3(topic).get
-                println( "  " + name + " : " + count )
-                
-                contextQuery.bind(id)
-                for ( context <- contextQuery )
-                {
-                    val name    = _1(context).get
-                    val count   = _2(context).get
-                    println( "    - " + name + " : " + count )
-                }
-            }
-        }
     }
 
     class Disambiguator( val wordList : List[String], db : SQLiteWrapper )
     {
         var daSites = List[DisambiguationAlternative]()
-        var topicNameMap = new TreeMap[Int, String]()
-        var categoryNameMap = new TreeMap[Int, String]()
+        var topicNameMap = new JTreeMap[Int, String]()
+        var categoryNameMap = new JTreeMap[Int, String]()
         
         def build()
         {
@@ -440,9 +502,9 @@ object Disambiguator
             db.dispose()
         }
 
-        private def getCategoryCounts( daSites : List[DisambiguationAlternative] ) : TreeMap[Int, Double] =
+        private def getCategoryCounts( daSites : List[DisambiguationAlternative] ) : JTreeMap[Int, Double] =
         {
-            val categoryCount = new TreeMap[Int, Double]()
+            val categoryCount = new JTreeMap[Int, Double]()
             var count = 0
             for ( alternatives <- daSites )
             {
@@ -465,13 +527,13 @@ object Disambiguator
             categoryCount
         }
         
-        private def getCategoryWeights( daSites : List[DisambiguationAlternative] ) : TreeMap[Int, Double] =
+        private def getCategoryWeights( daSites : List[DisambiguationAlternative] ) : JTreeMap[Int, Double] =
         {
-            val categoryWeights = new TreeMap[Int, Double]()
-            val categoryCounts = new TreeMap[Int, Int]()
+            val categoryWeights = new JTreeMap[Int, Double]()
+            val categoryCounts = new JTreeMap[Int, Int]()
             for ( alternative <- daSites )
             {
-                val localWeights = new TreeMap[Int, Double]
+                val localWeights = new JTreeMap[Int, Double]
                 alternative.weightedCategories( localWeights )
             
             
@@ -493,7 +555,7 @@ object Disambiguator
                     categoryCounts.put( categoryId, currCount + 1 )
                 }
             }
-            val filteredCategoryWeights = new TreeMap[Int, Double]()
+            val filteredCategoryWeights = new JTreeMap[Int, Double]()
             
             // Filter out any categories that only exist at one DA site
             val mapIt = categoryWeights.entrySet().iterator()

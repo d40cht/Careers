@@ -237,6 +237,14 @@ object SqliteWrapper
         		}
         		advance(); currRow.get
 			}
+			
+			def onlyRow = 
+			{
+			    // TODO: Improve efficiency
+			    val res = this.toList
+			    assert( res.tail == Nil )
+			    res.head
+			}
 		}
     }
 }
