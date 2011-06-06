@@ -78,7 +78,7 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
         
     def disambiguate( text : String )
     {
-        val words = Utils.luceneTextTokenizer( Utils.normalize( text.mkString( " " ) ) )
+        val words = Utils.luceneTextTokenizer( Utils.normalize( text ) )
         
         val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
         val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC", Col[Int]::Col[Int]::HNil )
@@ -92,8 +92,10 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
         var wordIndex = 0
         var topicSet = TreeSet[Int]()
         var topicCategoryMap = TreeMap[Int, List[Int]]()
+        println( "Parsing text:" )
         for ( word <- words )
         {
+            println( "  " + word )
             val wordLookup = lookup.lookupWord( word )
                     
             wordLookup match
@@ -155,6 +157,7 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
             wordIndex += 1
         }
         
+        println( "Looking up topic names." )
         val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
         var topicNameMap = TreeMap[Int, String]()
         for ( topicId <- topicSet )
@@ -165,6 +168,7 @@ class Disambiguator2( phraseMapFileName : String, topicFileName : String )
             topicNameMap = topicNameMap.updated( topicId, topicName )
         }
         
+        println( "Building disambiguation forest." )
         for ( (fromIndex, toIndex, phraseCount, topicDetails) <- possiblePhrases )
         {
             for ( (topicId, topicCount) <- topicDetails )
