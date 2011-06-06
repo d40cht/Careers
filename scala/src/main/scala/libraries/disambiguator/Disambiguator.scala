@@ -22,164 +22,6 @@ import org.seacourt.utility._
 // * Count at each site whenever an assertion has been applied (i.e. the category was relevant). Disable sites where only a few were relevant? Or something else!
 
 
-// * Important ratio: #topics surface form occurs in / #topics surface form phrase occurs in. Need a hadoop join
-
-/*
-db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
-db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
-db.exec( "CREATE TABLE phraseTopics( phraseTreeNodeId INTEGER, topicId INTEGER, relevance DOUBLE, FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseTreeNodeId, topicId) )" )
-db.exec( "CREATE TABLE categoriesAndContexts (topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), FOREIGN KEY(contextTopicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId))" )
-
-db.exec( "CREATE TABLE phraseCounts( phraseId INTEGER, phraseCount INTEGER )" )
-*/
-
-class Disambiguator2( phraseMapFileName : String, topicFileName : String )
-{
-    val lookup = new PhraseMapLookup()
-    lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
-    
-    val topicDb = new SQLiteWrapper( new File(topicFileName) )
-    
-    def phraseQuery( phrase : String ) =
-    {
-        val id = lookup.getIter().find( phrase )
-        val sfQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
-        sfQuery.bind(id)
-        val relevance = _1(sfQuery.onlyRow).get
-        
-        val topicQuery = topicDb.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE t1.phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::Col[Int]::HNil )
-        topicQuery.bind(id)
-
-        val categoryQuery = topicDb.prepare( "SELECT t1.name FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::HNil )
-
-        var totalOccurrences = 0
-        var topicIds = List[(String, Int, Int)]()
-        for ( el <- topicQuery )
-        {
-            val topicName = _1(el).get
-            val topicId = _2(el).get
-            val topicCount = _3(el).get
-            topicIds = (topicName, topicId, topicCount) :: topicIds
-            totalOccurrences += topicCount
-        }
-        
-        println( "Word id: " + id + ", relevance: " + ((totalOccurrences+0.0) / (relevance+0.0)) + " (" + relevance + ")" )
-        for ( (topicName, topicId, topicCount) <- topicIds.reverse )
-        {
-            println( "  " + topicName + ", " + topicCount )
-            
-            categoryQuery.bind( topicId )
-            for ( category <- categoryQuery )
-            {
-                println( "    " + _1(category).get )
-            }
-        }
-    }
-        
-    def disambiguate( text : String )
-    {
-        val words = Utils.luceneTextTokenizer( Utils.normalize( text ) )
-        
-        val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
-        val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC", Col[Int]::Col[Int]::HNil )
-        val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId FROM categoriesAndContexts WHERE topicId=?", Col[Int]::HNil )
-        //sfQuery.bind(id)
-        //val relevance = _1(sfQuery.toList.head).get
-        
-        var possiblePhrases = List[(Int, Int, Int, List[(Int, Int)])]()
-        var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
-        
-        var wordIndex = 0
-        var topicSet = TreeSet[Int]()
-        var topicCategoryMap = TreeMap[Int, List[Int]]()
-        println( "Parsing text:" )
-        for ( word <- words )
-        {
-            println( "  " + word )
-            val wordLookup = lookup.lookupWord( word )
-                    
-            wordLookup match
-            {
-                case Some(wordId) =>
-                {
-                    val newPhrase = lookup.getIter()
-                    activePhrases = (wordIndex, newPhrase) :: activePhrases
-                    
-                    var newPhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
-                    for ( (fromIndex, phrase) <- activePhrases )
-                    {
-                        val phraseId = phrase.update(wordId)
-                        if ( phraseId != -1 )
-                        {
-                            topicQuery.bind(phraseId)
-                            val sfTopics = topicQuery.toList
-                            
-                            if ( sfTopics != Nil )
-                            {
-                                // This surface form has topics. Query phrase relevance and push back details
-                                phraseCountQuery.bind(phraseId)
-                                
-                                val phraseCount = _1(phraseCountQuery.onlyRow).get
-                                val toIndex = wordIndex
-                                
-                                // TODO: Do something with this result
-                                //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])
-                                
-                                
-                                val topicDetails = for ( td <- sfTopics ) yield (_1(td).get, _2(td).get)
-                                for ( (topicId, topicCount) <- topicDetails )
-                                {
-                                    topicSet = topicSet + topicId
-                                    if ( !topicCategoryMap.contains(topicId) )
-                                    {
-                                        topicCategoryQuery.bind( topicId )
-                                        val topicCategoryIds = for ( cid <- topicCategoryQuery ) yield _1(cid).get
-                                        topicCategoryMap = topicCategoryMap.updated(topicId, topicCategoryIds.toList )
-                                        
-                                        for ( topicCategoryId <- topicCategoryIds )
-                                        {
-                                            topicSet = topicSet + topicCategoryId
-                                        }
-                                    }
-                                }
-                                
-                                
-                                possiblePhrases = (fromIndex, toIndex, phraseCount, topicDetails) :: possiblePhrases
-                                
-                                newPhrases = (fromIndex, phrase) :: newPhrases
-                            }
-                        }
-                    }
-                    activePhrases = newPhrases
-                }
-                case _ =>
-            }
-            wordIndex += 1
-        }
-        
-        println( "Looking up topic names." )
-        val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
-        var topicNameMap = TreeMap[Int, String]()
-        for ( topicId <- topicSet )
-        {
-            topicNameQuery.bind(topicId)
-            val topicName = _1(topicNameQuery.onlyRow).get
-            
-            topicNameMap = topicNameMap.updated( topicId, topicName )
-        }
-        
-        println( "Building disambiguation forest." )
-        for ( (fromIndex, toIndex, phraseCount, topicDetails) <- possiblePhrases )
-        {
-            for ( (topicId, topicCount) <- topicDetails )
-            {
-                val topicCategories = topicCategoryMap(topicId)
-                
-                // Do something sensible here
-            }
-        }
-    }
-}
 
 // Richard Armitage, 'The Vulcans', Scooter Libby
 
@@ -667,4 +509,167 @@ object Disambiguator
         }
     }
 }
+
+class Disambiguator2( phraseMapFileName : String, topicFileName : String )
+{
+    val lookup = new PhraseMapLookup()
+    lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
+    
+    val topicDb = new SQLiteWrapper( new File(topicFileName) )
+    
+    def phraseQuery( phrase : String ) =
+    {
+        val id = lookup.getIter().find( phrase )
+        val sfQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
+        sfQuery.bind(id)
+        val relevance = _1(sfQuery.onlyRow).get
+        
+        val topicQuery = topicDb.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE t1.phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::Col[Int]::HNil )
+        topicQuery.bind(id)
+
+        val categoryQuery = topicDb.prepare( "SELECT t1.name FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::HNil )
+
+        var totalOccurrences = 0
+        var topicIds = List[(String, Int, Int)]()
+        for ( el <- topicQuery )
+        {
+            val topicName = _1(el).get
+            val topicId = _2(el).get
+            val topicCount = _3(el).get
+            topicIds = (topicName, topicId, topicCount) :: topicIds
+            totalOccurrences += topicCount
+        }
+        
+        println( "Word id: " + id + ", relevance: " + ((totalOccurrences+0.0) / (relevance+0.0)) + " (" + relevance + ")" )
+        for ( (topicName, topicId, topicCount) <- topicIds.reverse )
+        {
+            println( "  " + topicName + ", " + topicCount )
+            
+            categoryQuery.bind( topicId )
+            for ( category <- categoryQuery )
+            {
+                println( "    " + _1(category).get )
+            }
+        }
+    }
+        
+    def disambiguate( text : String )
+    {
+        val words = Utils.luceneTextTokenizer( Utils.normalize( text ) )
+        
+        val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
+        val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC", Col[Int]::Col[Int]::HNil )
+        val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId FROM categoriesAndContexts WHERE topicId=?", Col[Int]::HNil )
+        //sfQuery.bind(id)
+        //val relevance = _1(sfQuery.toList.head).get
+        
+        var possiblePhrases = List[(Int, Int, Int, List[(Int, Int)])]()
+        var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
+        
+        var wordIndex = 0
+        var topicSet = TreeSet[Int]()
+        var topicCategoryMap = TreeMap[Int, List[Int]]()
+        println( "Parsing text:" )
+        for ( word <- words )
+        {
+            println( "  " + word )
+            val wordLookup = lookup.lookupWord( word )
+                    
+            wordLookup match
+            {
+                case Some(wordId) =>
+                {
+                    val newPhrase = lookup.getIter()
+                    activePhrases = (wordIndex, newPhrase) :: activePhrases
+                    
+                    var newPhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
+                    for ( (fromIndex, phrase) <- activePhrases )
+                    {
+                        val phraseId = phrase.update(wordId)
+                        if ( phraseId != -1 )
+                        {
+                            topicQuery.bind(phraseId)
+                            val sfTopics = topicQuery.toList
+                            
+                            if ( sfTopics != Nil )
+                            {
+                                // This surface form has topics. Query phrase relevance and push back details
+                                phraseCountQuery.bind(phraseId)
+                                
+                                val phraseCount = _1(phraseCountQuery.onlyRow).get
+                                val toIndex = wordIndex
+                                
+                                // TODO: Do something with this result
+                                //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])
+                                
+                                
+                                val topicDetails = for ( td <- sfTopics ) yield (_1(td).get, _2(td).get)
+                                for ( (topicId, topicCount) <- topicDetails )
+                                {
+                                    topicSet = topicSet + topicId
+                                    if ( !topicCategoryMap.contains(topicId) )
+                                    {
+                                        topicCategoryQuery.bind( topicId )
+                                        val topicCategoryIds = for ( cid <- topicCategoryQuery ) yield _1(cid).get
+                                        topicCategoryMap = topicCategoryMap.updated(topicId, topicCategoryIds.toList )
+                                        
+                                        for ( topicCategoryId <- topicCategoryIds )
+                                        {
+                                            topicSet = topicSet + topicCategoryId
+                                        }
+                                    }
+                                }
+                                
+                                
+                                possiblePhrases = (fromIndex, toIndex, phraseCount, topicDetails) :: possiblePhrases
+                                
+                                newPhrases = (fromIndex, phrase) :: newPhrases
+                            }
+                        }
+                    }
+                    activePhrases = newPhrases
+                }
+                case _ =>
+            }
+            wordIndex += 1
+        }
+        
+        println( "Looking up topic names." )
+        val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
+        var topicNameMap = TreeMap[Int, String]()
+        for ( topicId <- topicSet )
+        {
+            topicNameQuery.bind(topicId)
+            val topicName = _1(topicNameQuery.onlyRow).get
+            
+            topicNameMap = topicNameMap.updated( topicId, topicName )
+        }
+        
+        // ORDER BY t1.endIndex DESC, t1.startIndex ASC, t1.topicId, t2.categoryId
+        val possiblePhrasesSorted = possiblePhrases.sortWith( (x, y) =>
+        {
+            if ( x._2 != y._2 )
+            {
+                x._2 < y._2
+            }
+            if ( x._1 != y._1 )
+            {
+                x._1 > y._1
+            }
+            x._3 > y._3
+        } )
+        
+        println( "Building disambiguation forest." )
+        for ( (fromIndex, toIndex, phraseCount, topicDetails) <- possiblePhrasesSorted )
+        {
+            for ( (topicId, topicCount) <- topicDetails )
+            {
+                val topicCategories = topicCategoryMap(topicId)
+                
+                // Now build the disambiguation forest (as before in Disambiguator)
+            }
+        }
+    }
+}
+
 
