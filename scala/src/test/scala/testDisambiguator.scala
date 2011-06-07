@@ -75,7 +75,14 @@ class DisambiguatorTest extends FunSuite
         }
     }
     
-   
+    test( "New disambiguator test" )
+    {
+        val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+        val b = new d.Builder("the nissan leaf is a hybrid electric motor car")
+        b.build()
+        //val res = b.resolve(2)
+        //println( res )
+    }
     
     test( "Disambiguator short phrase test" )
     {

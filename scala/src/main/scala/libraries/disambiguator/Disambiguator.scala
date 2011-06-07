@@ -222,7 +222,6 @@ object Disambiguator
     {
         var daSites = List[DisambiguationAlternative]()
         
-        
         var topicNameMap = new JTreeMap[Int, String]()
         var categoryNameMap = new JTreeMap[Int, String]()
         
@@ -484,6 +483,8 @@ object Disambiguator
         
         val topicDb = new SQLiteWrapper( new File(topicFileName) )
         
+        var daSites = List[DisambiguationAlternative]()
+        
         def phraseQuery( phrase : String ) =
         {
             val id = lookup.getIter().find( phrase )
@@ -520,138 +521,280 @@ object Disambiguator
             }
         }
             
-        def disambiguate( text : String )
+        class Builder( val text : String )
         {
-            val words = Utils.luceneTextTokenizer( Utils.normalize( text ) )
+            val wordList = Utils.luceneTextTokenizer( Utils.normalize( text ) )
             
-            val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
-            val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC", Col[Int]::Col[Int]::HNil )
-            val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId FROM categoriesAndContexts WHERE topicId=?", Col[Int]::HNil )
-            //sfQuery.bind(id)
-            //val relevance = _1(sfQuery.toList.head).get
-            
-            var possiblePhrases = List[(Int, Int, Int, List[(Int, Int)])]()
-            var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
-            
-            var wordIndex = 0
-            var topicSet = TreeSet[Int]()
             var topicCategoryMap = TreeMap[Int, TreeSet[Int]]()
-            println( "Parsing text:" )
-            for ( word <- words )
+            var topicNameMap = TreeMap[Int, String]()
+            
+            def build()
             {
-                println( "  " + word )
-                val wordLookup = lookup.lookupWord( word )
-                        
-                wordLookup match
+                val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
+                val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC", Col[Int]::Col[Int]::HNil )
+                val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId FROM categoriesAndContexts WHERE topicId=?", Col[Int]::HNil )
+                //sfQuery.bind(id)
+                //val relevance = _1(sfQuery.toList.head).get
+                
+                var possiblePhrases = List[(Int, Int, Int, List[(Int, Int)])]()
+                var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
+                
+                var wordIndex = 0
+                var topicSet = TreeSet[Int]()
+                
+                println( "Parsing text:" )
+                for ( word <- wordList )
                 {
-                    case Some(wordId) =>
+                    println( "  " + word )
+                    val wordLookup = lookup.lookupWord( word )
+                            
+                    wordLookup match
                     {
-                        val newPhrase = lookup.getIter()
-                        activePhrases = (wordIndex, newPhrase) :: activePhrases
-                        
-                        var newPhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
-                        for ( (fromIndex, phrase) <- activePhrases )
+                        case Some(wordId) =>
                         {
-                            val phraseId = phrase.update(wordId)
-                            if ( phraseId != -1 )
+                            val newPhrase = lookup.getIter()
+                            activePhrases = (wordIndex, newPhrase) :: activePhrases
+                            
+                            var newPhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
+                            for ( (fromIndex, phrase) <- activePhrases )
                             {
-                                topicQuery.bind(phraseId)
-                                val sfTopics = topicQuery.toList
-                                
-                                if ( sfTopics != Nil )
+                                val phraseId = phrase.update(wordId)
+                                if ( phraseId != -1 )
                                 {
-                                    // This surface form has topics. Query phrase relevance and push back details
-                                    phraseCountQuery.bind(phraseId)
+                                    topicQuery.bind(phraseId)
+                                    val sfTopics = topicQuery.toList
                                     
-                                    val phraseCount = _1(phraseCountQuery.onlyRow).get
-                                    val toIndex = wordIndex
-                                    
-                                    // TODO: Do something with this result
-                                    //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])
-                                    
-                                    
-                                    val topicDetails = for ( td <- sfTopics ) yield (_1(td).get, _2(td).get)
-                                    for ( (topicId, topicCount) <- topicDetails )
+                                    //println( ":: " + phraseId)
+                                    if ( sfTopics != Nil )
                                     {
-                                        topicSet = topicSet + topicId
-                                        if ( !topicCategoryMap.contains(topicId) )
+                                        // This surface form has topics. Query phrase relevance and push back details
+                                        phraseCountQuery.bind(phraseId)
+                                        
+                                        val phraseCount = _1(phraseCountQuery.onlyRow).get
+                                        val toIndex = wordIndex
+                                        
+                                        // TODO: Do something with this result
+                                        //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])
+                                        
+                                        
+                                        val topicDetails = for ( td <- sfTopics.toList ) yield (_1(td).get, _2(td).get)
+                                        for ( (topicId, topicCount) <- topicDetails )
                                         {
-                                            topicCategoryQuery.bind( topicId )
-                                            val topicIdList = for ( cid <- topicCategoryQuery ) yield _1(cid).get
-                                            val topicCategoryIds = topicIdList.foldLeft( TreeSet[Int]() )( _ + _ )
-                                            topicCategoryMap = topicCategoryMap.updated(topicId, topicCategoryIds )
-                                            
-                                            for ( topicCategoryId <- topicCategoryIds )
+                                            assert( topicId != 0 )
+                                            topicSet = topicSet + topicId
+                                            if ( !topicCategoryMap.contains(topicId) )
                                             {
-                                                topicSet = topicSet + topicCategoryId
+                                                topicCategoryQuery.bind( topicId )
+                                                val topicIdList = for ( cid <- topicCategoryQuery ) yield _1(cid).get
+                                                val topicCategoryIds = topicIdList.foldLeft( TreeSet[Int]() )( _ + _ )
+                                                topicCategoryMap = topicCategoryMap.updated(topicId, topicCategoryIds )
+                                                
+                                                //println( topicId + ": " + topicCategoryIds )
+                                                for ( topicCategoryId <- topicCategoryIds )
+                                                {
+                                                    assert( topicCategoryId != 0 )
+                                                    topicSet = topicSet + topicCategoryId
+                                                }
                                             }
                                         }
+                                        
+                                        
+                                        possiblePhrases = (fromIndex, toIndex, phraseCount, topicDetails) :: possiblePhrases
+                                        
+                                        newPhrases = (fromIndex, phrase) :: newPhrases
                                     }
-                                    
-                                    
-                                    possiblePhrases = (fromIndex, toIndex, phraseCount, topicDetails) :: possiblePhrases
-                                    
-                                    newPhrases = (fromIndex, phrase) :: newPhrases
                                 }
                             }
+                            activePhrases = newPhrases
                         }
-                        activePhrases = newPhrases
+                        case _ =>
                     }
-                    case _ =>
-                }
-                wordIndex += 1
-            }
-            
-            println( "Looking up topic names." )
-            val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
-            var topicNameMap = TreeMap[Int, String]()
-            for ( topicId <- topicSet )
-            {
-                topicNameQuery.bind(topicId)
-                val topicName = _1(topicNameQuery.onlyRow).get
-                
-                topicNameMap = topicNameMap.updated( topicId, topicName )
-            }
-            
-            val possiblePhrasesSorted = possiblePhrases.sortWith( (x, y) =>
-            {
-                if ( x._2 != y._2 )
-                {
-                    x._2 < y._2
-                }
-                if ( x._1 != y._1 )
-                {
-                    x._1 > y._1
-                }
-                x._3 > y._3
-            } )
-            
-            println( "Building disambiguation forest." )
-            var daSites = List[DisambiguationAlternative]()
-            for ( (startIndex, endIndex, phraseCount, topicDetails) <- possiblePhrasesSorted )
-            {
-                val phraseWords = words.slice( startIndex, endIndex+1 )
-                val sfCount = topicDetails.foldLeft(0.0)( _ + _._2 )
-                val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
-                
-                val da = new DisambiguationAlternative( startIndex, endIndex, true, sfWeight, phraseWords )
-                if ( daSites == Nil || !daSites.head.overlaps( da ) )
-                {
-                    daSites = da :: daSites
-                }
-                else
-                {
-                    daSites.head.addAlternative( da )
+                    wordIndex += 1
                 }
                 
-                for ( (topicId, topicCount) <- topicDetails )
+                println( "Looking up topic names." )
+                val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
+                
+                for ( topicId <- topicSet )
                 {
-                    val topicWeight = topicCount.toDouble / sfCount.toDouble
-                    val topicCategories = topicCategoryMap(topicId)
-                    val topicName = topicNameMap(topicId)
+                    topicNameQuery.bind(topicId)
+                    val topicName = _1(topicNameQuery.onlyRow).get
                     
-                    da.addTopicDetails( new TopicDetails( topicId, topicWeight, topicCategories, topicName ) )
+                    topicNameMap = topicNameMap.updated( topicId, topicName )
                 }
+                
+                val possiblePhrasesSorted = possiblePhrases.sortWith( (x, y) =>
+                {
+                    if ( x._2 != y._2 )
+                    {
+                        x._2 < y._2
+                    }
+                    if ( x._1 != y._1 )
+                    {
+                        x._1 > y._1
+                    }
+                    x._3 > y._3
+                } )
+                
+                println( "Building disambiguation forest." )
+                var daSites = List[DisambiguationAlternative]()
+                for ( (startIndex, endIndex, phraseCount, topicDetails) <- possiblePhrasesSorted )
+                {
+                    val phraseWords = wordList.slice( startIndex, endIndex+1 )
+                    val sfCount = topicDetails.foldLeft(0.0)( _ + _._2 )
+                    val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
+                    
+                    val da = new DisambiguationAlternative( startIndex, endIndex, true, sfWeight, phraseWords )
+                    if ( daSites == Nil || !daSites.head.overlaps( da ) )
+                    {
+                        daSites = da :: daSites
+                    }
+                    else
+                    {
+                        daSites.head.addAlternative( da )
+                    }
+                    
+                    for ( (topicId, topicCount) <- topicDetails )
+                    {
+                        val topicWeight = topicCount.toDouble / sfCount.toDouble
+                        val topicCategories = topicCategoryMap(topicId)
+                        val topicName = topicNameMap(topicId)
+                        
+                        da.addTopicDetails( new TopicDetails( topicId, topicWeight, topicCategories, topicName ) )
+                    }
+                }
+            }
+            
+            private def getCategoryCounts( daSites : List[DisambiguationAlternative] ) : JTreeMap[Int, Double] =
+            {
+                val categoryCount = new JTreeMap[Int, Double]()
+                var count = 0
+                for ( alternatives <- daSites )
+                {
+                	//println( "BOOO: " + alternatives.children.length )
+                	
+                    val tokenCategoryIds = alternatives.allCategoryIds()
+                    val topicAlternatives = alternatives.numTopicAlternatives()
+                    //println( count + "  " + tokenCategoryIds.size + " " + topicAlternatives )
+                    count += 1
+                    
+                    for ( categoryId <- tokenCategoryIds )
+                    {
+                        if ( !categoryCount.containsKey(categoryId) )
+                        {
+                            categoryCount.put(categoryId, 0.0)
+                        }
+                        categoryCount.put(categoryId, categoryCount.get(categoryId) + 1.0)
+                    }
+                }
+                categoryCount
+            }
+            
+            private def getCategoryWeights( daSites : List[DisambiguationAlternative] ) : JTreeMap[Int, Double] =
+            {
+                val categoryWeights = new JTreeMap[Int, Double]()
+                val categoryCounts = new JTreeMap[Int, Int]()
+                for ( alternative <- daSites )
+                {
+                    val localWeights = new JTreeMap[Int, Double]
+                    alternative.weightedCategories( localWeights )
+                
+                
+                    val mapIt = localWeights.entrySet().iterator()
+                    while ( mapIt.hasNext() )
+                    {
+                        val next = mapIt.next()
+                        val categoryId = next.getKey()
+                        val weight = next.getValue()
+                        
+                        val oldWeight = if (categoryWeights.containsKey(categoryId)) categoryWeights.get(categoryId) else 0.0
+                        categoryWeights.put( categoryId, weight+oldWeight )
+                        
+                        var currCount = 0
+                        if ( categoryCounts.containsKey(categoryId) )
+                        {
+                            currCount = categoryCounts.get(categoryId)
+                        }
+                        categoryCounts.put( categoryId, currCount + 1 )
+                    }
+                }
+                val filteredCategoryWeights = new JTreeMap[Int, Double]()
+                
+                // Filter out any categories that only exist at one DA site
+                val mapIt = categoryWeights.entrySet().iterator()
+                while ( mapIt.hasNext() )
+                {
+                    val next = mapIt.next()
+                    val categoryId = next.getKey()
+                    val weight = next.getValue()
+                    if ( categoryCounts.get( categoryId ) > 1 )
+                    {
+                        filteredCategoryWeights.put( categoryId, weight )
+                    }
+                }
+                filteredCategoryWeights
+            }
+            
+            def resolve( maxAlternatives : Int ) : List[List[(Double, List[String], String)]] =
+            {
+                val weightFn = getCategoryWeights _
+                //val weightFn = getCategoryCounts _
+                
+                val categoryWeights = weightFn( daSites )
+                var sortedCategoryList = List[(Double, Int)]()
+                
+                //daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
+                
+                println( "Pruning invalid phrases" )
+                daSites = daSites.filter( _.validPhrase )
+                
+                daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
+                
+                val mapIt = categoryWeights.entrySet().iterator()
+                while ( mapIt.hasNext() )
+                {
+                    val next = mapIt.next()
+                    val categoryId = next.getKey()
+                    val weight = next.getValue()
+                    
+                    sortedCategoryList = (weight, categoryId) :: sortedCategoryList
+                }
+                
+                // Sort so that most numerous categories come first
+                sortedCategoryList = sortedCategoryList.sortWith( _._1 > _._1 ) 
+                
+                println( "Number of words: " + wordList.length )
+                println( "Number of categories before: " + categoryWeights.size() )
+                println( "DA sites before: " + daSites.length )
+                
+                // TODO: Iterate over categories asserting them one by one
+                for ( (weight, categoryId) <- sortedCategoryList )
+                {
+                    println( "Asserting : " + topicNameMap(categoryId) + ", " + weight )
+                    for ( site <- daSites ) site.assertCategoryWeighted( categoryId, weight )
+                    
+                    /*if ( weight > 1.0 )
+                    {
+                        println( "Asserting : " + categoryNameMap.get(categoryId) + ", " + weight )
+                        daSites = daSites.filter( _.assertCategory( categoryId ) )
+                    }*/
+                }
+                
+                var disambiguation = List[List[(Double, List[String], String)]]()
+                for ( site <- daSites )
+                {
+                    // Weight, phrase, topic
+                    val res = site.reportAlternatives()
+                    
+                    val sorted = res.sortWith( _._1 > _._1 )
+                    
+                    println( " >> " + site.phrase )
+                    val alts = sorted.slice(0, maxAlternatives)
+                    for ( v <- alts ) println( "    " + v )
+                    disambiguation = alts :: disambiguation
+                }
+
+                disambiguation
             }
         }
     }
