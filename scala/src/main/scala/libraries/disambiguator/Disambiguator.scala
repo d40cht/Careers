@@ -53,7 +53,7 @@ object Disambiguator
 	
 	def validPhrase( words : List[String] ) = words.foldLeft( false )( _ || !stopWordSet.contains(_) )
 	
-    class TopicDetails( val topicId : Int, val linkCount : Int, var categoryIds : TreeSet[Int], val topicName : String )
+    class TopicDetails( val topicId : Int, val topicWeight : Double, var categoryIds : TreeSet[Int], val topicName : String )
     {
         var score = 0.0
         
@@ -67,7 +67,6 @@ object Disambiguator
     {
         var topicDetails = List[TopicDetails]()
         var children = List[DisambiguationAlternative]()
-        var topicLinkCount = 0
         
         def overlaps( da : DisambiguationAlternative ) =
             (startIndex >= da.startIndex && endIndex <= da.endIndex) ||
@@ -87,7 +86,6 @@ object Disambiguator
         def addTopicDetails( td : TopicDetails )
         {
             topicDetails = td::topicDetails
-            topicLinkCount += td.linkCount
         }
         
         def addAlternative( da : DisambiguationAlternative )
@@ -126,7 +124,7 @@ object Disambiguator
         {
             for ( topicDetail <- topicDetails )
             {
-                val topicWeight = (topicDetail.linkCount+0.0) / (topicLinkCount+0.0)
+                val topicWeight = topicDetail.topicWeight
                 for ( categoryId <- topicDetail.categoryIds )
                 {
                     val oldWeight = if (localWeights.containsKey(categoryId)) localWeights.get(categoryId) else 0.0
@@ -225,8 +223,8 @@ object Disambiguator
         var daSites = List[DisambiguationAlternative]()
         
         
-        //var topicNameMap = new JTreeMap[Int, String]()
-        //var categoryNameMap = new JTreeMap[Int, String]()
+        var topicNameMap = new JTreeMap[Int, String]()
+        var categoryNameMap = new JTreeMap[Int, String]()
         
         def build()
         {
@@ -537,7 +535,7 @@ object Disambiguator
             
             var wordIndex = 0
             var topicSet = TreeSet[Int]()
-            var topicCategoryMap = TreeMap[Int, List[Int]]()
+            var topicCategoryMap = TreeMap[Int, TreeSet[Int]]()
             println( "Parsing text:" )
             for ( word <- words )
             {
@@ -579,8 +577,9 @@ object Disambiguator
                                         if ( !topicCategoryMap.contains(topicId) )
                                         {
                                             topicCategoryQuery.bind( topicId )
-                                            val topicCategoryIds = for ( cid <- topicCategoryQuery ) yield _1(cid).get
-                                            topicCategoryMap = topicCategoryMap.updated(topicId, topicCategoryIds.toList )
+                                            val topicIdList = for ( cid <- topicCategoryQuery ) yield _1(cid).get
+                                            val topicCategoryIds = topicIdList.foldLeft( TreeSet[Int]() )( _ + _ )
+                                            topicCategoryMap = topicCategoryMap.updated(topicId, topicCategoryIds )
                                             
                                             for ( topicCategoryId <- topicCategoryIds )
                                             {
