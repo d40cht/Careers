@@ -627,20 +627,23 @@ object Disambiguator
                 {
                     if ( x._2 != y._2 )
                     {
-                        x._2 < y._2
+                        x._2 > y._2
                     }
-                    if ( x._1 != y._1 )
+                    else if ( x._1 != y._1 )
                     {
-                        x._1 > y._1
+                        x._1 < y._1
                     }
-                    x._3 > y._3
+                    else
+                    {
+                        x._3 > y._3
+                    }
                 } )
                 
                 println( "Building disambiguation forest." )
-                var daSites = List[DisambiguationAlternative]()
                 for ( (startIndex, endIndex, phraseCount, topicDetails) <- possiblePhrasesSorted )
                 {
                     val phraseWords = wordList.slice( startIndex, endIndex+1 )
+                    println( "++ " + startIndex + ", " + endIndex + ", " + phraseWords )
                     val sfCount = topicDetails.foldLeft(0.0)( _ + _._2 )
                     val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
                     
@@ -663,6 +666,9 @@ object Disambiguator
                         da.addTopicDetails( new TopicDetails( topicId, topicWeight, topicCategories, topicName ) )
                     }
                 }
+                
+                println( "Number of da sites: " + daSites.length )
+                for ( da <- daSites ) println( " " + wordList.slice(da.startIndex, da.endIndex+1) + ", " + da.phraseWeight )
             }
             
             private def getCategoryCounts( daSites : List[DisambiguationAlternative] ) : JTreeMap[Int, Double] =
