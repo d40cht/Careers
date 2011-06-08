@@ -78,7 +78,10 @@ class DisambiguatorTest extends FunSuite
     test( "New disambiguator test" )
     {
         val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
-        val b = new d.Builder("the nissan leaf is a hybrid electric motor car")
+        
+        val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+        
+        val b = new d.Builder(fileText)
         b.build()
         val res = b.resolve(2)
         println( res )
