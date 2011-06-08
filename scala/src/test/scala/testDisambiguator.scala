@@ -62,7 +62,7 @@ class DisambiguatorTest extends FunSuite
 {
     private def disambigAssert( phrase : String, expectedTopics : TreeSet[String] )
     {
-        val wordList = Utils.luceneTextTokenizer( Utils.normalize( phrase ) )
+        /*val wordList = Utils.luceneTextTokenizer( Utils.normalize( phrase ) )
         val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File("disambig.sqlite3") ) )
         disambiguator.build()
         val res = disambiguator.resolve(1)
@@ -72,13 +72,14 @@ class DisambiguatorTest extends FunSuite
         for ( (expected, result) <- expectedTopics.zip(resultSet) )
         {
             assert( expected === result )
-        }
+        }*/
     }
     
     test( "New disambiguator test" )
     {
         val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
-        val b = new d.Builder("the nissan leaf is a hybrid electric motor car")
+        //val b = new d.Builder("The nissan leaf is a hybrid electric motor car. Deployment of the leaf should result in carbon emissions reductions, especially if the majority of the electric energy supplied comes from renewable sources.")
+        val b = new d.Builder("I am a c++ experience with knowledge of STL, boost, python, object orientation and test driven development.")
         b.build()
         val res = b.resolve(2)
         println( res )

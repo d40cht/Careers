@@ -259,6 +259,11 @@ object PhraseMap
         
         println( "Building indices" )
         //sql.exec( "CREATE INDEX categoryContextIndex ON categoriesAndContexts(topicId)" )
+        
+        // DELETE FROM categoriesAndContexts WHERE contextTopicId IS NULL
+        // CREATE TABLE numTopicsForWhichThisIsAContext( topicId INTEGER, count INTEGER, UNIQUE(topicId), FOREIGN KEY(topicId) REFERENCES id(topics) )
+        // PRAGMA cache_size=2000000
+        // INSERT INTO numTopicsForWhichThisIsAContext SELECT contextTopicId, SUM(1) FROM categoriesAndContexts GROUP BY contextTopicId;
 
         sql.close()
         println( "*** Parse complete ***" )
