@@ -8,7 +8,7 @@ import org.apache.hadoop.io.SequenceFile.{createWriter, Reader => HadoopReader}
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 import java.util.{HashMap, HashSet}
 
-import scala.collection.immutable.TreeMap
+import scala.collection.immutable.{TreeMap, TreeSet}
 
 import java.io.{File, FileOutputStream, DataOutputStream, DataInputStream, FileInputStream}
 
@@ -48,11 +48,11 @@ object PhraseMap
         
         // Various options, inc. 2Gb page cache and no journal to massively speed up creation of this db
         
-        db.exec( "PRAGMA cache_size=512000" )
-        db.exec( "PRAGMA journal_mode=off" )
+        db.exec( "PRAGMA cache_size=1500000" )
+        //db.exec( "PRAGMA journal_mode=off" )
         db.exec( "PRAGMA synchronous=off" )
 
-        if ( true )
+        if ( false )
         {
             db.exec( "CREATE TABLE topics( id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, UNIQUE(name))" )
             db.exec( "CREATE TABLE redirects( fromId INTEGER, toId INTEGER, FOREIGN KEY(fromId) REFERENCES topics(id), FOREIGN KEY(toId) REFERENCES topics(id), UNIQUE(fromId) )" )
@@ -120,7 +120,7 @@ object PhraseMap
         
         val sql = new SQLiteWriter( outputFilePath )
         
-        if (true)
+        if (false)
         {
             {
                 println( "Building topic index" )
@@ -198,61 +198,60 @@ object PhraseMap
             }
             sql.exec( "CREATE INDEX phraseCountIndex ON phraseCounts(phraseId)" )
             sql.sync()
-        }
-
         
-        // Cross-link with phraseCounts
-        //val addSurfaceForm = sql.prepare( "INSERT OR IGNORE INTO surfaceForms VALUES( ?, (SELECT CAST(? AS DOUBLE)/phraseCount FROM phraseCounts WHERE phraseId=?) )", HNil )
-        val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, ?, ? )", HNil )
-        val lookupTopicId = sql.prepare( "SELECT id FROM topicNameToId WHERE name=?", Col[Int]::HNil )
-        
-        // :: condoleezza rice: count should be:  Main:Condoleezza Rice, 1032
-
-        {
-            val pml = new PhraseMapLookup()
-            pml.load( new DataInputStream( new FileInputStream( new File( "phraseMap.bin" ) ) ) )
+            // Cross-link with phraseCounts
+            //val addSurfaceForm = sql.prepare( "INSERT OR IGNORE INTO surfaceForms VALUES( ?, (SELECT CAST(? AS DOUBLE)/phraseCount FROM phraseCounts WHERE phraseId=?) )", HNil )
+            val addTopicToPhrase = sql.prepare( "INSERT OR IGNORE INTO phraseTopics VALUES( ?, ?, ? )", HNil )
+            val lookupTopicId = sql.prepare( "SELECT id FROM topicNameToId WHERE name=?", Col[Int]::HNil )
             
-            val surfaceFormIterator = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
-            for ( (surfaceForm, topics) <- surfaceFormIterator )
-            {
-                // Get the id of the surface form
-                val sfId = pml.getIter().find( surfaceForm )
+            // :: condoleezza rice: count should be:  Main:Condoleezza Rice, 1032
 
-                if ( sfId != -1 )
+            {
+                val pml = new PhraseMapLookup()
+                pml.load( new DataInputStream( new FileInputStream( new File( "phraseMap.bin" ) ) ) )
+                
+                val surfaceFormIterator = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )
+                for ( (surfaceForm, topics) <- surfaceFormIterator )
                 {
-                    var sfIdToTopicMap = TreeMap[(Int, Int), Int]()
-                    
-                    for ( (topic, number) <- topics )
+                    // Get the id of the surface form
+                    val sfId = pml.getIter().find( surfaceForm )
+
+                    if ( sfId != -1 )
                     {
-                        //println( surfaceForm + " " + sfId + " " + topic + " " + number )
-                        lookupTopicId.bind( topic )
+                        var sfIdToTopicMap = TreeMap[(Int, Int), Int]()
                         
-                        val results = lookupTopicId.toList
-                        
-                        if ( results != Nil )
+                        for ( (topic, number) <- topics )
                         {
-                            val topicId = _1(results.head).get
+                            //println( surfaceForm + " " + sfId + " " + topic + " " + number )
+                            lookupTopicId.bind( topic )
                             
-                            var count = number
-                            val key = (sfId, topicId)
-                            if ( sfIdToTopicMap.contains( key ) )
+                            val results = lookupTopicId.toList
+                            
+                            if ( results != Nil )
                             {
-                                count += sfIdToTopicMap( key )
+                                val topicId = _1(results.head).get
+                                
+                                var count = number
+                                val key = (sfId, topicId)
+                                if ( sfIdToTopicMap.contains( key ) )
+                                {
+                                    count += sfIdToTopicMap( key )
+                                }
+                                
+                                sfIdToTopicMap = sfIdToTopicMap.updated( key, count )
                             }
-                            
-                            sfIdToTopicMap = sfIdToTopicMap.updated( key, count )
                         }
-                    }
-                    
-                    for ( ((sfId, topicId), number) <- sfIdToTopicMap )
-                    {
-                        //println( surfaceForm + " " + sfId + " " + topicId + " " + number )
                         
-                        addTopicToPhrase.exec( sfId, topicId, number )
-                        sql.manageTransactions()
+                        for ( ((sfId, topicId), number) <- sfIdToTopicMap )
+                        {
+                            //println( surfaceForm + " " + sfId + " " + topicId + " " + number )
+                            
+                            addTopicToPhrase.exec( sfId, topicId, number )
+                            sql.manageTransactions()
+                        }
+                        //println( surfaceForm, sfId )
+                        //addSurfaceForm.exec( sfId, inTopicCount, sfId )
                     }
-                    //println( surfaceForm, sfId )
-                    //addSurfaceForm.exec( sfId, inTopicCount, sfId )
                 }
             }
         }
@@ -264,6 +263,49 @@ object PhraseMap
         // CREATE TABLE numTopicsForWhichThisIsAContext( topicId INTEGER, count INTEGER, UNIQUE(topicId), FOREIGN KEY(topicId) REFERENCES id(topics) )
         // PRAGMA cache_size=2000000
         // INSERT INTO numTopicsForWhichThisIsAContext SELECT contextTopicId, SUM(1) FROM categoriesAndContexts GROUP BY contextTopicId;
+        
+        sql.exec( "CREATE TABLE linkWeights( topicId INTEGER, contextTopicId INTEGER, weight1 DOUBLE, weight2 DOUBLE, UNIQUE(topicId, contextTopicId) )" )
+        
+        val linkQuery = sql.prepare( "SELECT topicId, contextTopicId, t2.name, t3.name FROM categoriesAndContexts AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN topics AS t3 ON t1.contextTopicId=t3.id", Col[Int]::Col[Int]::Col[String]::Col[String]::HNil )
+        
+        val contextQuery1 = sql.prepare( "SELECT topicId FROM categoriesAndContexts WHERE contextTopicId=?", Col[Int]::HNil )
+        val contextQuery2 = sql.prepare( "SELECT contextTopicId FROM categoriesAndContexts WHERE topicId=?", Col[Int]::HNil )
+        
+        val insertLinkQuery = sql.prepare( "INSERT INTO linkWeights VALUES(?, ?, ?, ?)", HNil )
+        var count = 0
+        for ( row <- linkQuery )
+        {
+            val topicId = _1(row).get
+            val contextTopicId = _2(row).get
+            val name1 = _3(row).get
+            val name2 = _4(row).get
+            
+            var contextSet1 = TreeSet[Int]()
+            contextQuery1.bind( topicId )
+            for ( r <- contextQuery1 ) contextSet1 = contextSet1 + _1(r).get
+            contextQuery2.bind( topicId )
+            for ( r <- contextQuery2 ) contextSet1 = contextSet1 + _1(r).get
+            
+            var contextSet2 = TreeSet[Int]()
+            contextQuery1.bind( contextTopicId )
+            for ( r <- contextQuery1 ) contextSet2 = contextSet2 + _1(r).get
+            contextQuery2.bind( contextTopicId )
+            for ( r <- contextQuery2 ) contextSet2 = contextSet2 + _1(r).get
+            
+            val intersectionSet = contextSet1 & contextSet2
+            
+            val intersectionSize = intersectionSet.size+1
+            val set1Size = contextSet1.size
+            val set2Size = contextSet2.size
+            val weight1 = intersectionSize.toDouble / (1+set1Size).toDouble
+            val weight2 = intersectionSize.toDouble / (1+set2Size).toDouble
+            
+            println( count + ": Link from " + name1 + " to " + name2 + " with weight: " + weight1 + ", " + weight2 )
+            
+            insertLinkQuery.exec( topicId, contextTopicId, weight1, weight2 )
+            count += 1
+            sql.manageTransactions()
+        }
 
         sql.close()
         println( "*** Parse complete ***" )
