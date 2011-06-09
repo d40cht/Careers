@@ -673,8 +673,8 @@ object Disambiguator
                     
                     for ( (topicId, topicCount) <- topicDetails )
                     {
-                        //val topicWeight = topicCount.toDouble / sfCount.toDouble
-                        val topicWeight = topicCount.toDouble / phraseCount.toDouble
+                        val topicWeight = topicCount.toDouble / sfCount.toDouble
+                        //val topicWeight = topicCount.toDouble / phraseCount.toDouble
                         val topicCategories = topicCategoryMap(topicId)
                         val topicName = topicNameMap(topicId)
                         
