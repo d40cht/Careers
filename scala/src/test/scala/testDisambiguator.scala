@@ -78,8 +78,10 @@ class DisambiguatorTest extends FunSuite
     test( "New disambiguator test" )
     {
         val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
-        //val b = new d.Builder("The nissan leaf is a hybrid electric motor car. Deployment of the leaf should result in carbon emissions reductions, especially if the majority of the electric energy supplied comes from renewable sources.")
-        val b = new d.Builder("I am a c++ experience with knowledge of STL, boost, python, object orientation and test driven development.")
+        
+        val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+        
+        val b = new d.Builder(fileText)
         b.build()
         val res = b.resolve(2)
         println( res )

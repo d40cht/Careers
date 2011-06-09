@@ -70,9 +70,18 @@ object Disambiguator
         var topicDetails = List[TopicDetails]()
         var children = List[DisambiguationAlternative]()
         
-        def overlaps( da : DisambiguationAlternative ) =
+        /*def overlaps( da : DisambiguationAlternative ) =
             (startIndex >= da.startIndex && endIndex <= da.endIndex) ||
-            (da.startIndex >= startIndex && da.endIndex <= endIndex)
+            (da.startIndex >= startIndex && da.endIndex <= endIndex)*/
+        def overlaps( da : DisambiguationAlternative ) =
+        {
+            def within( x : Int, s : Int, e : Int ) = x >= s && x <= e
+            
+            within( startIndex, da.startIndex, da.endIndex ) ||
+            within( endIndex, da.startIndex, da.endIndex ) ||
+            within( da.startIndex, startIndex, endIndex ) ||
+            within( da.endIndex, startIndex, endIndex )
+        }
 
         def reportAlternatives() : List[(Double, List[String], String)] =
         {
@@ -387,6 +396,11 @@ object Disambiguator
                     val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
                     
                     val da = new DisambiguationAlternative( startIndex, endIndex, true, sfWeight, phraseWords )
+                    if ( daSites != Nil )
+                    {
+                        println( daSites.head.startIndex + ", " + daSites.head.endIndex + ", " + da.startIndex + ", " + da.endIndex + ": " + daSites.head.overlaps( da ))
+                    }
+                        
                     if ( daSites == Nil || !daSites.head.overlaps( da ) )
                     {
                         daSites = da :: daSites
@@ -398,7 +412,8 @@ object Disambiguator
                     
                     for ( (topicId, topicCount) <- topicDetails )
                     {
-                        val topicWeight = topicCount.toDouble / sfCount.toDouble
+                        //val topicWeight = topicCount.toDouble / sfCount.toDouble
+                        val topicWeight = topicCount.toDouble / phraseCount.toDouble
                         val topicCategories = topicCategoryMap(topicId)
                         val topicName = topicNameMap(topicId)
                         
@@ -516,8 +531,11 @@ object Disambiguator
                 // TODO: Iterate over categories asserting them one by one
                 for ( (weight, categoryId) <- sortedCategoryList )
                 {
-                    println( "Asserting : " + topicNameMap(categoryId) + ", " + weight )
-                    for ( site <- daSites ) site.assertCategoryWeighted( categoryId, weight )
+                    if ( weight > 0.1 )
+                    {
+                        println( "Asserting : " + topicNameMap(categoryId) + ", " + weight )
+                        for ( site <- daSites ) site.assertCategoryWeighted( categoryId, weight )
+                    }
                     
                     /*if ( weight > 1.0 )
                     {
