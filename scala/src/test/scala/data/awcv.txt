@@ -1,128 +1,74 @@
-                                                                     
-                                                                     
-                                                                     
-                                             
-Stephen English
-
-+44 (0)7808 470990
-steve@secomputing.co.uk
-Flat 5 Luca House, Old Foundry Close, Melbourn, SG8 6UJ
-DOB: 11th October 1984
-
-I graduated with a 1st  class masters degree in electronic engineering from the University of Southampton in 2008 and 
-spent the summer studying Mandarin and Chinese business in Beijing. I then joined TTP and have spent a year working 
-in design consultancy  with a range of clients,  learning about their business  and  developing new technology for the 
-utilities, medical and security industries. I am an embedded systems engineer who strives to make a difference, whether 
-designing secure systems to eliminate phone theft or driving forward a large team to inspire the next generation of 
-engineers by running a robotics competition.
-
-Professional History
-Date
-
-Details
-
-September 2008 ­  The Technology Partnership – http://www.ttp.com
-Present
-Worked   with   a   breadth   of   clients   as   a   consultant   engineer   involved   with   both   research   and 
-development projects.
-•
-Led a project to develop low power (µA) sensor units and a wireless data collection system, 
-managing project finances and technical progress.
-•
-Designed the security infrastructure for a new mobile phone anti­theft product, and worked 
-with industrial designers to craft usable security.
-•
-Implemented a timing critical radio protocol on ARM and AVR platforms.
-•
-Designed and implemented the database and IPC for an emergency messaging system, and 
-led a user­centred design for the user interface.
-Autumn 2006 ­  Student Robotics ­ http://www.studentrobotics.org
-April 2008
-Instrumental   in   the   founding   and   development   of   a   new   student   society   with   the   mission   of 
-involving young people in engineering through the exciting medium of robotics. As overall project 
-manager: led fund raising of £12,000 from University and a major industrial sponsor; managed 
-major stakeholder relationships and organised 12 teams from local sixth forms and colleges to create 
-autonomous robots to take part in a competition at the University in April 2008. Developed the high 
-level software for vision processing, graphical robot simulation and a web based IDE.
-Summer 2007
-
-Roke Manor Research – http://www.roke.co.uk 
-Analysed   the   performance   characteristics   of   a   mesh   network   in   a   real   world   environment, 
-developing benchmarking tools and tracing the full network stack to identify throughput and latency 
-issues. Found and patched a bug in a Linux kernel driver to enhance mesh reliability.
-
-1999 – Present SciTech – http://www.scitech.co.uk
-(Easter & Summer  Worked as both a teaching assistant and a course leader for a holiday school. For two weeks a year, 
-School Holidays) in both English and Dutch International schools, I lead groups of young children in discovering 
-science, technology and engineering in a fun environment. Developed and ran fun­filled courses on 
-Time, Electricity and Energy.
-In 2006 and 2008 I had the staff liaison role, recruiting and managing over twenty junior (school and 
-university age) staff for the summer course.
-Full time:
-2003­2004
-Summer:
-2005 and 2006
-
-AstraZeneca – http://www.astrazeneca.co.uk
-Worked as a control systems engineer in a pharmaceutical manufacturing facility and led small, non 
-systems   projects   in  disciplines   ranging   from   electrical   to   civil.   Developed   a   strategy   for   future 
-development and work with complex process instrumentation, focusing on the control software and 
-how to use these in a manufacturing environment. Helped manage an engineering shutdown and 
-investigated validation status of the plants wide range of control systems.
-
-Technical Skills
-Programming – Experienced working in C, C++, Python, Java and Javascript. Programmed real time systems on PIC, 
-AVR, ARM and MSP430 embedded platforms in C. Built a range of web and desktop systems in C++, Java, Python and 
-Javascript – choosing the right tool for the job. 
-Computing – Range of experience built on over a decade of using Linux, from Open Embedded installs through to high 
-availability systems built on the Apache server platform. Have set up small to medium database systems with MySQL for 
-speed and high availability.
-Electronics  – Experience designing and debugging small embedded systems. I have a particular interest in robotics, 
-embedded computing and computer architecture. Was involved in a student team developing a robotics control kit with 
-vision system.
-
-Transferable Skills
-Team Working & Leadership – Strong team working and leadership skills developed running multidisciplinary projects 
-at AstraZeneca and building a team of 25 students to run a robotics competition. 
-Communication  –   A   decade   of   experience   communicating   scientific   and   technical   concepts   to   many   hundreds   of 
-children, both as a teaching assistant and as a course leader. In industry, a broad range of presentation and informal 
-communication techniques developed working with both local and international colleagues.
-Organisation – Broad experience managing projects, ranging from web site development for small enterprises to high 
-value CAPEX projects for a multinational. Time management, both my own and that of others in my team has proved 
-vital in all aspects of professional life.
-Problem Solving  – Recognise that problem solving is the heart of any engineering endeavour. Experience of brain 
-storming and project development both alone and in multidisciplinary teams, with a particular strength in applying a 
-strong computing background.
-Working in a Regulated Environment – Developed operating procedures and technical means to implement software 
-into a highly regulated industry with particular interest in control and management of business critical data in a secure 
-fashion.
-
-Personal Interests
-Computing  – I have a passionate interest in all aspects of computing, from development of ground breaking software 
-(particularly open source) to innovative new hardware.
-Physics and general science  – I enjoy following developments in science, particularly those relevant to my chosen 
-profession and I also have a strong understanding of classical physics.
-Sport – I enjoy squash and skiing at an amateur level.
-
-Qualifications
-Course
-
-Grade
-
-A level Physics, Computing, Mathematics, Further 
-Mathematics; AS General Studies
-
-A
-
-Duke of Edinburgh
-
-Gold Award
-
-1st class Masters Honours degree in Electronic Engineering from the University of Southampton
-IEE Scholar awarded 2004
-Royal Society of Engineering ­ Engineering Leadership Award awarded 2006
-Head of School Prize, School of Electronics and Computer Science 2008
-
-References available on request
-
-
+Skills 
+Programming and hardware design 
+* Scala, Hadoop, JVM, Haskell, Natural language processing. Big data, objective caml.
+* Expert C++ (STL/Boost) architect/programmer with eight years professional experience (Visual studio, gcc,
+Windows, Linux) developing stable implementations of production quality code.
+* Experience of developing software on many different scales from 1000+ node linux clusters through to
+modern desktop PCs, embedded ARM processors and PIC+Atmel devices.
+* Strong Python including for test automation and web design. Also HTML, CSS, Javascript, MySQL, PHP. 
+* Control and planning of full product life cycle, from initial specification and design, through implementation,
+optimization, testing and release. 
+* Extensive algorithm knowledge, including numerical algorithms,  graph algorithms and compiler
+transformations. 
+* Full understanding of time and memory complexity of algorithms and how to optimize code for improved run­
+time or memory usage. 
+* Strong belief in designing software for testing. Development of automatic test harnesses, extensive test suites
+and QoR analysis tools. 
+* Database experience (SQL, MSSQL, MySQL, SQLite).
+* Two years professional hardware design experience (Altera and Xilinx FPGAs) implementing a wide variety
+of algorithms for hardware acceleration. 
+* Experience of design patterns, design for testing, refactoring for maintainability. 
+* Development tools: Subversion, Trac, Valgrind, VTune,  Doxygen, CPPUnit.
+Team working/Interpersonal skills 
+  
+* Four years experience as a manager and technical architect enjoying overseeing and motivating a team of six
+engineers of mixed ability.
+* Extensive experience solving problems, designing applications with others, sharing knowledge, mentoring and
+tutoring. 
+* Excellent communication skills, further developed through working closely with colleagues, customers and
+commercial partners. 
+* Experience of interviewing, recruiting and giving appraisals. 
+General skills 
+* Scientific background, strong applied mathematical knowledge.
+* Very quick and enthusiastic to learn and apply new techniques and disciplines. 
+* Proven research skills, including use of scientific literature, journals and the Internet. 
+* Strong work ethic, taking pride in developing high­quality, stable, maintainable software. 
+* General knowledge of many computing application domains including signal processing, timeseries analysis,
+encryption and image processing. 
+   
+Alex Wilson Employment 
+2007 ­ Senior Researcher, Winton Capital Management
+A varied role with several responsibilities: Development of the company's in­ house trading strategy simulation
+tool; implemention of mature strategies in live trading on several of the company's funds; working in collaboration
+with quantitative researchers (physicists, mathematicians and statisticians) to simulate, enhance and develop future
+trading strategies. C++/Python/MSSQL development on Windows.
+2001 ­ 2006        Research and Development Manager/Senior Software Engineer, Celoxica 
+Full responsibility for specification, design, implementation, testing and release of Celoxica's new SystemC
+compiler (Agility) targeting FPGA and ASIC custom hardware. As well as researching and planning the design of
+the compiler and managing a team of seven people I also made significant technical contributions to the code
+base, writing the framework and a substantial proportion of the compiler, optimizer and test harness and drawing
+heavily from the research literature. I was also responsible for deciding the future direction of Celoxica's research
+team, taking into account input from customers, partners and marketing. 
+1999 ­ 2001        Senior Design Engineer (Hardware), Celoxica 
+Two years FPGA design experience including frequent customer contact both in a sales capacity and providing
+high­level support. Development of several large combined hardware/embedded software projects which led
+directly to substantial investment in the company. Other designs for which I was responsible in this role included:
+Hardware ­accelerated Smith­ Waterman gene sequencing prototype, Speech recognition prototype (using HMMs),
+32 ­bit RISC Processor, Turbo convolutional decoder, Image processing, Encryption (3DES/SH4/MD5). 
+Education 
+2006 – 2007        Msc Environmental Technology, Imperial College London 
+Dissertation: A stochastic multi­ species bioeconomic model of a marine reserve. Implemented on Imperial's
+1000+ node linux cluster.
+1998 – 1999        MSc Computation, Keble College, Oxford University 
+Dissertation project involved developing a remote graphical debugging library for a massively parallel 
+supercomputer (C++ and Java using network sockets). 
+1994 – 1998        MSci Physics (2:1), St John’s College, Durham University 
+Four­year undergraduate Physics degree. Final year project involved calculating an estimate for the extra­ 
+galactic infra­red background radiation. 
+1992 – 1994        Hills Road Sixth Form College, Cambridge 
+A­levels: Further Maths (A), Maths (A), Physics (A), Chemistry (A). 
+Interests 
+I enjoy cooking, hiking, mountain biking and cycling and use my bike as preferred form of transport to work. I
+listen to music whenever possible, and am particularly fond of jazz. I love reading (both fiction and non) and enjoy
+keeping up ­to ­date with developments in computing , hardware and general science, particularly Environmental
+Science, Biology and Physics (via a subscription to Nature.)

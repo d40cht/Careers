@@ -529,19 +529,16 @@ object Disambiguator
                 println( "DA sites before: " + daSites.length )
                 
                 // TODO: Iterate over categories asserting them one by one
+                var assertedCount = 0
                 for ( (weight, categoryId) <- sortedCategoryList )
                 {
-                    if ( weight > 0.1 )
+                    if ( assertedCount < 200 )
                     {
                         println( "Asserting : " + topicNameMap(categoryId) + ", " + weight )
                         for ( site <- daSites ) site.assertCategoryWeighted( categoryId, weight )
+                        assertedCount += 1
                     }
                     
-                    /*if ( weight > 1.0 )
-                    {
-                        println( "Asserting : " + categoryNameMap.get(categoryId) + ", " + weight )
-                        daSites = daSites.filter( _.assertCategory( categoryId ) )
-                    }*/
                 }
                 
                 var disambiguation = List[List[(Double, List[String], String)]]()
