@@ -428,42 +428,27 @@ object Utils
     {
         def searchBetween(start: Int, end: Int): Int =
         {
-            println( ":: " + x + ", " + start + ", " + end )
-            if ( start > end )
+            val pivot = (start + end) / 2
+            val pivotValue = xs(pivot)
+            
+            println( ":: " + start + ", " + end + ": " + x + ", " + pivotValue )
+            
+            val ls = comp(x, pivotValue)
+            val gt = comp(pivotValue, x)
+            
+            if ( ls )
             {
-                -1
+                if ( start == pivot ) start
+                else searchBetween(start, (pivot-1))
+            }
+            else if ( gt )
+            {
+                if ( pivot == end ) start+1
+                else searchBetween(pivot+1, end)
             }
             else
             {
-                val pivot = (start + end) / 2
-                val pivotValue = xs(pivot)
-                
-                if ( comp(x, pivotValue) )
-                {
-                    if ( start == end )
-                    {
-                        start
-                    }
-                    else
-                    {
-                        searchBetween(start, pivot-1)
-                    }
-                }
-                else if ( comp(pivotValue, x) )
-                {
-                    if ( start == end )
-                    {
-                        start+1
-                    }
-                    else
-                    {
-                        searchBetween(pivot+1, end)
-                    }
-                }
-                else
-                {
-                    pivot
-                }
+                pivot
             }
         }
 

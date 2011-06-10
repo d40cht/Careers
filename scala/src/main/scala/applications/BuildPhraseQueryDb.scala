@@ -265,7 +265,7 @@ object PhraseMap
         // PRAGMA cache_size=2000000
         // INSERT INTO numTopicsForWhichThisIsAContext SELECT contextTopicId, SUM(1) FROM categoriesAndContexts GROUP BY contextTopicId;
         
-        sql.exec( "CREATE TABLE linkWeights( topicId INTEGER, contextTopicId INTEGER, weight1 DOUBLE, weight2 DOUBLE, UNIQUE(topicId, contextTopicId) )" )
+        //sql.exec( "CREATE TABLE linkWeights( topicId INTEGER, contextTopicId INTEGER, weight1 DOUBLE, weight2 DOUBLE, UNIQUE(topicId, contextTopicId) )" )
         
         println( "Counting contexts" )
         val numContexts = _1(sql.prepare( "SELECT COUNT(*) FROM categoriesAndContexts", Col[Int]::HNil ).onlyRow).get
@@ -276,29 +276,35 @@ object PhraseMap
         println( "Utilisation: " + (mem/(1024*1024) ) )
         var carr = new EfficientArray[EfficientIntPair](numContexts)
         
-        println( "Utilisation: " + (mem/(1024*1024) ) )
-        println( "Building in-memory context array of size: " + numContexts )
-        var index = 0
-        val eip = new EfficientIntPair(0,0)
-        var contextQuery = sql.prepare( "SELECT contextTopicId, topicId FROM categoriesAndContexts ORDER BY contextTopicId", Col[Int]::Col[Int]::HNil )
-        for ( pair <- contextQuery )
+        if ( false )
         {
-            val from = _1(pair).get
-            val to = _2(pair).get
-            eip.first = from
-            eip.second = to
-            
-            carr(index) = eip
-
-            index += 1    
-            if ( (index % 100000) == 0 )
+            println( "Utilisation: " + (mem/(1024*1024) ) )
+            println( "Building in-memory context array of size: " + numContexts )
+            var index = 0
+            val eip = new EfficientIntPair(0,0)
+            var contextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::HNil )
+            for ( pair <- contextQuery )
             {
-                println( index + " Utilisation: " + (mem/(1024*1024) ) )
+                val from = _1(pair).get
+                val to = _2(pair).get
+                eip.first = from
+                eip.second = to
+                
+                carr(index) = eip
+
+                index += 1    
+                if ( (index % 100000) == 0 )
+                {
+                    println( index + " Utilisation: " + (mem/(1024*1024) ) )
+                }
             }
+            carr.save( new DataOutputStream( new FileOutputStream( new File( "categories.bin" ) ) ) )
         }
         
-        index = 0
-        contextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId", Col[Int]::Col[Int]::HNil )
+        carr.load( new DataInputStream( new FileInputStream( new File( "categories.bin" ) ) ) )
+        
+        var index = 0
+        var contextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId", Col[Int]::Col[Int]::HNil )
         def comp(x : EfficientIntPair, y : EfficientIntPair) =
         {
             if ( x.first != y.first )
@@ -322,6 +328,7 @@ object PhraseMap
                 while ( fIndex < numContexts && !done )
                 {
                     val v = carr(fIndex)
+                    println( topicId + ", " + fIndex + ": " + v.first + ", " + v.second )
                     if ( v.first == topicId )
                     {
                         contextSet = contextSet + v.second
