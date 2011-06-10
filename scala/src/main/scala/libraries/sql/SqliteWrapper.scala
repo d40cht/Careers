@@ -147,7 +147,6 @@ object SqliteWrapper
         def getLastInsertId() = conn.getLastInsertId()
         
         // TODO: Parameterise with tuple type
-        // make applicable to for comprehensions (implement filter, map, flatMap)
         sealed class PreparedStatementBase[T <: HList]( query : String, var row : T )
         {
             protected val statement = conn.prepare( query )

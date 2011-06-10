@@ -87,14 +87,14 @@ class SizeTests extends FunSuite
     test("Efficient array test 1")
     {
         val arr = new EfficientArray[FixedLengthString]( 5 )
-        arr(0) = new FixedLengthString( "56" )
+        arr(0) = new FixedLengthString( "57" )
         arr(1) = new FixedLengthString( "55" )
         arr(2) = new FixedLengthString( "53" )
         arr(3) = new FixedLengthString( "54" )
         arr(4) = new FixedLengthString( "52" )
         
         
-        assert( arr(0).value === "56" )
+        assert( arr(0).value === "57" )
         assert( arr(1).value === "55" )
         assert( arr(2).value === "53" )
         assert( arr(3).value === "54" )
@@ -112,7 +112,7 @@ class SizeTests extends FunSuite
         assert( sarr(1).value === "53" )
         assert( sarr(2).value === "54" )
         assert( sarr(3).value === "55" )
-        assert( sarr(4).value === "56" )
+        assert( sarr(4).value === "57" )
         
         assert( comp( sarr(0), sarr(1) ) )
         assert( !comp( sarr(1), sarr(0) ) )
@@ -122,6 +122,8 @@ class SizeTests extends FunSuite
         assert( Utils.binarySearch( new FixedLengthString("53"), sarr, comp ) === Some(1) )
         assert( Utils.binarySearch( new FixedLengthString("54"), sarr, comp ) === Some(2) )
         assert( Utils.binarySearch( new FixedLengthString("55"), sarr, comp ) === Some(3) )
+        assert( Utils.binarySearch( new FixedLengthString("57"), sarr, comp ) === Some(4) )
+        
         assert( Utils.binarySearch( new FixedLengthString("56"), sarr, comp ) === Some(4) )
         
         val arr2 = new EfficientArray[FixedLengthString]( 1 )

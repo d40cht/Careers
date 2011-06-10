@@ -11,7 +11,7 @@ import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
-import java.io.{StringReader, OutputStream}
+import java.io.{StringReader, OutputStream, InputStream}
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
 
@@ -106,12 +106,32 @@ class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length
     
     private var buffer = new Array[Byte]( elementSize * length )
     
+    
+    
     class ArrayOutputStream( var index : Int ) extends OutputStream
     {
         override def write( b : Int )
         {
             buffer(index) = b.toByte
             index += 1
+        }
+    }
+    
+    class ArrayInputStream( var index : Int ) extends InputStream
+    {
+        override def read() : Int =
+        {
+            if ( index >= buffer.size )
+            {
+                -1
+            }
+            else
+            {
+                val v = buffer(index).toInt & 0xff
+                index += 1
+                
+                v
+            }
         }
     }
     
@@ -155,17 +175,25 @@ class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length
 
     override def newBuilder = new ArrayBuilder()
     
+    val is = new ArrayInputStream( 0 )
+    val idis = new DataInputStream(is)
+    
+    val os = new ArrayOutputStream(0)
+    val odos = new DataOutputStream(os)
+    
     override def length : Int = _length
     override def apply( i : Int ) : Element =
     {
         val e : Element = makeElement
-        e.load( new DataInputStream( new ByteArrayInputStream( buffer, i * elementSize, elementSize ) ) )
+        is.index = i * elementSize
+        e.load(idis)
         e
     }
     
     override def update( i : Int, v : Element )
     {
-        v.save( new DataOutputStream( new ArrayOutputStream( i * elementSize ) ) )
+        os.index = i * elementSize
+        v.save( odos )
     }
     
     def getBuffer() = buffer
@@ -389,6 +417,51 @@ object Utils
                 else
                 {
                     Some( pivot )
+                }
+            }
+        }
+
+        searchBetween(0, xs.length-1)
+    }
+    
+    def lowerBound[T <: FixedLengthSerializable](x: T, xs: EfficientArray[T], comp : (T, T)=> Boolean): Int =
+    {
+        def searchBetween(start: Int, end: Int): Int =
+        {
+            if ( start > end )
+            {
+                -1
+            }
+            else
+            {
+                val pivot = (start + end) / 2
+                val pivotValue = xs(pivot)
+                
+                if ( comp(x, pivotValue) )
+                {
+                    if ( start == end )
+                    {
+                        start
+                    }
+                    else
+                    {
+                        searchBetween(start, pivot-1)
+                    }
+                }
+                else if ( comp(pivotValue, x) )
+                {
+                    if ( start == end )
+                    {
+                        start
+                    }
+                    else
+                    {
+                        searchBetween(pivot+1, end)
+                    }
+                }
+                else
+                {
+                    pivot
                 }
             }
         }

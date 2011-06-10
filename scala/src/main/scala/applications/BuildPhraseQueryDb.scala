@@ -22,6 +22,8 @@ import org.seacourt.sql.SqliteWrapper._
 
 import org.seacourt.disambiguator.{PhraseMapLookup}
 
+// PROFILE USING VisualVM
+
 object PhraseMap
 {
     def isNonWordChar( el : Char ) : Boolean =
@@ -112,16 +114,15 @@ object PhraseMap
     
     def run( conf : Configuration, inputDataDirectory : String, outputFilePath : String )
     {
-        conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"))
-        conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
-        val fs = FileSystem.get(conf)   
-        
-        val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory 
-        
         val sql = new SQLiteWriter( outputFilePath )
         
         if (false)
         {
+            conf.addResource(new Path("/home/hadoop/hadoop/conf/core-site.xml"))
+            conf.addResource(new Path("/home/hadoop/hadoop/conf/hdfs-site.xml"))
+            val basePath = "hdfs://shinigami.lan.ise-oxford.com:54310/user/alexw/" + inputDataDirectory
+            val fs = FileSystem.get(conf)
+            
             {
                 println( "Building topic index" )
                 val topicIndexIterator = new SeqFilesIterator( conf, fs, basePath, "categoriesAndContexts", new WrappedString(), new WrappedTextArrayWritable() )
@@ -266,7 +267,98 @@ object PhraseMap
         
         sql.exec( "CREATE TABLE linkWeights( topicId INTEGER, contextTopicId INTEGER, weight1 DOUBLE, weight2 DOUBLE, UNIQUE(topicId, contextTopicId) )" )
         
-        val linkQuery = sql.prepare( "SELECT topicId, contextTopicId, t2.name, t3.name FROM categoriesAndContexts AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN topics AS t3 ON t1.contextTopicId=t3.id", Col[Int]::Col[Int]::Col[String]::Col[String]::HNil )
+        println( "Counting contexts" )
+        val numContexts = _1(sql.prepare( "SELECT COUNT(*) FROM categoriesAndContexts", Col[Int]::HNil ).onlyRow).get
+        
+        val r = Runtime.getRuntime()
+        def mem = r.totalMemory() - r.freeMemory()
+        
+        println( "Utilisation: " + (mem/(1024*1024) ) )
+        var carr = new EfficientArray[EfficientIntPair](numContexts)
+        
+        println( "Utilisation: " + (mem/(1024*1024) ) )
+        println( "Building in-memory context array of size: " + numContexts )
+        var index = 0
+        val eip = new EfficientIntPair(0,0)
+        var contextQuery = sql.prepare( "SELECT contextTopicId, topicId FROM categoriesAndContexts ORDER BY contextTopicId", Col[Int]::Col[Int]::HNil )
+        for ( pair <- contextQuery )
+        {
+            val from = _1(pair).get
+            val to = _2(pair).get
+            eip.first = from
+            eip.second = to
+            
+            carr(index) = eip
+
+            index += 1    
+            if ( (index % 100000) == 0 )
+            {
+                println( index + " Utilisation: " + (mem/(1024*1024) ) )
+            }
+        }
+        
+        index = 0
+        contextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId", Col[Int]::Col[Int]::HNil )
+        def comp(x : EfficientIntPair, y : EfficientIntPair) =
+        {
+            if ( x.first != y.first )
+            {
+                x.first < y.first
+            }
+            else
+            {
+                x.second < y.second
+            }
+        }
+        for ( pair <- contextQuery )
+        {
+            def getContext( topicId : Int ) =
+            {
+                var contextSet = TreeSet[Int]()
+                
+                var fIndex = Utils.lowerBound( new EfficientIntPair(topicId, 0), carr, comp )
+                
+                var done = false
+                while ( fIndex < numContexts && !done )
+                {
+                    val v = carr(fIndex)
+                    if ( v.first == topicId )
+                    {
+                        contextSet = contextSet + v.second
+                        fIndex += 1
+                    }
+                    else
+                    {
+                        done = true
+                    }
+                }
+                
+                contextSet
+            }
+            
+            val fromId = _1(pair).get
+            val toId = _2(pair).get
+            
+            val fromContext = getContext( fromId )
+            val toContext = getContext( toId )
+            
+            val intersectionContext = fromContext & toContext
+            
+            println( ":: " + fromId + ", " + toId + ", " + intersectionContext.size + ", " + fromContext.size + ", " + toContext.size )
+            
+            index += 1 
+            
+            if ( (index % 1000) == 0 )
+            {
+                println( index + " Utilisation: " + (mem/(1024*1024) ) )
+            }
+        }
+        
+        println( "Utilisation: " + (mem/(1024*1024) ) )
+        
+        //contextQuery = null
+        
+        /*val linkQuery = sql.prepare( "SELECT topicId, contextTopicId, t2.name, t3.name FROM categoriesAndContexts AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN topics AS t3 ON t1.contextTopicId=t3.id", Col[Int]::Col[Int]::Col[String]::Col[String]::HNil )
         
         val contextQuery1 = sql.prepare( "SELECT topicId FROM categoriesAndContexts WHERE contextTopicId=?", Col[Int]::HNil )
         val contextQuery2 = sql.prepare( "SELECT contextTopicId FROM categoriesAndContexts WHERE topicId=?", Col[Int]::HNil )
@@ -311,7 +403,7 @@ object PhraseMap
             insertLinkQuery.exec( topicId, contextTopicId, weight1, weight2 )
             count += 1
             sql.manageTransactions()
-        }
+        }*/
 
         sql.close()
         println( "*** Parse complete ***" )

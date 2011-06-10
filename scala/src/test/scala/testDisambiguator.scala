@@ -81,10 +81,10 @@ class DisambiguatorTest extends FunSuite
         
         val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
         
-        val b = new d.Builder(fileText)
+        /*val b = new d.Builder(fileText)
         b.build()
         val res = b.resolve(2)
-        println( res )
+        println( res )*/
     }
     
     test( "Disambiguator short phrase test" )
