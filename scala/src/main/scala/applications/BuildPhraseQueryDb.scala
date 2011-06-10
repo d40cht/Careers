@@ -273,6 +273,8 @@ object PhraseMap
         
         val insertLinkQuery = sql.prepare( "INSERT INTO linkWeights VALUES(?, ?, ?, ?)", HNil )
         var count = 0
+        var contextSet1 = TreeSet[Int]()
+        var lastTopicId = -1
         for ( row <- linkQuery )
         {
             val topicId = _1(row).get
@@ -280,11 +282,15 @@ object PhraseMap
             val name1 = _3(row).get
             val name2 = _4(row).get
             
-            var contextSet1 = TreeSet[Int]()
-            contextQuery1.bind( topicId )
-            for ( r <- contextQuery1 ) contextSet1 = contextSet1 + _1(r).get
-            contextQuery2.bind( topicId )
-            for ( r <- contextQuery2 ) contextSet1 = contextSet1 + _1(r).get
+            if ( topicId != lastTopicId )
+            {
+                contextSet1 = TreeSet[Int]()
+                contextQuery1.bind( topicId )
+                for ( r <- contextQuery1 ) contextSet1 = contextSet1 + _1(r).get
+                contextQuery2.bind( topicId )
+                for ( r <- contextQuery2 ) contextSet1 = contextSet1 + _1(r).get
+            }
+            lastTopicId = topicId
             
             var contextSet2 = TreeSet[Int]()
             contextQuery1.bind( contextTopicId )
