@@ -428,6 +428,7 @@ object Utils
     {
         def searchBetween(start: Int, end: Int): Int =
         {
+            println( ":: " + x + ", " + start + ", " + end )
             if ( start > end )
             {
                 -1
@@ -452,7 +453,7 @@ object Utils
                 {
                     if ( start == end )
                     {
-                        start
+                        start+1
                     }
                     else
                     {

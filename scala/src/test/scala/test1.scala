@@ -83,6 +83,37 @@ class SizeTests extends FunSuite
             assert( arr(i).value === larr(i).value )
         }
     }
+    
+    test("Efficient array lower bound test")
+    {
+        val arr = new EfficientArray[EfficientIntPair]( 5 )
+        
+        arr(0) = new EfficientIntPair( 1, 2 )
+        arr(1) = new EfficientIntPair( 1, 3 )
+        arr(2) = new EfficientIntPair( 2, 2 )
+        arr(3) = new EfficientIntPair( 2, 4 )
+        arr(4) = new EfficientIntPair( 4, 5 )
+        
+        def comp( x : EfficientIntPair, y : EfficientIntPair ) =
+        {
+            if ( x.first != y.first ) x.first < y.first
+            else x.second < y.second
+        }
+        
+        assert( Utils.lowerBound( new EfficientIntPair( 1, 1 ), arr, comp ) === -1 )
+        assert( Utils.lowerBound( new EfficientIntPair( 1, 2 ), arr, comp ) === 0 )
+        assert( Utils.lowerBound( new EfficientIntPair( 1, 3 ), arr, comp ) === 1 )
+        
+        assert( Utils.lowerBound( new EfficientIntPair( 1, 4 ), arr, comp ) === 2 )
+        assert( Utils.lowerBound( new EfficientIntPair( 2, 0 ), arr, comp ) === 2 )
+        assert( Utils.lowerBound( new EfficientIntPair( 2, 1 ), arr, comp ) === 2 )
+        assert( Utils.lowerBound( new EfficientIntPair( 2, 2 ), arr, comp ) === 2 )
+        
+        assert( Utils.lowerBound( new EfficientIntPair( 2, 4 ), arr, comp ) === 3 )
+        assert( Utils.lowerBound( new EfficientIntPair( 3, 0 ), arr, comp ) === 4 )
+        assert( Utils.lowerBound( new EfficientIntPair( 4, 5 ), arr, comp ) === 4 )
+        assert( Utils.lowerBound( new EfficientIntPair( 4, 6 ), arr, comp ) === 5 )
+    }
 
     test("Efficient array test 1")
     {
@@ -123,8 +154,6 @@ class SizeTests extends FunSuite
         assert( Utils.binarySearch( new FixedLengthString("54"), sarr, comp ) === Some(2) )
         assert( Utils.binarySearch( new FixedLengthString("55"), sarr, comp ) === Some(3) )
         assert( Utils.binarySearch( new FixedLengthString("57"), sarr, comp ) === Some(4) )
-        
-        assert( Utils.binarySearch( new FixedLengthString("56"), sarr, comp ) === Some(4) )
         
         val arr2 = new EfficientArray[FixedLengthString]( 1 )
         arr2(0) = new FixedLengthString( "56" )
