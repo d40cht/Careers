@@ -267,8 +267,13 @@ object PhraseMap
         
         //sql.exec( "CREATE TABLE linkWeights( topicId INTEGER, contextTopicId INTEGER, weight1 DOUBLE, weight2 DOUBLE, UNIQUE(topicId, contextTopicId) )" )
         
-        println( "Counting contexts" )
-        val numContexts = _1(sql.prepare( "SELECT COUNT(*) FROM categoriesAndContexts", Col[Int]::HNil ).onlyRow).get
+        println( "Building bidirectional context table" )
+        //CREATE TABLE bidirectionalCategoriesAndContexts( topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId) );
+        //INSERT INTO bidirectionalCategoriesAndContexts SELECT contextTopicId, topicId FROM categoriesAndContexts ORDER BY contextTopicId
+        //INSERT OR IGNORE INTO bidirectionalCategoriesAndContexts SELECT topicId, contextTopicId FROM categoriesAndContexts
+        
+        println( "Counting bidirectional contexts" )
+        val numContexts = _1(sql.prepare( "SELECT COUNT(*) FROM bidirectionalCategoriesAndContexts", Col[Int]::HNil ).onlyRow).get
         
         val r = Runtime.getRuntime()
         def mem = r.totalMemory() - r.freeMemory()
@@ -282,8 +287,8 @@ object PhraseMap
             println( "Building in-memory context array of size: " + numContexts )
             var index = 0
             val eip = new EfficientIntPair(0,0)
-            var contextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::HNil )
-            for ( pair <- contextQuery )
+            var biContextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::HNil )
+            for ( pair <- biContextQuery )
             {
                 val from = _1(pair).get
                 val to = _2(pair).get
@@ -316,6 +321,8 @@ object PhraseMap
                 x.second < y.second
             }
         }
+        
+        val insertWeightQuery = sql.prepare( "INSERT INTO linkWeight VALUES(?, ?, ?, ?)", HNil )
         for ( pair <- contextQuery )
         {
             def getContext( topicId : Int ) =
@@ -328,7 +335,6 @@ object PhraseMap
                 while ( fIndex < numContexts && !done )
                 {
                     val v = carr(fIndex)
-                    println( topicId + ", " + fIndex + ": " + v.first + ", " + v.second )
                     if ( v.first == topicId )
                     {
                         contextSet = contextSet + v.second
@@ -350,8 +356,11 @@ object PhraseMap
             val toContext = getContext( toId )
             
             val intersectionContext = fromContext & toContext
+            val weight1 = intersectionContext.size.toDouble / fromContext.size.toDouble
+            val weight2 = intersectionContext.size.toDouble / toContext.size.toDouble
             
             println( ":: " + fromId + ", " + toId + ", " + intersectionContext.size + ", " + fromContext.size + ", " + toContext.size )
+            insertWeightQuery.exec( fromId, toId, weight1, weight2 )
             
             index += 1 
             

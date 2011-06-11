@@ -431,7 +431,7 @@ object Utils
             val pivot = (start + end) / 2
             val pivotValue = xs(pivot)
             
-            println( ":: " + start + ", " + end + ": " + x + ", " + pivotValue )
+            //println( ":: " + start + ", " + end + ": " + x + ", " + pivotValue )
             
             val ls = comp(x, pivotValue)
             val gt = comp(pivotValue, x)
