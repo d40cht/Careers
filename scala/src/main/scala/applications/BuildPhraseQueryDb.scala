@@ -322,7 +322,7 @@ object PhraseMap
             }
         }
         
-        val insertWeightQuery = sql.prepare( "INSERT INTO linkWeight VALUES(?, ?, ?, ?)", HNil )
+        val insertWeightQuery = sql.prepare( "INSERT INTO linkWeights VALUES(?, ?, ?, ?)", HNil )
         for ( pair <- contextQuery )
         {
             def getContext( topicId : Int ) =
