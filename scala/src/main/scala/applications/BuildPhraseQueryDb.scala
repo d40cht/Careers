@@ -265,7 +265,7 @@ object PhraseMap
         // PRAGMA cache_size=2000000
         // INSERT INTO numTopicsForWhichThisIsAContext SELECT contextTopicId, SUM(1) FROM categoriesAndContexts GROUP BY contextTopicId;
         
-        //sql.exec( "CREATE TABLE linkWeights( topicId INTEGER, contextTopicId INTEGER, weight1 DOUBLE, weight2 DOUBLE, UNIQUE(topicId, contextTopicId) )" )
+        sql.exec( "CREATE TABLE linkWeights( topicId INTEGER, contextTopicId INTEGER, weight1 DOUBLE, weight2 DOUBLE, UNIQUE(topicId, contextTopicId) )" )
         
         println( "Building bidirectional context table" )
         //CREATE TABLE bidirectionalCategoriesAndContexts( topicId INTEGER, contextTopicId INTEGER, FOREIGN KEY(topicId) REFERENCES id(topics), UNIQUE(topicId, contextTopicId) );
@@ -281,7 +281,7 @@ object PhraseMap
         println( "Utilisation: " + (mem/(1024*1024) ) )
         var carr = new EfficientArray[EfficientIntPair](numContexts)
         
-        if ( false )
+        if ( true )
         {
             println( "Utilisation: " + (mem/(1024*1024) ) )
             println( "Building in-memory context array of size: " + numContexts )
@@ -306,7 +306,7 @@ object PhraseMap
             carr.save( new DataOutputStream( new FileOutputStream( new File( "categories.bin" ) ) ) )
         }
         
-        carr.load( new DataInputStream( new FileInputStream( new File( "categories.bin" ) ) ) )
+        //carr.load( new DataInputStream( new FileInputStream( new File( "categories.bin" ) ) ) )
         
         var index = 0
         var contextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId", Col[Int]::Col[Int]::HNil )
