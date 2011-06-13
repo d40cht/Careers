@@ -6,7 +6,6 @@ import compat.Platform.currentTime
 
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
-import org.dbpedia.extraction.wikiparser.{Node}
 
 import java.io.File
 import java.lang.System
