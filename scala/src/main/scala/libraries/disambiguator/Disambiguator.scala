@@ -11,6 +11,8 @@ import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility.StopWords.stopWordSet
 import org.seacourt.utility._
 
+import org.seacourt.utility.{Graph, Node}
+
 // Thoughts:
 //
 // * Word frequency - should that be tf/idf on words, or td/idf on phrases that are surface forms?
@@ -55,13 +57,13 @@ object Disambiguator
 	
 	def validPhrase( words : List[String] ) = words.foldLeft( false )( _ || !stopWordSet.contains(_) )
 	
-    class TopicDetails( val topicId : Int, val topicWeight : Double, var categoryIds : TreeSet[Int], val topicName : String )
+    class TopicDetails( val topicId : Int, val topicWeight : Double, var contextWeights : TreeMap[Int, Double], val topicName : String )
     {
         var score = 0.0
         
-        def assertCategory( categoryId : Int, categoryWeight : Double )
+        def assertCategory( contextId : Int, weight : Double )
         {
-            if ( categoryIds.contains( categoryId ) ) score += categoryWeight
+            if ( contextWeights.contains( contextId ) ) score += weight
         }
     }
 
@@ -136,10 +138,10 @@ object Disambiguator
             for ( topicDetail <- topicDetails )
             {
                 val topicWeight = topicDetail.topicWeight
-                for ( categoryId <- topicDetail.categoryIds )
+                for ( (categoryId, contextWeight) <- topicDetail.contextWeights )
                 {
                     val oldWeight = if (localWeights.containsKey(categoryId)) localWeights.get(categoryId) else 0.0
-                    localWeights.put( categoryId, max(oldWeight, phraseWeight*topicWeight) )
+                    localWeights.put( categoryId, max(oldWeight, phraseWeight*topicWeight*contextWeight) )
                 }
             }
 
@@ -154,7 +156,7 @@ object Disambiguator
             var categoryIds = TreeSet[Int]()
             for ( topicDetail <- topicDetails )
             {
-                categoryIds = categoryIds ++ topicDetail.categoryIds
+                categoryIds = categoryIds ++ (for ( (id, weight) <- topicDetail.contextWeights ) yield id)
             }
             for ( child <- children )
             {
@@ -167,7 +169,7 @@ object Disambiguator
         {
             for ( td <- topicDetails )
             {
-                if ( td.categoryIds.contains( categoryId ) )
+                if ( td.contextWeights.contains( categoryId ) )
                 {
                     return true
                 }
@@ -186,10 +188,10 @@ object Disambiguator
         // Prune any topics which don't contain this category
         private def assertCategoryImpl( assertedCategoryId : Int ) : Boolean =
         {
-            val debugPrunedTopics = topicDetails.filter( !_.categoryIds.contains(assertedCategoryId ) )
+            val debugPrunedTopics = topicDetails.filter( !_.contextWeights.contains(assertedCategoryId ) )
             
             var categoryAlive = false
-            topicDetails = topicDetails.filter( _.categoryIds.contains(assertedCategoryId) )
+            topicDetails = topicDetails.filter( _.contextWeights.contains(assertedCategoryId) )
             
             if ( topicDetails != Nil ) categoryAlive = true
             if ( debugPrunedTopics != Nil )
@@ -266,7 +268,7 @@ object Disambiguator
         {
             val wordList = Utils.luceneTextTokenizer( Utils.normalize( text ) )
             
-            var topicCategoryMap = TreeMap[Int, TreeSet[Int]]()
+            var topicCategoryMap = TreeMap[Int, TreeMap[Int, Double]]()
             var topicNameMap = TreeMap[Int, String]()
             var contextWeightMap = TreeMap[Int, Double]()
             
@@ -275,9 +277,9 @@ object Disambiguator
                 val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
                 // numTopicsForWhichThisIsAContext
                 val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC", Col[Int]::Col[Int]::HNil )
-                val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId FROM categoriesAndContexts WHERE topicId=?", Col[Int]::HNil )
+                val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight1, weight2 FROM linkWeights WHERE topicId=?", Col[Int]::Col[Double]::Col[Double]::HNil )
                 
-                val normalisationQuery = topicDb.prepare( "SELECT MAX(count) FROM numTopicsForWhichThisIsAContext", Col[Int]::HNil )
+                //val normalisationQuery = topicDb.prepare( "SELECT MAX(count) FROM numTopicsForWhichThisIsAContext", Col[Int]::HNil )
                 
                 var possiblePhrases = List[(Int, Int, Int, List[(Int, Int)])]()
                 var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
@@ -285,7 +287,7 @@ object Disambiguator
                 var wordIndex = 0
                 var topicSet = TreeSet[Int]()
                 
-                val maxCategoryCount = _1(normalisationQuery.onlyRow).get
+                //val maxCategoryCount = _1(normalisationQuery.onlyRow).get
                 
                 println( "Parsing text:" )
                 for ( word <- wordList )
@@ -330,12 +332,21 @@ object Disambiguator
                                             if ( !topicCategoryMap.contains(topicId) )
                                             {
                                                 topicCategoryQuery.bind( topicId )
-                                                val topicIdList = for ( cid <- topicCategoryQuery ) yield _1(cid).get
-                                                val topicCategoryIds = topicIdList.foldLeft( TreeSet[Int]() )( _ + _ )
-                                                topicCategoryMap = topicCategoryMap.updated(topicId, topicCategoryIds )
+
+                                                var contextWeights = TreeMap[Int, Double]()
+                                                for ( row <- topicCategoryQuery )
+                                                {
+                                                    val cid = _1(row).get
+                                                    val weight1 = _2(row).get
+                                                    val weight2 = _3(row).get
+                                                    
+                                                    contextWeights = contextWeights.updated( cid, weight1 )
+                                                }
+
+                                                topicCategoryMap = topicCategoryMap.updated(topicId, contextWeights)
                                                 
                                                 //println( topicId + ": " + topicCategoryIds )
-                                                for ( topicCategoryId <- topicCategoryIds )
+                                                for ( (topicCategoryId, weight) <- contextWeights )
                                                 {
                                                     assert( topicCategoryId != 0 )
                                                     topicSet = topicSet + topicCategoryId
@@ -358,14 +369,16 @@ object Disambiguator
                 }
                 
                 println( "Looking up topic names." )
-                val topicNameQuery = topicDb.prepare( "SELECT t1.name, t2.count FROM topics AS t1 LEFT JOIN numTopicsForWhichThisIsAContext AS t2 on t1.id=t2.topicId WHERE id=?", Col[String]::Col[Int]::HNil )
+                //val topicNameQuery = topicDb.prepare( "SELECT t1.name, t2.count FROM topics AS t1 LEFT JOIN numTopicsForWhichThisIsAContext AS t2 on t1.id=t2.topicId WHERE id=?", Col[String]::Col[Int]::HNil )
+                val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
                 
                 for ( topicId <- topicSet )
                 {
                     topicNameQuery.bind(topicId)
                     val theRow = topicNameQuery.onlyRow
                     val topicName = _1(theRow).get
-                    val topicWeightAsContext = 1.0 - (_2(theRow).get.toDouble / maxCategoryCount.toDouble)
+                    //val topicWeightAsContext = 1.0 - (_2(theRow).get.toDouble / maxCategoryCount.toDouble)
+                    val topicWeightAsContext = 1.0
                     
                     topicNameMap = topicNameMap.updated( topicId, topicName )
                     contextWeightMap = contextWeightMap.updated( topicId, topicWeightAsContext )
@@ -530,16 +543,60 @@ object Disambiguator
                 
                 // TODO: Iterate over categories asserting them one by one
                 var assertedCount = 0
+                var assertedLimit = 200
+                
+                val g = new Graph()
+                
+                var relevantCategorySet = TreeMap[Int, Int]()
+                var nodes = new Array[Node](assertedLimit)
                 for ( (weight, categoryId) <- sortedCategoryList )
                 {
-                    if ( assertedCount < 200 )
+                    if ( assertedCount < assertedLimit )
                     {
-                        println( "Asserting : " + topicNameMap(categoryId) + ", " + weight )
+                        relevantCategorySet = relevantCategorySet.updated( categoryId, assertedCount )
+                        val name = topicNameMap(categoryId)
+                        println( "Asserting : " + name + ", " + weight )
                         for ( site <- daSites ) site.assertCategoryWeighted( categoryId, weight )
+                        
+                        nodes(assertedCount) = g.addNode( name )
                         assertedCount += 1
                     }
-                    
                 }
+                
+                // Build graph
+                val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight1, weight2 FROM linkWeights WHERE topicId=?", Col[Int]::Col[Double]::Col[Double]::HNil )
+                for ( (categoryId, index) <- relevantCategorySet )
+                {
+                    topicCategoryQuery.bind( categoryId )
+                    for ( row <- topicCategoryQuery )
+                    {
+                        val contextId = _1(row).get
+                        val weight1 = _2(row).get
+                        val weight2 = _3(row).get
+                        
+                        if ( relevantCategorySet.contains( contextId ) )
+                        {
+                            val fromNode = nodes(index)
+                            val toNode = nodes( relevantCategorySet(contextId) )
+                            
+                            println( "From " + fromNode.name + " to " + toNode.name + ": " + weight1 + ", " + weight2 )
+                            
+                            if ( weight1 > 0.2 )
+                            {
+                                g.addEdge( fromNode, toNode )
+                            }
+                        }
+                    }
+                }
+                
+                // Dump SCCS
+                val sccs = g.connected()
+                for ( els <- sccs )
+                {
+                    val elnames = for( el <- els ) yield el.name
+                    println( "### " + elnames.mkString(", ") )
+                }
+                
                 
                 var disambiguation = List[List[(Double, List[String], String)]]()
                 for ( site <- daSites )
@@ -555,7 +612,7 @@ object Disambiguator
                     disambiguation = alts :: disambiguation
                 }
 
-                disambiguation
+                disambiguation.reverse
             }
         }
     }

@@ -79,58 +79,59 @@ class DisambiguatorTest extends FunSuite
     {
         val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
         
-        val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+        //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
+        //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+        //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
         
-        /*val b = new d.Builder(fileText)
+        //val fileText = "gerry adams troubles bloody sunday"
+        val fileText = "rice cambridge oxford yale harvard"
+        
+        val b = new d.Builder(fileText)
         b.build()
         val res = b.resolve(2)
-        println( res )*/
+        println( res )
     }
     
     test( "Disambiguator short phrase test" )
     {
-        //val testDbName = "disambig.sqlite3"
-        //val testPhrase = "gerry adams troubles bloody sunday"
-        // "rice wheat barley"
-        // "rice cambridge oxford yale harvard"
-        // "rice cheney bush"
-        // "java haskell scala c"
-        // "la scala covent garden puccini"
-        // "tea party palin"
-        // "python palin"
-        //val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
-        //disambiguator.build()
-        //disambiguator.resolve()
-        
-        if ( false )
+       
+        val tests = List[(String, List[String])](
+            ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
+            ("tea party palin", List[String]("Main:Tea Party protests", "Main:Sarah Palin")),
+            // Currently rice ends up as Rice, Oregon because the article mentions 'Wheat' by link
+            //("cereal wheat barley rice", List[String]("Main:Cereal", "Main:Wheat", "Main:Barley", "Main:Rice")),
+            
+            // Produces a rubbish list of categories
+            //("a cup of coffee or a cup of english breakfast in the morning", Nil)
+            ("cereal maize barley rice", List[String]("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
+            
+            // Do we have 'covent' in the dictionary?
+            //("la scala covent garden puccini", List[String]()),
+            
+            // Obsessed with the programming language
+            //("java coffee tea", List[String]("Main:Java", "Main:Coffee", "Main:Tea")),
+            
+            ("rice cambridge oxford yale harvard", List[String]("Main:Rice University", "Main:University of Cambridge", "Main:University of Oxford", "Main:Yale University", "Main:Harvard University" )),
+            ("rice cheney george bush", List[String]("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush")),
+            ("george bush major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
+            ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C (programming language)", "Main:Design Patterns") ),
+            ("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
+            ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
+            
+        for ( (phrase, res) <- tests )
         {
-            disambigAssert( "python palin", TreeSet("Main:Monty Python", "Main:Michael Palin") )
-            disambigAssert( "rice cheney bush", TreeSet("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush") )
-            disambigAssert( "invasion of kuwait, george bush, saddam hussein", TreeSet("Main:Invasion of Kuwait", "Main:George H. W. Bush", "Main:Saddam Hussein") )
+            val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+            val b = new d.Builder(phrase)
+            b.build()
+            val dres = b.resolve(1)
+            
+            assert( dres.length === res.length )
+            for ( (topicl, expected) <- dres.zip(res) )
+            {
+                val topic = topicl.head._3
+                assert( topic === expected )
+            }
         }
-        
-        
-        //"java c design patterns"
-        //jumper design patterns
-        //the death of saddam hussein
-        
-        // NOTE: A fix to some of this can happen by not counting cateogires from 'cup' (and 'of') twice.
-        // --> a cup of coffee or a cup of english breakfast in the morning
-        //
-        // currently asserting:
-        // Asserting : Main:Breakfast, 8.619803438371143
-        // Asserting : Main:Baseball, 6.5069746098656225 (from 'of')
-        // Asserting : Main:Ice hockey, 6.487016855370194
-        // Asserting : Main:Basketball, 6.206483157834628
-        // Asserting : Main:Major professional sports leagues in the United States and Canada, 6.181901288236755
-        // Asserting : Main:Farm team, 6.177005664603328
-        // Asserting : Category:Ice hockey terminology, 6.173292786643741
-        // Asserting : Main:Tennessee, 5.634098038507746
-        // Asserting : Main:Album, 4.718607633800677
-        // Asserting : Main:Scotland, 3.673734027766638
-        // Asserting : Main:New York City, 3.2294931966794067
-        // Asserting : Main:Day, 3.1176734993139887
-
     }
     
     test("Efficient disambiguator test")
