@@ -60,115 +60,70 @@ class WikiBatchPhraseDictTest extends FunSuite
 
 class DisambiguatorTest extends FunSuite
 {
-    private def disambigAssert( phrase : String, expectedTopics : TreeSet[String] )
-    {
-        /*val wordList = Utils.luceneTextTokenizer( Utils.normalize( phrase ) )
-        val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File("disambig.sqlite3") ) )
-        disambiguator.build()
-        val res = disambiguator.resolve(1)
-        assert( expectedTopics.size === res.length )
-        
-        val resultSet = res.foldLeft( TreeSet[String]() )( _ + _.head._3 )
-        for ( (expected, result) <- expectedTopics.zip(resultSet) )
-        {
-            assert( expected === result )
-        }*/
-    }
+
     
     test( "New disambiguator test" )
     {
-        val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
-        
-        //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
-        //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
-        //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
-        
-        //val fileText = "gerry adams troubles bloody sunday"
-        val fileText = "rice cambridge oxford yale harvard"
-        
-        val b = new d.Builder(fileText)
-        b.build()
-        val res = b.resolve(2)
-        println( res )
+        if ( false )
+        {
+            val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+            
+            //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
+            
+            //val fileText = "gerry adams troubles bloody sunday"
+            val fileText = "rice cambridge oxford yale harvard"
+            
+            val b = new d.Builder(fileText)
+            b.build()
+            val res = b.resolve(2)
+            println( res )
+        }
     }
     
     test( "Disambiguator short phrase test" )
     {
-       
-        val tests = List[(String, List[String])](
-            ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
-            ("tea party palin", List[String]("Main:Tea Party protests", "Main:Sarah Palin")),
-            // Currently rice ends up as Rice, Oregon because the article mentions 'Wheat' by link
-            //("cereal wheat barley rice", List[String]("Main:Cereal", "Main:Wheat", "Main:Barley", "Main:Rice")),
-            
-            // Produces a rubbish list of categories
-            //("a cup of coffee or a cup of english breakfast in the morning", Nil)
-            ("cereal maize barley rice", List[String]("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
-            
-            // Do we have 'covent' in the dictionary?
-            //("la scala covent garden puccini", List[String]()),
-            
-            // Obsessed with the programming language
-            //("java coffee tea", List[String]("Main:Java", "Main:Coffee", "Main:Tea")),
-            
-            ("rice cambridge oxford yale harvard", List[String]("Main:Rice University", "Main:University of Cambridge", "Main:University of Oxford", "Main:Yale University", "Main:Harvard University" )),
-            ("rice cheney george bush", List[String]("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush")),
-            ("george bush major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
-            ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C (programming language)", "Main:Design Patterns") ),
-            ("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
-            ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
-            
-        for ( (phrase, res) <- tests )
+        if ( false )
         {
-            val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
-            val b = new d.Builder(phrase)
-            b.build()
-            val dres = b.resolve(1)
-            
-            assert( dres.length === res.length )
-            for ( (topicl, expected) <- dres.zip(res) )
+            val tests = List[(String, List[String])](
+                ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
+                ("tea party palin", List[String]("Main:Tea Party protests", "Main:Sarah Palin")),
+                // Currently rice ends up as Rice, Oregon because the article mentions 'Wheat' by link
+                //("cereal wheat barley rice", List[String]("Main:Cereal", "Main:Wheat", "Main:Barley", "Main:Rice")),
+                
+                // Produces a rubbish list of categories
+                //("a cup of coffee or a cup of english breakfast in the morning", Nil)
+                ("cereal maize barley rice", List[String]("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
+                
+                // Do we have 'covent' in the dictionary?
+                //("la scala covent garden puccini", List[String]()),
+                
+                // Obsessed with the programming language
+                //("java coffee tea", List[String]("Main:Java", "Main:Coffee", "Main:Tea")),
+                
+                ("rice cambridge oxford yale harvard", List[String]("Main:Rice University", "Main:University of Cambridge", "Main:University of Oxford", "Main:Yale University", "Main:Harvard University" )),
+                ("rice cheney george bush", List[String]("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush")),
+                ("george bush major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
+                ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C (programming language)", "Main:Design Patterns") ),
+                ("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
+                ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
+                
+            for ( (phrase, res) <- tests )
             {
-                val topic = topicl.head._3
-                assert( topic === expected )
+                val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+                val b = new d.Builder(phrase)
+                b.build()
+                val dres = b.resolve(1)
+                
+                assert( dres.length === res.length )
+                for ( (topicl, expected) <- dres.zip(res) )
+                {
+                    val topic = topicl.head._3
+                    assert( topic === expected )
+                }
             }
         }
-    }
-    
-    test("Efficient disambiguator test")
-    {
-        //if ( false )
-        /*{
-            //val testFileName = "./src/test/scala/data/simpleTest.txt"
-            val testFileName = "./src/test/scala/data/monbiotTest.txt"
-            val testDbName = "disambig.sqlite3"
-            
-            val fileText = fromFile(testFileName).getLines.mkString
-            val wordList = Utils.luceneTextTokenizer( Utils.normalize( fileText ) )
-            
-            //var wordList = "on"::"the"::"first"::"day"::"of"::"christmas"::"partridge"::"in"::"a"::"pear"::"tree"::Nil
-            //var wordList = "george" :: "bush" :: "rice" :: "tony" :: "blair" :: "iraq" :: "saddam" :: "gulf" :: "war" :: Nil
-            //var wordList = "george" :: "bush" :: "john" :: "major" :: "iraq" :: "saddam" :: "invasion" :: "of" :: "kuwait" :: Nil
-            //var wordList = "standing" :: "astride" :: "the" :: "river" :: "temperature" :: "gradient" :: Nil
-            //var wordList = "george" :: "bush" :: Nil
-            
-            
-            
-            //var wordList = "bush" :: "blair" :: "rice" :: "cheney" :: "saddam" :: Nil
-            //var wordList = "in" :: "the" :: "first" :: "place" :: "bush" :: "major" :: "kuwait" :: "war" :: "saddam" :: Nil
-            //var wordList = "bush" :: "tree" :: "shrub" :: Nil
-            //var wordList = "java" :: "coffee" :: "tea" :: Nil
-            //var wordList = "java" :: "haskell" :: "c++" :: Nil
-            
-            //var wordList = "design" :: "patterns" :: "cotton" :: Nil
-            //var wordList = "design" :: "patterns" :: "java" :: Nil
-            //var wordList = "rice" :: "wheat" :: "bread" :: Nil
-            //var wordList = "rice" :: "yale" :: "oxford" :: "cambridge" :: Nil
-            
-
-            val disambiguator = new Disambiguator( wordList.toList, new SQLiteWrapper( new File(testDbName) ) )
-            disambiguator.build()
-            disambiguator.resolve(3)
-        }*/
     }
     
     /*
@@ -193,19 +148,67 @@ class DisambiguatorTest extends FunSuite
         }
     }*/
     
-    test( "Disambiguation alternative test 1" )
+    class AmbiguitySite( var start : Int, var end : Int )
     {
-        val test = List( List(1), List(1,2), List(1,2,3) )
+        var els = List[(Int, Int)]()
         
+        def overlaps( from : Int, to : Int ) =
+        {
+            val overlap = (i : Int, s : Int, e : Int) => i >= s && i <= e
+            
+            overlap( from, start, end ) || overlap( to, start, end ) || overlap( start, from, to ) || overlap( end, from, to )
+        }
+        
+        def extend( from : Int, to : Int )
+        {
+            start = start min from
+            end = end max to
+            els = (from, to)::els
+        }
+    }
+    
+    test( "Disambiguation alternative generation" )
+    {
+        //             0            1          2            3           4           5           6            7
+        val words = "covent" :: "garden" :: "barack" :: "hussein" :: "obama" :: "design" :: "pattern" :: "language":: Nil
+        val sfs = (0,0) :: (0,1) :: (1,1) :: (2,2) :: (2,3) :: (2,4) :: (3,3) :: (3,4) :: (4,4) :: (5,5) :: (5,6) :: (6,6) :: (6,7) :: (7,7) :: Nil
+        
+        // Sort so the e
+        val sorted = sfs.sortWith( (x, y) =>
+        {
+            if ( x._1 != y._1 ) x._1 < y._1
+            else x._2 > y._2
+        } )
+        
+        var sites = List[AmbiguitySite]()
+        for ( (start, end) <- sorted )
+        {
+            if ( sites == Nil || !sites.head.overlaps( start, end ) )
+            {
+                sites = new AmbiguitySite( start, end ) :: sites
+            }
+            
+            sites.head.extend( start, end )
+        }
+        sites = sites.reverse
+        
+        assert( sites.length === 3 )
+        val first = sites.head
+        val second = sites.tail.head
+        val third = sites.tail.tail.head
+        assert( first.start === 0 )
+        assert( first.end === 1 )
+        assert( second.start === 2 )
+        assert( second.end === 4 )
+        assert( third.start === 5 )
+        assert( third.end === 7 )
+        
+        // Sites: 0, 'covent garden' : [ (covent, garden), (covent garden)]
+        //        1, 'barack hussein obama' : [(barack, hussein, obama), (barack hussein, obama), (barack, hussein obama), (barack hussein obama)]
+        //        2, 'design pattern language': [(design, pattern, language), (design pattern, language), (design, pattern language)]
         
     }
     
-    test( "Phrase topic combination test" )
-    {
-        //                  0      1       2       3      4        5        6       7       8      9      10    11
-        val phrase = List( "on", "the", "first", "day", "of", "christmas", "my", "true", "love", "sent", "to", "me" )
-        val topics = List( List(1,2,3), List(1,2,3,4,5), List(3,4,5), List(5), List(6,7,8), List(7,8) )
-    }
 }
 
 
