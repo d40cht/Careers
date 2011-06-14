@@ -165,6 +165,11 @@ class DisambiguatorTest extends FunSuite
             end = end max to
             els = (from, to)::els
         }
+        
+        def combinations() : List[(Int, Int)] =
+        {
+            
+        }
     }
     
     test( "Disambiguation alternative generation" )
