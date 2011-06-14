@@ -150,7 +150,7 @@ class DisambiguatorTest extends FunSuite
     
     class AmbiguitySite( var start : Int, var end : Int )
     {
-        var els = List[(Int, Int)]()
+        var els = Map[Int, List[Int]]()
         
         def overlaps( from : Int, to : Int ) =
         {
@@ -163,12 +163,20 @@ class DisambiguatorTest extends FunSuite
         {
             start = start min from
             end = end max to
-            els = (from, to)::els
+
+            if ( !els.contains( from ) )
+            {
+                els = els.updated( from, Nil )
+            }
+            val before = els(from)
+            
+            els = els.updated( from, end :: before )
         }
         
         def combinations() : List[(Int, Int)] =
         {
-            
+            // Build a stack to work through the combinations indexing on start.
+            Nil
         }
     }
     
