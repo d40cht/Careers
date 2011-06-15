@@ -293,10 +293,6 @@ class DisambiguatorTest extends FunSuite
         assert( fourth.end === 10 )
         
         def toWords( l : List[List[(Int, Int)]] ) = l.map( el => el.map( t => words.slice( t._1, t._2+1 ) ) )
-            
-        //@?@?@ List(List(List(barack), List(hussein), List(obama)), List(List(barack), List(hussein, obama)), List(List(barack, hussein), List(obama)), List(List(barack, hussein, obama)))
-        //@?@?@ List(List(List(design), List(pattern), List(language)), List(List(design), List(pattern, language)), List(List(design, pattern), List(language)))
-        //@?@?@ List(List(List(about), List(boy)), List(List(about, a, boy)))
 
         assert( toWords( first.combinations() ) ===
             ( ("covent"::Nil) :: ("garden"::Nil) :: Nil ) ::
@@ -313,7 +309,9 @@ class DisambiguatorTest extends FunSuite
             ( ("design"::Nil) :: ("pattern"::"language"::Nil) ::Nil ) ::
             ( ("design"::"pattern"::Nil) :: ("language"::Nil) ::Nil ) :: Nil )
 
-        println( "@?@?@ " + toWords( fourth.combinations() ) )
+        assert( toWords( fourth.combinations() ) ===
+            ( ("about"::Nil) :: ("boy"::Nil) :: Nil ) ::
+            ( ("about"::"a"::"boy"::Nil) :: Nil ) :: Nil )
         
     }
     
