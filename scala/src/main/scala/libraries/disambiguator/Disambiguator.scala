@@ -602,13 +602,39 @@ object Disambiguator
                             }
                         }
                     }
+                    
+                    def applyContexts( topicContextLookup : x => topicCategoryMap(x) )
+                    {
+                        for ( site <- sites )
+                        {
+                            for ( (id, weight) <- contextWeights )
+                            {
+                                for ( alternative <- sites.combs )
+                                {
+                                    for ( (startIndex, endIndex, sf) <- alternative )
+                                    {
+                                        // Store a context set in the sf.
+                                        // if ( sf.contextSet.contains(id) ) add the weight on, weighted somehow
+                                    }
+                                }
+                            }
+                            
+                            // Now here we should have a weighted set of alternatives. Choose one or more.
+                        }
+                        
+                        // At this point, clear the contextWeights and recalculate based on resolved alternatives
+                        contextWeights = TreeMap[Int, Double]()
+                        
+                        f.buildContextWeights( topicContextLookup )
+                    }
                 }
                 
                 val f = new AmbiguityForest()
                 f.addTopics( possiblePhrasesSorted )
                 f.buildContextWeights( x => topicCategoryMap(x) )
+                f.applyContexts( x => topicCategoryMap(x) )
                 
-                // Apply weights and resolve
+                // Dump out the resolved text as XML along with a list of topics and contexts
                 
                 /* ************************************************** */
                 
