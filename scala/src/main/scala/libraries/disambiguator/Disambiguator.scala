@@ -29,6 +29,114 @@ import org.seacourt.utility.{Graph, Node}
 
 // Richard Armitage, 'The Vulcans', Scooter Libby
 
+class SurfaceForm( val phraseId : Int, val phraseCount : Int, val topics : List[(Int, Int)] )
+{
+}
+
+class AmbiguitySite( var start : Int, var end : Int )
+{
+    var els = List[(Int, Int, SurfaceForm)]()
+    
+    def overlaps( from : Int, to : Int ) =
+    {
+        val overlap = (i : Int, s : Int, e : Int) => i >= s && i <= e
+        
+        overlap( from, start, end ) || overlap( to, start, end ) || overlap( start, from, to ) || overlap( end, from, to )
+    }
+    
+    def extend( from : Int, to : Int, sf : SurfaceForm )
+    {
+        start = start min from
+        end = end max to
+
+        els = (from, to, sf)::els
+    }
+    
+    def combinations() =
+    {
+        var seenStartSet = Set[Int]()
+        var combs = List[List[(Int, Int, SurfaceForm)]]()
+     
+        val ordered = els.sortWith( (x, y) =>
+        {
+            if ( x._1 != y._1 ) x._1 < y._1
+            else x._2 < y._2
+        })
+        
+        //println( ordered )
+        val asArr = ordered.toArray
+        
+        
+        for ( i <- 0 until asArr.length )
+        {
+            if ( !seenStartSet.contains(i) )
+            {
+                var nextUpdate = i
+                var done = false
+                
+                var stack = List[Int]()
+                while (!done)
+                {
+                    // Populate out
+                    var found = false
+                    var valid = true
+                    var j = nextUpdate
+                    for ( j <- nextUpdate until asArr.length )
+                    {
+                        val nextEl = asArr(j)
+                        if ( stack == Nil || nextEl._1 > asArr(stack.head)._2 )
+                        {
+                            // Check there's no fillable gap
+                            var gapStart = asArr(0)._1
+                            if ( stack != Nil )
+                            {
+                                gapStart = asArr(stack.head)._2 + 1
+                            }
+                            
+                            val gapEnd = nextEl._1
+                            if ( gapEnd - gapStart > 0 )
+                            {
+                                for ( (start, end, sf) <- asArr )
+                                {
+                                    if ( start >= gapStart && start< gapEnd && end <= gapEnd )
+                                    {
+                                        //println( "::: " + stack + ", " + j + ", " + start + ", " + end + ", " + gapStart + ", " + gapEnd )
+                                        valid = false
+                                    }
+                                }
+                            }
+                            
+                            stack = j :: stack
+                            //seenStartSet = seenStartSet + j
+                            found = true
+                        }
+                    }
+                    
+                    //println( "? " + stack )
+                    
+                    if ( found && valid )
+                    {
+                        // Validate for gaps
+                        val chosen = stack.map(asArr(_)).reverse
+                        combs = chosen :: combs
+                    }
+
+                    
+                    
+                    if ( stack.length <= 1 ) done = true
+                    else
+                    {
+                        nextUpdate = stack.head+1
+                        stack = stack.tail
+                    }
+                }
+            }
+        }
+
+                    
+        combs.reverse
+    }
+}
 
 object Disambiguator
 {
@@ -218,6 +326,7 @@ object Disambiguator
         }
     }
     
+    
 
     class Disambiguator2( phraseMapFileName : String, topicFileName : String )
     {
@@ -281,7 +390,7 @@ object Disambiguator
                 
                 //val normalisationQuery = topicDb.prepare( "SELECT MAX(count) FROM numTopicsForWhichThisIsAContext", Col[Int]::HNil )
                 
-                var possiblePhrases = List[(Int, Int, Int, List[(Int, Int)])]()
+                var possiblePhrases = List[(Int, Int, Int, SurfaceForm, List[(Int, Int)])]()
                 var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
                 
                 var wordIndex = 0
@@ -290,6 +399,7 @@ object Disambiguator
                 //val maxCategoryCount = _1(normalisationQuery.onlyRow).get
                 
                 println( "Parsing text:" )
+                var surfaceFormMap = TreeMap[Int, SurfaceForm]()
                 for ( word <- wordList )
                 {
                     println( "  " + word )
@@ -322,9 +432,18 @@ object Disambiguator
                                         
                                         // TODO: Do something with this result
                                         //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])
-                                        
-                                        
                                         val topicDetails = for ( td <- sfTopics.toList ) yield (_1(td).get, _2(td).get)
+                                        var thisSf : SurfaceForm = null
+                                        if ( !surfaceFormMap.contains( phraseId ) )
+                                        {
+                                            thisSf = new SurfaceForm( phraseId, phraseCount, topicDetails )
+                                            surfaceFormMap = surfaceFormMap.updated( phraseId, thisSf )
+                                        }
+                                        else
+                                        {
+                                            thisSf = surfaceFormMap( phraseId )
+                                        }
+                                        
                                         for ( (topicId, topicCount) <- topicDetails )
                                         {
                                             assert( topicId != 0 )
@@ -355,7 +474,7 @@ object Disambiguator
                                         }
                                         
                                         
-                                        possiblePhrases = (fromIndex, toIndex, phraseCount, topicDetails) :: possiblePhrases
+                                        possiblePhrases = (fromIndex, toIndex, phraseCount, thisSf, topicDetails) :: possiblePhrases
                                         
                                         newPhrases = (fromIndex, phrase) :: newPhrases
                                     }
@@ -400,8 +519,29 @@ object Disambiguator
                     }
                 } )
                 
+                /* ************************************************** */
+                println( "Building new ambiguity forest" )
+                
+                var sites = List[AmbiguitySite]()
+                for ( (startIndex, endIndex, phraseCount, surfaceForm, topicDetails) <- possiblePhrasesSorted )
+                {
+                    val sfCount = topicDetails.foldLeft(0.0)( _ + _._2 )
+                    val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
+                    
+                    if ( sites == Nil || !sites.head.overlaps( startIndex, endIndex ) )
+                    {
+                        sites = new AmbiguitySite( startIndex, endIndex ) :: sites
+                    }
+                    
+                    sites.head.extend( startIndex, endIndex, surfaceForm )
+                }
+                sites = sites.reverse
+                
+                
+                /* ************************************************** */
+                
                 println( "Building disambiguation forest." )
-                for ( (startIndex, endIndex, phraseCount, topicDetails) <- possiblePhrasesSorted )
+                for ( (startIndex, endIndex, phraseCount, surfaceForm, topicDetails) <- possiblePhrasesSorted )
                 {
                     val phraseWords = wordList.slice( startIndex, endIndex+1 )
                     println( "++ " + startIndex + ", " + endIndex + ", " + phraseWords )

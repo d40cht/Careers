@@ -18,7 +18,7 @@ import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.disambiguator.Disambiguator._
 import org.seacourt.wikibatch._
-import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup}
+import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup, AmbiguitySite, SurfaceForm}
 
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
@@ -149,110 +149,7 @@ class DisambiguatorTest extends FunSuite
         }
     }*/
     
-    class AmbiguitySite( var start : Int, var end : Int )
-    {
-        var els = List[(Int, Int)]()
-        
-        def overlaps( from : Int, to : Int ) =
-        {
-            val overlap = (i : Int, s : Int, e : Int) => i >= s && i <= e
-            
-            overlap( from, start, end ) || overlap( to, start, end ) || overlap( start, from, to ) || overlap( end, from, to )
-        }
-        
-        def extend( from : Int, to : Int )
-        {
-            start = start min from
-            end = end max to
-
-            els = (from, to)::els
-        }
-        
-        def combinations() =
-        {
-            var seenStartSet = Set[Int]()
-            var combs = List[List[(Int, Int)]]()
-         
-            val ordered = els.sortWith( (x, y) =>
-            {
-                if ( x._1 != y._1 ) x._1 < y._1
-                else x._2 < y._2
-            })
-            
-            //println( ordered )
-            val asArr = ordered.toArray
-            
-            
-            for ( i <- 0 until asArr.length )
-            {
-                if ( !seenStartSet.contains(i) )
-                {
-                    var nextUpdate = i
-                    var done = false
-                    
-                    var stack = List[Int]()
-                    while (!done)
-                    {
-                        // Populate out
-                        var found = false
-                        var valid = true
-                        var j = nextUpdate
-                        for ( j <- nextUpdate until asArr.length )
-                        {
-                            val nextEl = asArr(j)
-                            if ( stack == Nil || nextEl._1 > asArr(stack.head)._2 )
-                            {
-                                // Check there's no fillable gap
-                                var gapStart = asArr(0)._1
-                                if ( stack != Nil )
-                                {
-                                    gapStart = asArr(stack.head)._2 + 1
-                                }
-                                
-                                val gapEnd = nextEl._1
-                                if ( gapEnd - gapStart > 0 )
-                                {
-                                    for ( (start, end) <- asArr )
-                                    {
-                                        if ( start >= gapStart && start< gapEnd && end <= gapEnd )
-                                        {
-                                            //println( "::: " + stack + ", " + j + ", " + start + ", " + end + ", " + gapStart + ", " + gapEnd )
-                                            valid = false
-                                        }
-                                    }
-                                }
-                                
-                                stack = j :: stack
-                                //seenStartSet = seenStartSet + j
-                                found = true
-                            }
-                        }
-                        
-                        //println( "? " + stack )
-                        
-                        if ( found && valid )
-                        {
-                            // Validate for gaps
-                            val chosen = stack.map(asArr(_)).reverse
-                            combs = chosen :: combs
-                        }
-
-                        
-                        
-                        if ( stack.length <= 1 ) done = true
-                        else
-                        {
-                            nextUpdate = stack.head+1
-                            stack = stack.tail
-                        }
-                    }
-                }
-            }
-
-                        
-            combs.reverse
-        }
-    }
+    
     
     test( "Disambiguation alternative generation" )
     {
@@ -274,7 +171,7 @@ class DisambiguatorTest extends FunSuite
                 sites = new AmbiguitySite( start, end ) :: sites
             }
             
-            sites.head.extend( start, end )
+            sites.head.extend( start, end, null )
         }
         sites = sites.reverse
         
@@ -292,7 +189,7 @@ class DisambiguatorTest extends FunSuite
         assert( fourth.start === 8 )
         assert( fourth.end === 10 )
         
-        def toWords( l : List[List[(Int, Int)]] ) = l.map( el => el.map( t => words.slice( t._1, t._2+1 ) ) )
+        def toWords( l : List[List[(Int, Int, SurfaceForm)]] ) = l.map( el => el.map( t => words.slice( t._1, t._2+1 ) ) )
 
         assert( toWords( first.combinations() ) ===
             ( ("covent"::Nil) :: ("garden"::Nil) :: Nil ) ::
