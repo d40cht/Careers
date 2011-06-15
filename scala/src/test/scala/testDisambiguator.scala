@@ -110,6 +110,7 @@ class DisambiguatorTest extends FunSuite
             
             // Obsessed with the programming language
             //("java coffee tea", List[String]("Main:Java", "Main:Coffee", "Main:Tea")),
+            ("covent garden", Nil),
             
             ("rice cambridge oxford yale harvard", List[String]("Main:Rice University", "Main:University of Cambridge", "Main:University of Oxford", "Main:Yale University", "Main:Harvard University" )),
             ("rice cheney george bush", List[String]("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush")),
