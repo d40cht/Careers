@@ -29,14 +29,20 @@ import org.seacourt.utility.{Graph, Node}
 
 // Richard Armitage, 'The Vulcans', Scooter Libby
 
-class SurfaceForm( val phraseId : Int, val phraseWeight : Double, val topics : List[(Int, Int)] )
+class SurfaceForm( val phraseId : Int, val phraseWeight : Double, val topics : List[(Int, Double)] )
 {
+    var topicWeights = TreeMap[Int, Double]()
+}
+
+class AmbiguityAlternative( val sites : List[(Int, Int, SurfaceForm)] )
+{
+    var weight = 0.0
 }
 
 class AmbiguitySite( var start : Int, var end : Int )
 {
     var els = List[(Int, Int, SurfaceForm)]()
-    var combs = List[List[(Int, Int, SurfaceForm)]]()
+    var combs = List[AmbiguityAlternative]()
     
     def overlaps( from : Int, to : Int ) =
     {
@@ -53,7 +59,7 @@ class AmbiguitySite( var start : Int, var end : Int )
         els = (from, to, sf)::els
     }
     
-    def combinations() =
+    def combinations()
     {
         var seenStartSet = Set[Int]()
      
@@ -116,9 +122,8 @@ class AmbiguitySite( var start : Int, var end : Int )
                     
                     if ( found && valid )
                     {
-                        // Validate for gaps
-                        val chosen = stack.map(asArr(_)).reverse
-                        combs = chosen :: combs
+                        val alternative = new AmbiguityAlternative( stack.map(asArr(_)).reverse )
+                        combs = alternative :: combs
                     }
 
                     
@@ -132,9 +137,227 @@ class AmbiguitySite( var start : Int, var end : Int )
                 }
             }
         }
+    
+        combs = combs.reverse
+    }
+}
 
-                    
-        combs.reverse
+class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String] )
+{
+    var sites = List[AmbiguitySite]()
+    var contextWeights = TreeMap[Int, Double]()
+    
+    def addTopics( sortedPhrases : List[(Int, Int, Int, SurfaceForm, List[(Int, Int)])] )
+    {
+        for ( (startIndex, endIndex, phraseCount, surfaceForm, topicDetails) <- sortedPhrases )
+        {
+            val sfCount = topicDetails.foldLeft(0.0)( _ + _._2 )
+            val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
+            
+            //if ( sfWeight > 0.01 )
+            {
+                if ( sites == Nil || !sites.head.overlaps( startIndex, endIndex ) )
+                {
+                    sites = new AmbiguitySite( startIndex, endIndex ) :: sites
+                }
+                
+                sites.head.extend( startIndex, endIndex, surfaceForm )
+            }
+        }
+        sites = sites.reverse
+    }
+    
+    def buildContextWeights( contextsForTopic : (Int) => Map[Int, Double] )
+    {
+        var siteOrigination = TreeMap[Int, TreeSet[(Int, Int)]]()
+        var contextOrigination = TreeMap[Int, TreeSet[Int]]()
+        for ( site <- sites )
+        {
+            site.combinations()
+         
+            var siteList = TreeSet[(Int,Int)]()
+            var siteWeights = TreeMap[Int, Double]()   
+            for ( alternative <- site.combs )
+            {
+                var sfWeights = TreeMap[Int, Double]()
+                for ( (startIndex, endIndex, sf) <- alternative.sites )
+                {
+                    //val phraseWeight : Double, val topics : List[(Int, Int)]
+                    val surfaceFormWeight = sf.phraseWeight
+                    for ( (topicId, topicWeight) <- sf.topics )
+                    {
+                        var contexts = contextsForTopic( topicId )
+                        
+                        // This topic itself is a context
+                        contexts = contexts.updated( topicId, 1.0 )
+                        for ( (contextId, contextWeight) <- contexts )
+                        {
+                            val aggWeight = surfaceFormWeight * topicWeight * contextWeight
+                            sfWeights = sfWeights.updated( contextId, aggWeight )
+                            
+                            var sfList = contextOrigination.getOrElse( contextId, TreeSet[Int]() )
+                            sfList += sf.phraseId
+                            contextOrigination = contextOrigination.updated( contextId, sfList )
+                            
+                            var siteList = siteOrigination.getOrElse( contextId, TreeSet[(Int, Int)]() )
+                            siteList += ( (site.start, site.end) )
+                            siteOrigination = siteOrigination.updated( contextId, siteList )
+                        }
+                    }
+                }
+                
+                for ( (id, weight) <- sfWeights )
+                {
+                    var sw = 0.0
+                    if ( siteWeights.contains(id) )
+                    {
+                        sw = siteWeights(id)
+                    }
+                    siteWeights = siteWeights.updated( id, sw max weight )
+                }
+            }
+            
+            for ( (id, weight) <- siteWeights )
+            {
+                var sw = 0.0
+                if ( contextWeights.contains(id) )
+                {
+                    sw = contextWeights(id)
+                }
+                contextWeights = contextWeights.updated( id, sw+weight )
+            }
+        }
+        
+        /*for ( (id, w) <- contextWeights )
+        {
+            println( "~~~~ " + topicNameMap(id) + ", " + w + ": " + siteOrigination(id) + " | " + contextOrigination(id) )
+        }*/
+        
+        // Filter out any contexts originating only from one surface form or site
+        contextWeights = contextWeights.filter( x => siteOrigination(x._1).size > 1 && contextOrigination(x._1).size > 1 )
+    }
+    
+    def applyContexts( contextsForTopic : (Int) => Map[Int, Double] )
+    {
+        val reversed = contextWeights.toList.map( (v) => (v._2, v._1) ).sortWith( (x,y) => (x._1 > y._1) )
+
+        for ( (weight, contextId) <- reversed.slice(0,200) )
+        {
+            println( "Applying: " + topicNameMap(contextId) + ": " + weight )
+            for ( site <- sites )
+            {   
+                for ( alternative <- site.combs )
+                {
+                    for ( (startIndex, endIndex, sf) <- alternative.sites )
+                    {
+                        for ( (topicId, topicWeight) <- sf.topics )
+                        {
+                            val contexts = contextsForTopic( topicId )
+                            
+                            if ( contexts.contains( contextId ) )
+                            {
+                                val contextWeight = contexts(contextId)
+                                val weightIncrement = weight * /*sf.phraseWeight **/ topicWeight * contextWeight
+                                // Weight this based on other weightings?
+                                alternative.weight += weightIncrement
+                                
+                                var tpw = sf.topicWeights.getOrElse( topicId, 0.0 )
+                                sf.topicWeights = sf.topicWeights.updated(topicId, tpw + weightIncrement)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        class SureSites( val start : Int, val end : Int, val topicId : Int, val weight : Double )
+        {
+        }
+        
+        
+        
+        var disambiguated = List[SureSites]()
+        for ( site <- sites )
+        {
+            val weightedAlternatives = site.combs.sortWith( _.weight > _.weight )
+            
+            println( "Site: " + site.start + ", " + site.end )
+            for ( wa <- weightedAlternatives )
+            {
+                // x._3 is the surface form. Pull out the highest weight topic too
+                println( "  Site weight: " + wa.weight )
+                for ( site <- wa.sites )
+                {
+                    val sf = site._3
+
+                    println( "    Element: " + words.slice( site._1, site._2+1 ) )
+                    for ( (weight, id) <- sf.topicWeights.map(x =>(-x._2, x._1)).toList.slice(0, 5) )
+                    {
+                        println( "       ::: " + topicNameMap(id) + ": " + (-weight) )
+                    }
+                }
+            }
+            
+            val canonicalAlternative = weightedAlternatives.first
+            for ( site <- canonical )
+            {
+                val canonicalTopic = sf.topicWeights.map( x =>(x._2, x._1) ).last
+                disambiguated = new SureSites( site.start, site.end, canonicalTopic._2, canonicalTopic._1 ) :: disambiguated
+            }
+        }
+        
+        // Now build a context set for these disambiguated sites and do the SCC building.        
+        var nodesById = TreeMap[Int, Node]()
+        val g = new Graph()
+        for ( sureSite <- disambiguated )
+        {
+            val topicId = sureSite.topicId
+            val weight = sureSite.weight
+            
+            nodesById = nodesById.updated( topicId, g.addNode( topicNameMap(topicId) ) )
+            for ( (contextId, contextWeight) <- contextsForTopic(topicId) )
+            {
+                if ( !nodesById.contains( contextId ) )
+                {
+                    nodesById = nodesById.updated( contextId, g.addNode( topicNameMap(contextId) ) )
+                }
+            }
+        }
+        
+        // Lookup these additional contexts and add them into contextsForTopic map
+        val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight1, weight2 FROM linkWeights WHERE topicId=?", Col[Int]::Col[Double]::Col[Double]::HNil )
+        for ( (id, node) <- nodesById )
+        {
+            if ( !contextsForTopic.contains( id ) )
+            {
+                topicCategoryQuery.bind( id )
+                
+                contextsForTopic = contex
+            }
+        }
+        
+        for ( (id, node) <- nodesById )
+        {
+            val children = contextsForTopic( id )
+            
+            for ( (contextId, weight) <- children )
+            {
+                val toNode = nodesById(contextId)
+                
+                if ( weight > 0.2 )
+                {
+                    g.addEdge( fromNode, toNode )
+                }
+            }
+        }
+        
+        val sccs = g.connected()
+        println( "Canonical SCCs: " )
+        for ( els <- sccs )
+        {
+            val elnames = for( el <- els ) yield el.name
+            println( "  >> " + elnames.mkString(", ") )
+        }
     }
 }
 
@@ -305,7 +528,7 @@ object Disambiguator
             if ( debugPrunedTopics != Nil )
             {
                 println( "  Pruning " + phrase )
-                if ( topicDetails == Nil ) println( "  --> Phrase topics empty. Removed." )
+                //if ( topicDetails == Nil ) println( "  --> Phrase topics empty. Removed." )
                 //for ( pt <- debugPrunedTopics ) println( "    " + pt.topicId )
             }
             
@@ -347,6 +570,7 @@ object Disambiguator
             val topicQuery = topicDb.prepare( "SELECT t2.name, t1.topicId, t1.count FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id WHERE t1.phraseTreeNodeId=? ORDER BY t1.count DESC", Col[String]::Col[Int]::Col[Int]::HNil )
             topicQuery.bind(id)
 
+            
             val categoryQuery = topicDb.prepare( "SELECT t1.name FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::HNil )
 
             var totalOccurrences = 0
@@ -399,7 +623,7 @@ object Disambiguator
                 //val maxCategoryCount = _1(normalisationQuery.onlyRow).get
                 
                 println( "Parsing text:" )
-                var surfaceFormMap = TreeMap[Int, SurfaceForm]()
+                //var surfaceFormMap = TreeMap[Int, SurfaceForm]()
                 for ( word <- wordList )
                 {
                     println( "  " + word )
@@ -438,16 +662,19 @@ object Disambiguator
                                         val sfCount = topicDetails.foldLeft(0.0)( (x,y) => x + y._2 )
                                         val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
                                         
-                                        var thisSf : SurfaceForm = null
+                                        /*var thisSf : SurfaceForm = null
                                         if ( !surfaceFormMap.contains( phraseId ) )
                                         {
-                                            thisSf = new SurfaceForm( phraseId, sfWeight, topicDetails )
+                                            val weightedTopics = for ( td <- topicDetails ) yield (td._1, td._2.toDouble / sfCount.toDouble)
+                                            thisSf = new SurfaceForm( phraseId, sfWeight, weightedTopics )
                                             surfaceFormMap = surfaceFormMap.updated( phraseId, thisSf )
                                         }
                                         else
                                         {
                                             thisSf = surfaceFormMap( phraseId )
-                                        }
+                                        }*/
+                                        val weightedTopics = for ( td <- topicDetails ) yield (td._1, td._2.toDouble / sfCount.toDouble)
+                                        val thisSf = new SurfaceForm( phraseId, sfWeight, weightedTopics )
                                         
                                         for ( (topicId, topicCount) <- topicDetails )
                                         {
@@ -527,109 +754,9 @@ object Disambiguator
                 /* ************************************************** */
                 println( "Building new ambiguity forest" )
                 
-                class AmbiguityForest()
-                {
-                    var sites = List[AmbiguitySite]()
-                    var contextWeights = TreeMap[Int, Double]()
-                    
-                    def addTopics( sortedPhrases : List[(Int, Int, Int, SurfaceForm, List[(Int, Int)])] )
-                    {
-                        for ( (startIndex, endIndex, phraseCount, surfaceForm, topicDetails) <- possiblePhrasesSorted )
-                        {
-                            val sfCount = topicDetails.foldLeft(0.0)( _ + _._2 )
-                            val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
-                            
-                            if ( sfWeight > 0.01 )
-                            {
-                                if ( sites == Nil || !sites.head.overlaps( startIndex, endIndex ) )
-                                {
-                                    sites = new AmbiguitySite( startIndex, endIndex ) :: sites
-                                }
-                                
-                                sites.head.extend( startIndex, endIndex, surfaceForm )
-                            }
-                        }
-                        sites = sites.reverse
-                    }
-                    
-                    def buildContextWeights( contextsForTopic : (Int) => Map[Int, Double] )
-                    {
-                        for ( site <- sites )
-                        {
-                            site.combinations()
-                         
-                            var siteWeights = TreeMap[Int, Double]()   
-                            for ( alternative <- site.combs )
-                            {
-                                var sfWeights = TreeMap[Int, Double]()
-                                for ( (startIndex, endIndex, sf) <- alternative )
-                                {
-                                    //val phraseWeight : Double, val topics : List[(Int, Int)]
-                                    val surfaceFormWeight = sf.phraseWeight
-                                    val topicSum = sf.topics.foldLeft(0)( _ + _._2 )
-                                    for ( (topicId, count) <- sf.topics )
-                                    {
-                                        val topicWeight = count.toDouble / topicSum.toDouble
-                                        
-                                        val contexts = contextsForTopic( topicId )
-                                        for ( (contextId, contextWeight) <- contexts )
-                                        {
-                                            val aggWeight = surfaceFormWeight * topicWeight * contextWeight
-                                            sfWeights = sfWeights.updated( contextId, aggWeight )
-                                        }
-                                    }
-                                }
-                                
-                                for ( (id, weight) <- sfWeights )
-                                {
-                                    var sw = 0.0
-                                    if ( siteWeights.contains(id) )
-                                    {
-                                        sw = siteWeights(id)
-                                    }
-                                    siteWeights = siteWeights.updated( id, sw max weight )
-                                }
-                            }
-                            
-                            for ( (id, weight) <- siteWeights )
-                            {
-                                var sw = 0.0
-                                if ( contextWeights.contains(id) )
-                                {
-                                    sw = contextWeights(id)
-                                }
-                                contextWeights = contextWeights.updated( id, sw+weight )
-                            }
-                        }
-                    }
-                    
-                    def applyContexts( topicContextLookup : x => topicCategoryMap(x) )
-                    {
-                        for ( site <- sites )
-                        {
-                            for ( (id, weight) <- contextWeights )
-                            {
-                                for ( alternative <- sites.combs )
-                                {
-                                    for ( (startIndex, endIndex, sf) <- alternative )
-                                    {
-                                        // Store a context set in the sf.
-                                        // if ( sf.contextSet.contains(id) ) add the weight on, weighted somehow
-                                    }
-                                }
-                            }
-                            
-                            // Now here we should have a weighted set of alternatives. Choose one or more.
-                        }
-                        
-                        // At this point, clear the contextWeights and recalculate based on resolved alternatives
-                        contextWeights = TreeMap[Int, Double]()
-                        
-                        f.buildContextWeights( topicContextLookup )
-                    }
-                }
                 
-                val f = new AmbiguityForest()
+                
+                val f = new AmbiguityForest( wordList, topicNameMap )
                 f.addTopics( possiblePhrasesSorted )
                 f.buildContextWeights( x => topicCategoryMap(x) )
                 f.applyContexts( x => topicCategoryMap(x) )
@@ -642,14 +769,14 @@ object Disambiguator
                 for ( (startIndex, endIndex, phraseCount, surfaceForm, topicDetails) <- possiblePhrasesSorted )
                 {
                     val phraseWords = wordList.slice( startIndex, endIndex+1 )
-                    println( "++ " + startIndex + ", " + endIndex + ", " + phraseWords )
+                    //println( "++ " + startIndex + ", " + endIndex + ", " + phraseWords )
                     val sfCount = topicDetails.foldLeft(0.0)( _ + _._2 )
                     val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
                     
                     val da = new DisambiguationAlternative( startIndex, endIndex, true, sfWeight, phraseWords )
                     if ( daSites != Nil )
                     {
-                        println( daSites.head.startIndex + ", " + daSites.head.endIndex + ", " + da.startIndex + ", " + da.endIndex + ": " + daSites.head.overlaps( da ))
+                        //println( daSites.head.startIndex + ", " + daSites.head.endIndex + ", " + da.startIndex + ", " + da.endIndex + ": " + daSites.head.overlaps( da ))
                     }
                         
                     if ( daSites == Nil || !daSites.head.overlaps( da ) )
@@ -672,8 +799,8 @@ object Disambiguator
                     }
                 }
                 
-                println( "Number of da sites: " + daSites.length )
-                for ( da <- daSites ) println( " " + wordList.slice(da.startIndex, da.endIndex+1) + ", " + da.phraseWeight )
+                //println( "Number of da sites: " + daSites.length )
+                //for ( da <- daSites ) println( " " + wordList.slice(da.startIndex, da.endIndex+1) + ", " + da.phraseWeight )
             }
             
             private def getCategoryCounts( daSites : List[DisambiguationAlternative] ) : JTreeMap[Int, Double] =
@@ -757,10 +884,10 @@ object Disambiguator
                 
                 //daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
                 
-                println( "Pruning invalid phrases" )
+                //println( "Pruning invalid phrases" )
                 daSites = daSites.filter( _.validPhrase )
                 
-                daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
+                //daSites.foreach( x => println( wordList.slice( x.startIndex, x.endIndex+1 ) ) )
                 
                 val mapIt = categoryWeights.entrySet().iterator()
                 while ( mapIt.hasNext() )
@@ -817,7 +944,7 @@ object Disambiguator
                             val fromNode = nodes(index)
                             val toNode = nodes( relevantCategorySet(contextId) )
                             
-                            println( "From " + fromNode.name + " to " + toNode.name + ": " + weight1 + ", " + weight2 )
+                            //println( "From " + fromNode.name + " to " + toNode.name + ": " + weight1 + ", " + weight2 )
                             
                             if ( weight1 > 0.2 )
                             {
@@ -832,7 +959,7 @@ object Disambiguator
                 for ( els <- sccs )
                 {
                     val elnames = for( el <- els ) yield el.name
-                    println( "### " + elnames.mkString(", ") )
+                    //println( "### " + elnames.mkString(", ") )
                 }
                 
                 

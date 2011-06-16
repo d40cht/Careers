@@ -18,7 +18,7 @@ import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.disambiguator.Disambiguator._
 import org.seacourt.wikibatch._
-import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup, AmbiguitySite, SurfaceForm}
+import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup, AmbiguitySite, SurfaceForm, AmbiguityAlternative}
 
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
@@ -85,7 +85,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
             val tests = List[(String, List[String])](
                 ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
@@ -105,7 +105,7 @@ class DisambiguatorTest extends FunSuite
                 
                 ("rice cambridge oxford yale harvard", List[String]("Main:Rice University", "Main:University of Cambridge", "Main:University of Oxford", "Main:Yale University", "Main:Harvard University" )),
                 ("rice cheney george bush", List[String]("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush")),
-                ("george bush major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
+                ("george bush john major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
                 ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C (programming language)", "Main:Design Patterns") ),
                 ("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
                 ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
@@ -189,24 +189,29 @@ class DisambiguatorTest extends FunSuite
         assert( fourth.start === 8 )
         assert( fourth.end === 10 )
         
-        def toWords( l : List[List[(Int, Int, SurfaceForm)]] ) = l.map( el => el.map( t => words.slice( t._1, t._2+1 ) ) )
+        def toWords( l : List[AmbiguityAlternative] ) = l.map( el => el.sites.map( t => words.slice( t._1, t._2+1 ) ) )
 
-        assert( toWords( first.combinations() ) ===
+        first.combinations()
+        second.combinations()
+        third.combinations()
+        fourth.combinations()
+        
+        assert( toWords( first.combs ) ===
             ( ("covent"::Nil) :: ("garden"::Nil) :: Nil ) ::
             ( ("covent" :: "garden" ::Nil) :: Nil ) :: Nil )
 
-        assert( toWords( second.combinations() ) ===
+        assert( toWords( second.combs ) ===
             ( ("barack"::Nil) :: ("hussein"::Nil) :: ("obama"::Nil) :: Nil ) ::
             ( ("barack"::Nil) :: ("hussein"::"obama"::Nil) :: Nil ) ::
             ( ("barack"::"hussein"::Nil) :: ("obama"::Nil) :: Nil ) ::
             ( ("barack"::"hussein"::"obama"::Nil) :: Nil ) :: Nil )
     
-        assert( toWords( third.combinations() ) ===
+        assert( toWords( third.combs ) ===
             ( ("design"::Nil) :: ("pattern"::Nil) :: ("language"::Nil) :: Nil ) ::
             ( ("design"::Nil) :: ("pattern"::"language"::Nil) ::Nil ) ::
             ( ("design"::"pattern"::Nil) :: ("language"::Nil) ::Nil ) :: Nil )
 
-        assert( toWords( fourth.combinations() ) ===
+        assert( toWords( fourth.combs ) ===
             ( ("about"::Nil) :: ("boy"::Nil) :: Nil ) ::
             ( ("about"::"a"::"boy"::Nil) :: Nil ) :: Nil )
         
