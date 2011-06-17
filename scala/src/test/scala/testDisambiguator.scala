@@ -16,7 +16,7 @@ import scala.collection.mutable.Stack
 
 import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
-import org.seacourt.disambiguator.Disambiguator._
+import org.seacourt.disambiguator._
 import org.seacourt.wikibatch._
 import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup, AmbiguitySite, SurfaceForm, AmbiguityAlternative}
 
@@ -67,7 +67,7 @@ class DisambiguatorTest extends FunSuite
     {
         if ( true )
         {
-            val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
             val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
@@ -112,7 +112,7 @@ class DisambiguatorTest extends FunSuite
                 
             for ( (phrase, res) <- tests )
             {
-                val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+                val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
                 val b = new d.Builder(phrase)
                 b.build()
                 val dres = b.resolve(1)
