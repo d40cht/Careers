@@ -1,14 +1,17 @@
 import org.scalatest.FunSuite
 import scala.collection.immutable.TreeSet
 
-import org.seacourt.utility.{Graph, Node}
+import org.seacourt.utility.{Graph}
 
 
 class GraphTests extends FunSuite
 {
     test( "Strongly connected components test" )
     {
-        val g = new Graph()
+        type GraphType = Graph[String]
+        type Node = GraphType#Node
+        
+        val g = new GraphType()
         
         val a = g.addNode( "a" )
 		val b = g.addNode( "b" )
@@ -29,7 +32,7 @@ class GraphTests extends FunSuite
 		g.addEdge( b, c )
 		g.addEdge( c, b )
 		
-		val sccs = g.connected()
+		val sccs = g.connected(0)
 		
 		assert( sccs.length === 3 )
 		val first = sccs.head
@@ -39,7 +42,7 @@ class GraphTests extends FunSuite
 		assert( second.length === 2 )
 		assert( third.length === 3 )
 		
-		def getNames( l : List[Node] ) = l.foldLeft(TreeSet[String]())( _ + _.name )
+		def getNames( l : List[Node] ) = l.foldLeft(TreeSet[String]())( _ + _.info )
 		
 		assert( getNames( first ) === TreeSet[String]("d") )
 		assert( getNames( second ) === TreeSet[String]("e", "f") )

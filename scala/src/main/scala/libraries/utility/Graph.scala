@@ -2,27 +2,32 @@ package org.seacourt.utility
 
 import scala.collection.mutable.Stack
 
-class Node( val id : Int, val name : String )
+class NodeClass[NodeInfo]( val id : Int, val info : NodeInfo )
 {
-    var sinks = List[Node]()
+    var sinks = List[NodeClass[NodeInfo]]()
     var index : Int = -1
     var lowlink : Int = -1
     var onStack = false
+    var edgeCounts = 0
     
-    def addSink( sink : Node )
+    def addSink( sink : NodeClass[NodeInfo] )
     {
         sinks = sink :: sinks
+        edgeCounts += 1
+        sink.edgeCounts += 1
     }
 }
 
-class Graph()
+class Graph[NodeInfo]()
 {
+    type Node = NodeClass[NodeInfo]    
+
     var nodes = List[Node]()
     var lastId = 0
     
-    def addNode( name : String ) =
+    def addNode( info : NodeInfo ) =
     {
-        val theNode = new Node( lastId, name )
+        val theNode = new Node( lastId, info )
         lastId += 1
         nodes = theNode :: nodes
         
@@ -40,48 +45,55 @@ class Graph()
         var stack = Stack[Node]()
         var index = 0
         
-        private def tarjan( node : Node )
+        private def tarjan( node : Node, minEdges : Int )
         {
             //println( ":::::::: visiting: " + node.name )
-            stack.push( node )
-            node.onStack = true
-            node.index = index
-            node.lowlink = index
-            index += 1
             
-            for ( sink <- node.sinks )
+            if ( node.edgeCounts >= minEdges )
             {
-                if ( sink.index == -1 )
+                stack.push( node )
+                node.onStack = true
+                node.index = index
+                node.lowlink = index
+                index += 1
+                
+                for ( sink <- node.sinks )
                 {
-                    tarjan( sink )
-                    node.lowlink = node.lowlink min sink.lowlink
-                }
-                else if ( sink.onStack )
-                {
-                    node.lowlink = node.lowlink min sink.index
-                }
-            }
-            
-            if ( node.lowlink == node.index )
-            {
-                var scc = List[Node]()
-                var done = false
-                while ( !done )
-                {
-                    val front = stack.pop()
-                    front.onStack = false
-                    scc = front :: scc
-                    if ( node == front )
+                    if ( sink.edgeCounts >= minEdges )
                     {
-                        done = true
+                        if ( sink.index == -1 )
+                        {
+                            tarjan( sink, minEdges )
+                            node.lowlink = node.lowlink min sink.lowlink
+                        }
+                        else if ( sink.onStack )
+                        {
+                            node.lowlink = node.lowlink min sink.index
+                        }
                     }
                 }
                 
-                sccs = scc :: sccs
+                if ( node.lowlink == node.index )
+                {
+                    var scc = List[Node]()
+                    var done = false
+                    while ( !done )
+                    {
+                        val front = stack.pop()
+                        front.onStack = false
+                        scc = front :: scc
+                        if ( node == front )
+                        {
+                            done = true
+                        }
+                    }
+                    
+                    sccs = scc :: sccs
+                }
             }
         }
         
-        def run() : List[List[Node]] =
+        def run( minEdges : Int ) : List[List[Node]] =
         {
             for ( node <- nodes )
             {
@@ -95,7 +107,7 @@ class Graph()
                 if ( node.index == -1 )
                 {
                     // Run Tarjan
-                    tarjan( node )
+                    tarjan( node, minEdges )
                 }
             }
             
@@ -103,10 +115,10 @@ class Graph()
         }
     }
     
-    def connected() =
+    def connected( minEdges : Int ) =
     {
         val c = new Connected()
-        c.run()
+        c.run( minEdges )
     }
 }
 

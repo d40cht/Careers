@@ -65,27 +65,27 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new org.seacourt.disambiguator.Disambiguator.Disambiguator2( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
-            //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+            val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
             
             //val fileText = "gerry adams troubles bloody sunday"
-            val fileText = "rice cambridge oxford yale harvard"
+            //val fileText = "rice cambridge oxford yale harvard"
             
             val b = new d.Builder(fileText)
             b.build()
             val res = b.resolve(2)
-            println( res )
+            //println( res )
         }
     }
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val tests = List[(String, List[String])](
                 ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
