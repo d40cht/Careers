@@ -8,6 +8,7 @@ import java.io.{File, DataInputStream, FileInputStream}
 import scala.xml.XML
 
 import scala.util.matching.Regex
+import scala.collection.mutable.{ListBuffer}
 
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility.StopWords.stopWordSet
@@ -475,6 +476,43 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
 
         XML.save( fileName, fullDebug, "utf8" )
     }
+    
+    def htmlOutput( fileName : String )
+    {
+        val wordArr = words.toArray
+        var i = 0
+        var phraseIt = disambiguated
+        
+        val l = ListBuffer[scala.xml.Elem]()
+        while ( i < wordArr.size )
+        {
+            val resolution = phraseIt.head
+            if ( resolution.start == i )
+            {
+                val topicLink = if (resolution.name.startsWith("Main:")) resolution.name.drop(5) else resolution.name
+                l.append(
+                    <a href={ "http://en.wikipedia.org/wiki/" + topicLink }>
+                        {words.slice( resolution.start, resolution.end+1 ).mkString(" ")}
+                    </a> )
+                i = resolution.end+1
+                phraseIt = phraseIt.tail
+            }
+            else
+            {
+                l.append( <span>{wordArr(i) + " " }</span> )
+                i += 1
+            }
+        }
+        
+        val output =
+            <html>
+                <head></head>
+                <body> { l.toList } </body>
+            </html>
+            
+        XML.save( fileName, output, "utf8" )
+    }
+
 }
 
 class Disambiguator( phraseMapFileName : String, topicFileName : String )
@@ -669,6 +707,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             
             f
         }
+        
         
         /*def resolve( maxAlternatives : Int ) : List[List[(Double, List[String], String)]] =
         {

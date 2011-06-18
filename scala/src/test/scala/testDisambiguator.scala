@@ -79,6 +79,7 @@ class DisambiguatorTest extends FunSuite
             val b = new d.Builder(fileText)
             val forest = b.build()
             forest.dumpDebug( "ambiguitydebug.xml" )
+            forest.htmlOutput( "ambiguity.html" )
 
             
             //val res = b.resolve(2)
@@ -88,7 +89,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val tests = List[(String, List[String])](
                 ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
