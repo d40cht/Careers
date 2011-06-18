@@ -5,6 +5,8 @@ import java.util.{TreeMap => JTreeMap}
 import math.{max, log}
 import java.io.{File, DataInputStream, FileInputStream}
 
+import scala.xml.XML
+
 import scala.util.matching.Regex
 
 import org.seacourt.sql.SqliteWrapper._
@@ -154,8 +156,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             <surfaceForms>
                 { for ( (startIndex, endIndex, sf) <- sortedPhrases ) yield
                     <element>
-                        <start>{startIndex}</start>
-                        <end>{endIndex}</end>
+                        <phrase>{words.slice( startIndex, endIndex+1 ).mkString(" ")} </phrase>
                         <weight>{sf.phraseWeight}</weight>
                     </element>
                 }
@@ -254,7 +255,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                             <name>{topicNameMap(contextId)}</name>
                             <weight>{weight}</weight>
                             <origins>
-                                { for ( x <- siteOrigination(contextId) ) yield <element>{words.slice(x._1, x._2+1)}</element> }
+                                { for ( x <- siteOrigination(contextId) ) yield <element>{words.slice(x._1, x._2+1).mkString(" ")}</element> }
                             </origins>
                         </element>
                 }
@@ -301,14 +302,14 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 {
                     val weightedAlternatives = site.combs.sortWith( _.weight > _.weight )
                     <site>
-                        <phrase>{ words.slice( site.start, site.end+1 ) }</phrase>
+                        <phrase>{ words.slice( site.start, site.end+1 ).mkString(" ") }</phrase>
                         {
                             for ( wa <- weightedAlternatives ) yield
                                 <alternative>
                                     <weight>{wa.weight}</weight>
                                     {
                                         for ( site <- wa.sites ) yield
-                                            <text>{words.slice( site._1, site._2+1 )}</text>
+                                            <text>{words.slice( site._1, site._2+1 ).mkString(" ")}</text>
                                             <topics>
                                             {
                                                 for ( (weight, id) <- site._3.topicWeights.map( x =>(-x._2, x._1) ).toList.slice(0, 5) ) yield
@@ -360,7 +361,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             
             if ( !nodesById.contains( topicId ) )
             {
-                nodesById = nodesById.updated( topicId, g.addNode( topicId, topicNameMap(topicId), weight ) )
+                nodesById = nodesById.updated( topicId, g.addNode( (topicId, topicNameMap(topicId), weight) ) )
                 for ( (contextId, contextWeight) <- topicCategoryMap(topicId) )
                 {
                     if ( !nodesById.contains( contextId ) )
@@ -414,6 +415,25 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
         }
         
+        debug =
+            <contextGraph>
+                <nodes>
+                {
+                    for ( node <- g.nodes ) yield
+                        <topic>
+                            <id>{node.info._1}</id>
+                            <name>{node.info._2}</name>
+                            <weight>{node.info._3}</weight>
+                            <sinks>
+                            {
+                                for ( s <- node.sinks ) yield <element>{s.info._1}</element>
+                            }
+                            </sinks>
+                        </topic>
+                }
+                </nodes>
+            </contextGraph> :: debug
+        
         // Get SCCs
         val sccs = g.connected( 1 )
         var report = List[(Double, String)]()
@@ -443,7 +463,17 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         for ( (weight, names) <- sortedReport )
         {
             println( "))) " + weight + ": " + names )
-        }
+        }   
+    }
+    
+    def dumpDebug( fileName : String )
+    {
+        val fullDebug =
+            <root>
+            { for ( el <-debug.reverse ) yield el }
+            </root>
+
+        XML.save( fileName, fullDebug, "utf8" )
     }
 }
 

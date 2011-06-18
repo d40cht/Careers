@@ -65,7 +65,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
@@ -77,8 +77,8 @@ class DisambiguatorTest extends FunSuite
             //val fileText = "rice cambridge oxford yale harvard"
             
             val b = new d.Builder(fileText)
-            b.build()
-            
+            val forest = b.build()
+            forest.dumpDebug( "ambiguitydebug.xml" )
 
             
             //val res = b.resolve(2)
@@ -99,6 +99,10 @@ class DisambiguatorTest extends FunSuite
                 // Produces a rubbish list of categories
                 //("a cup of coffee or a cup of english breakfast in the morning", Nil)
                 ("cereal maize barley rice", List[String]("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
+                
+                // Because the tokenizer is insensitive to punctuation we end up with 'cambridge united' as the sf and
+                // then a massive football context being asserted!
+                //"cambridge, united kingdom"
                 
                 // Do we have 'covent' in the dictionary?
                 //("la scala covent garden puccini", List[String]()),
