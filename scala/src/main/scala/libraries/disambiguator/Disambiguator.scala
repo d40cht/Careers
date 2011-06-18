@@ -14,17 +14,13 @@ import org.seacourt.utility._
 import org.seacourt.utility.{Graph}
 
 // Thoughts:
-//
-// * Word frequency - should that be tf/idf on words, or td/idf on phrases that are surface forms?
 // * Testing: are the various tables actually correct. Are there really 55331 articles that reference 'Main:Voivodeships of Poland'?
 // *    Indeed, are there really 466132 articles that mention the word 'voivodeships'?
 // * Get some test documents and test disambig at the paragraph level, then at the doc level and compare the results
 // * Mark up the test documents manually with expected/desired results
-// * Get stuff up in the scala REPL to test ideas
 // * Count at each site whenever an assertion has been applied (i.e. the category was relevant). Disable sites where only a few were relevant? Or something else!
 
 // Steve ideas:
-// * Context weighted according to the inverse of their frequency of occurrence
 // * Weight context proportional to (sum of) the (word) distance from the sf being asserted over. Allows local contexts.
 
 // Richard Armitage, 'The Vulcans', Scooter Libby
@@ -144,14 +140,29 @@ class AmbiguitySite( var start : Int, var end : Int )
 
 class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String] )
 {
+    class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
+    
     var sites = List[AmbiguitySite]()
     var contextWeights = TreeMap[Int, Double]()
+    var disambiguated = List[SureSite]()
+    
+    var debug = List[scala.xml.Elem]()
     
     def addTopics( sortedPhrases : List[(Int, Int, SurfaceForm)] )
     {
+        debug =
+            <surfaceForms>
+                { for ( (startIndex, endIndex, sf) <- sortedPhrases ) yield
+                    <element>
+                        <start>{startIndex}</start>
+                        <end>{endIndex}</end>
+                        <weight>{sf.phraseWeight}</weight>
+                    </element>
+                }
+            </surfaceForms> :: debug
+
         for ( (startIndex, endIndex, surfaceForm) <- sortedPhrases )
         {
-            println( "++++++++++++ " + words.slice(startIndex, endIndex+1) + ":: " + surfaceForm.phraseWeight )
             if ( surfaceForm.phraseWeight > 0.005 )
             {
                 if ( sites == Nil || !sites.head.overlaps( startIndex, endIndex ) )
@@ -234,14 +245,20 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         // Filter out any contexts originating only from one surface form or site
         contextWeights = contextWeights.filter( x => siteOrigination(x._1).size > 1 && contextOrigination(x._1).size > 1 )
         
-        if ( true )
-        {
-            val reversed = contextWeights.toList.map( (v) => (v._2, v._1) ).sortWith( (x,y) => (x._1 > y._1) )
-            for ( (weight, contextId) <- reversed.slice(0,200) )
-            {
-                println( "}}} " + topicNameMap(contextId) + ": " + weight + ", " + siteOrigination(contextId).map( x => words.slice(x._1, x._2+1) ) )
-            }
-        }
+        debug =
+            <contexts>
+                {
+                    val reversed = contextWeights.toList.map( (v) => (v._2, v._1) ).sortWith( (x,y) => (x._1 > y._1) )
+                    for ( (weight, contextId) <- reversed.slice(0, 200) ) yield
+                        <element>
+                            <name>{topicNameMap(contextId)}</name>
+                            <weight>{weight}</weight>
+                            <origins>
+                                { for ( x <- siteOrigination(contextId) ) yield <element>{words.slice(x._1, x._2+1)}</element> }
+                            </origins>
+                        </element>
+                }
+            </contexts> :: debug
     }
     
     def applyContexts( topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], topicDb : SQLiteWrapper )
@@ -277,34 +294,41 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
         }
         
-        class SureSites( val start : Int, val end : Int, val topicId : Int, val weight : Double )
-        {
-        }
-        
-        
-        
-        var disambiguated = List[SureSites]()
+        debug =
+            <resolutions>
+            {
+                for ( site <- sites ) yield
+                {
+                    val weightedAlternatives = site.combs.sortWith( _.weight > _.weight )
+                    <site>
+                        <phrase>{ words.slice( site.start, site.end+1 ) }</phrase>
+                        {
+                            for ( wa <- weightedAlternatives ) yield
+                                <alternative>
+                                    <weight>{wa.weight}</weight>
+                                    {
+                                        for ( site <- wa.sites ) yield
+                                            <text>{words.slice( site._1, site._2+1 )}</text>
+                                            <topics>
+                                            {
+                                                for ( (weight, id) <- site._3.topicWeights.map( x =>(-x._2, x._1) ).toList.slice(0, 5) ) yield
+                                                    <element>
+                                                        <name>{topicNameMap(id)}</name>
+                                                        <weight>{-weight}</weight>
+                                                    </element>
+                                            }
+                                            </topics>
+                                    }
+                                </alternative>
+                        }
+                    </site>
+                }
+            }
+            </resolutions> :: debug
+            
         for ( site <- sites )
         {
             val weightedAlternatives = site.combs.sortWith( _.weight > _.weight )
-            
-            println( "Site: " + site.start + ", " + site.end )
-            for ( wa <- weightedAlternatives )
-            {
-                // x._3 is the surface form. Pull out the highest weight topic too
-                println( "  Site weight: " + wa.weight )
-                for ( site <- wa.sites )
-                {
-                    val sf = site._3
-
-                    println( "    Element: " + words.slice( site._1, site._2+1 ) )
-                    for ( (weight, id) <- sf.topicWeights.map(x =>(-x._2, x._1)).toList.slice(0, 5) )
-                    {
-                        println( "       ::: " + topicNameMap(id) + ": " + (-weight) )
-                    }
-                }
-            }
-            
             val canonicalAlternative = weightedAlternatives.head
             for ( site <- canonicalAlternative.sites )
             {
@@ -314,7 +338,9 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 if ( sf.topicWeights.size > 0 )
                 {
                     val canonicalTopic = sf.topicWeights.map( x =>(x._2, x._1) ).last
-                    disambiguated = new SureSites( start, end, canonicalTopic._2, canonicalTopic._1 ) :: disambiguated
+                    val topicId = canonicalTopic._2
+                    val weight = canonicalTopic._1
+                    disambiguated = new SureSite( start, end, topicId, weight, topicNameMap(topicId) ) :: disambiguated
                 }
             }
         }
@@ -474,7 +500,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
         var topicNameMap = TreeMap[Int, String]()
         var contextWeightMap = TreeMap[Int, Double]()
         
-        def build()
+        def build() : AmbiguityForest =
         {
             val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
             // numTopicsForWhichThisIsAContext
@@ -495,7 +521,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             //var surfaceFormMap = TreeMap[Int, SurfaceForm]()
             for ( word <- wordList )
             {
-                println( "  " + word )
+                //println( "  " + word )
                 val wordLookup = lookup.lookupWord( word )
                         
                 wordLookup match
@@ -611,8 +637,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             f.buildContextWeights( topicCategoryMap )
             f.applyContexts( topicCategoryMap, topicDb )
             
-            // Dump out the resolved text as XML along with a list of topics and contexts
-            
+            f
         }
         
         /*def resolve( maxAlternatives : Int ) : List[List[(Double, List[String], String)]] =
