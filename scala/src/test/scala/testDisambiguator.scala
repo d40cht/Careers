@@ -61,7 +61,9 @@ class WikiBatchPhraseDictTest extends FunSuite
 
 class DisambiguatorTest extends FunSuite
 {
-
+    // NOTE: All categories seem to have a link weight of zero which isn't ideal.
+    
+    // NOTE: Sad to have 'test suite' and not 'test suites'. Consider stemming.
     
     test( "New disambiguator test" )
     {
@@ -71,10 +73,15 @@ class DisambiguatorTest extends FunSuite
             
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
             val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
-            //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/secv.txt").getLines.mkString(" ")
             
             //val fileText = "gerry adams troubles bloody sunday"
             //val fileText = "rice cambridge oxford yale harvard"
+            
+            // At present no shared context between 'smith waterman' and 'gene sequencing'.
+            // A case for broadening the context to an additional step away?
+            //val fileText = "smith waterman gene sequencing"
+            //val fileText = "smith waterman gene sequencing bioinformatics"
             
             val b = new d.Builder(fileText)
             val forest = b.build()
@@ -105,8 +112,13 @@ class DisambiguatorTest extends FunSuite
                 // then a massive football context being asserted!
                 //"cambridge, united kingdom"
                 
+                //"objective caml": all context weights are zero. The objective caml topic is not a context for any other
+                // topics, so I suspect this is something awry with the link weight generation.
+                
                 // Do we have 'covent' in the dictionary?
                 //("la scala covent garden puccini", List[String]()),
+                //("smith waterman gene sequencing", List[String]("Main:Smith Waterman", "Main:Gene Sequencing")),
+                ("smith waterman gene sequencing bioinformatics", List[String]("Main:Smith Waterman", "Main:Gene Sequencing")),
                 
                 // Obsessed with the programming language
                 //("java coffee tea", List[String]("Main:Java", "Main:Coffee", "Main:Tea")),
@@ -196,10 +208,10 @@ class DisambiguatorTest extends FunSuite
         
         def toWords( l : List[AmbiguityAlternative] ) = l.map( el => el.sites.map( t => words.slice( t._1, t._2+1 ) ) )
 
-        first.combinations()
-        second.combinations()
-        third.combinations()
-        fourth.combinations()
+        first.buildCombinations()
+        second.buildCombinations()
+        third.buildCombinations()
+        fourth.buildCombinations()
         
         assert( toWords( first.combs ) ===
             ( ("covent"::Nil) :: ("garden"::Nil) :: Nil ) ::

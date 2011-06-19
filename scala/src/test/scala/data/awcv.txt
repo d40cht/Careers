@@ -62,7 +62,7 @@ Dissertation: A stochastic multi­ species bioeconomic model of a marine
 1998 – 1999        MSc Computation, Keble College, Oxford University 
 Dissertation project involved developing a remote graphical debugging library for a massively parallel 
 supercomputer (C++ and Java using network sockets). 
-1994 – 1998        MSci Physics (2:1), St John’s College, Durham University 
+1994 – 1998        MSci Physics (2:1), St John's College, Durham University 
 Four­year undergraduate Physics degree. Final year project involved calculating an estimate for the extra­ 
 galactic infra­red background radiation. 
 1992 – 1994        Hills Road Sixth Form College, Cambridge 

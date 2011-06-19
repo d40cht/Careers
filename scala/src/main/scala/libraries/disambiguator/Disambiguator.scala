@@ -58,7 +58,7 @@ class AmbiguitySite( var start : Int, var end : Int )
         els = (from, to, sf)::els
     }
     
-    def combinations()
+    def buildCombinations()
     {
         var seenStartSet = Set[Int]()
      
@@ -141,7 +141,7 @@ class AmbiguitySite( var start : Int, var end : Int )
     }
 }
 
-class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String] )
+class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]] )
 {
     class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
     
@@ -158,7 +158,27 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 { for ( (startIndex, endIndex, sf) <- sortedPhrases ) yield
                     <element>
                         <phrase>{words.slice( startIndex, endIndex+1 ).mkString(" ")} </phrase>
+                        <from>{startIndex}</from>
+                        <to>{endIndex}</to>
                         <weight>{sf.phraseWeight}</weight>
+                        <topics>
+                            { for ((topicId, weight) <- sf.topics.toList.sortWith( _._2 > _._2 ).slice(0,4)) yield
+                                <topic>
+                                    <name>{topicNameMap(topicId)}</name>
+                                    <weight>{weight}</weight>
+                                    <contexts>
+                                        {
+                                            val elements = topicCategoryMap(topicId).toList.sortWith( _._2 > _._2 ).slice(0,4)
+                                            for ( (contextId, weight) <- elements ) yield
+                                                <context>
+                                                    <name>{topicNameMap(contextId)}</name>
+                                                    <weight>{weight}</weight>
+                                                </context>
+                                        }
+                                    </contexts>
+                                </topic>
+                            }
+                        </topics>
                     </element>
                 }
             </surfaceForms> :: debug
@@ -178,23 +198,68 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         sites = sites.reverse
     }
     
-    def buildContextWeights( topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]] )
+    def buildContextWeights()
     {
         var siteOrigination = TreeMap[Int, TreeSet[(Int, Int)]]()
         var contextOrigination = TreeMap[Int, TreeSet[Int]]()
         for ( site <- sites )
         {
-            site.combinations()
-         
+            site.buildCombinations()
+        }
+        
+        debug =
+            <sites>
+            {
+                for ( site <- sites ) yield
+                    <site>
+                    {
+                        for ( alternative <- site.combs ) yield
+                        <alternative>
+                        {
+                            for ( (startIndex, endIndex, sf) <- alternative.sites ) yield
+                            <surfaceForm>
+                                <name>{words.slice(startIndex, endIndex+1)}</name>
+                                <topics>
+                                {
+                                    for ( (topicId, topicWeight) <- sf.topics.toList.sortWith( _._2 > _._2 ).slice(0,5) ) yield
+                                    <element>
+                                        <name>{topicNameMap(topicId)}</name>
+                                        <weight>{topicWeight}</weight>
+                                        <contexts>
+                                        {
+                                            for ( (contextId, contextWeight) <- topicCategoryMap(topicId).toList.sortWith( _._2 > _. _2 ).slice(0,5) ) yield
+                                            <element>
+                                                <name>{topicNameMap(contextId)}</name>
+                                                <weight>{contextWeight}</weight>
+                                            </element>
+                                        }
+                                        </contexts>
+                                    </element>
+                                }
+                                </topics>
+                            </surfaceForm>
+                        } 
+                        </alternative>
+                    }
+                    </site>
+            }
+            </sites> :: debug
+        
+        for ( site <- sites )
+        {
             var siteList = TreeSet[(Int,Int)]()
             var siteWeights = TreeMap[Int, Double]()   
             for ( alternative <- site.combs )
             {
                 var sfWeights = TreeMap[Int, Double]()
+                
+                // Probability of a set of phrases is the product of the individual probabilities
+                val joinSfWeight = alternative.sites.foldLeft(1.0)( _ * _._3.phraseWeight )
                 for ( (startIndex, endIndex, sf) <- alternative.sites )
                 {
                     //val phraseWeight : Double, val topics : List[(Int, Int)]
-                    val surfaceFormWeight = sf.phraseWeight
+                    //val surfaceFormWeight = sf.phraseWeight
+                    val surfaceFormWeight = joinSfWeight
                     for ( (topicId, topicWeight) <- sf.topics )
                     {
                         var contexts = topicCategoryMap(topicId)
@@ -245,13 +310,14 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         }*/
         
         // Filter out any contexts originating only from one surface form or site
+        // This is causing some problems!
         contextWeights = contextWeights.filter( x => siteOrigination(x._1).size > 1 && contextOrigination(x._1).size > 1 )
         
         debug =
             <contexts>
                 {
-                    val reversed = contextWeights.toList.map( (v) => (v._2, v._1) ).sortWith( (x,y) => (x._1 > y._1) )
-                    for ( (weight, contextId) <- reversed.slice(0, 200) ) yield
+                    val reversed = contextWeights.toList.sortWith( (x,y) => (x._2 > y._2) )
+                    for ( (contextId, weight) <- reversed.slice(0, 200) ) yield
                         <element>
                             <name>{topicNameMap(contextId)}</name>
                             <weight>{weight}</weight>
@@ -263,17 +329,18 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             </contexts> :: debug
     }
     
-    def applyContexts( topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], topicDb : SQLiteWrapper )
+    def applyContexts( topicDb : SQLiteWrapper )
     {
-        val reversed = contextWeights.toList.map( (v) => (v._2, v._1) ).sortWith( (x,y) => (x._1 > y._1) )
+        val reversed = contextWeights.toList.sortWith( (x,y) => (x._2 > y._2) )
 
-        for ( (weight, contextId) <- reversed.slice(0,200) )
+        for ( (contextId, weight) <- reversed.slice(0,200) )
         {
             //println( "Applying: " + topicNameMap(contextId) + ": " + weight )
             for ( site <- sites )
             {   
                 for ( alternative <- site.combs )
                 {
+                    val jointSfWeight = alternative.sites.foldLeft(1.0)( _ * _._3.phraseWeight )
                     for ( (startIndex, endIndex, sf) <- alternative.sites )
                     {
                         for ( (topicId, topicWeight) <- sf.topics )
@@ -283,7 +350,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                             if ( contexts.contains( contextId ) )
                             {
                                 val contextWeight = contexts(contextId)
-                                val weightIncrement = weight * /*sf.phraseWeight **/ topicWeight * contextWeight
+                                val weightIncrement = weight * jointSfWeight * topicWeight * contextWeight
                                 // Weight this based on other weightings?
                                 alternative.weight += weightIncrement
                                 
@@ -299,7 +366,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         debug =
             <resolutions>
             {
-                for ( site <- sites ) yield
+                for ( site <- sites.reverse ) yield
                 {
                     val weightedAlternatives = site.combs.sortWith( _.weight > _.weight )
                     <site>
@@ -310,16 +377,18 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                                     <weight>{wa.weight}</weight>
                                     {
                                         for ( site <- wa.sites ) yield
-                                            <text>{words.slice( site._1, site._2+1 ).mkString(" ")}</text>
-                                            <topics>
-                                            {
-                                                for ( (weight, id) <- site._3.topicWeights.map( x =>(-x._2, x._1) ).toList.slice(0, 5) ) yield
-                                                    <element>
-                                                        <name>{topicNameMap(id)}</name>
-                                                        <weight>{-weight}</weight>
-                                                    </element>
-                                            }
-                                            </topics>
+                                            <element>
+                                                <text>{words.slice( site._1, site._2+1 ).mkString(" ")}</text>
+                                                <topics>
+                                                {
+                                                    for ( (id, weight) <- site._3.topicWeights.toList.sortWith( _._2 > _._2 ).slice(0, 5) ) yield
+                                                        <element>
+                                                            <name>{topicNameMap(id)}</name>
+                                                            <weight>{weight}</weight>
+                                                        </element>
+                                                }
+                                                </topics>
+                                            </element>
                                     }
                                 </alternative>
                         }
@@ -332,7 +401,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         {
             val weightedAlternatives = site.combs.sortWith( _.weight > _.weight )
             val canonicalAlternative = weightedAlternatives.head
-            for ( site <- canonicalAlternative.sites )
+            for ( site <- canonicalAlternative.sites.reverse )
             {
                 val start = site._1
                 val end = site._2
@@ -346,6 +415,19 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
             }
         }
+        
+        debug =
+            <finalTopics>
+            {
+                for ( res <- disambiguated ) yield
+                    <element>
+                        <phrase>{ words.slice(res.start, res.end+1) }</phrase>
+                        <start>{res.start}</start>
+                        <end>{res.end}</end>
+                        <topic>{res.name}</topic>
+                    </element>
+            }
+            </finalTopics> :: debug
         
         // Now build a context set for these disambiguated sites and do the SCC building.
         var localContextMap = topicCategoryMap
@@ -482,17 +564,18 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         val wordArr = words.toArray
         var i = 0
         var phraseIt = disambiguated
-        
+                
         val l = ListBuffer[scala.xml.Elem]()
         while ( i < wordArr.size )
         {
             val resolution = phraseIt.head
+            println( words(i) + ", " + i + ": " + resolution.start + ", " + words.slice(resolution.start, resolution.end+1) )
             if ( resolution.start == i )
             {
                 val topicLink = if (resolution.name.startsWith("Main:")) resolution.name.drop(5) else resolution.name
                 l.append(
-                    <a href={ "http://en.wikipedia.org/wiki/" + topicLink }>
-                        {words.slice( resolution.start, resolution.end+1 ).mkString(" ")}
+                    <a href={ "http://en.wikipedia.org/wiki/" + topicLink } title={"Weight: " + resolution.weight } >
+                        {"[" + words.slice( resolution.start, resolution.end+1 ).mkString(" ") + "] "}
                     </a> )
                 i = resolution.end+1
                 phraseIt = phraseIt.tail
@@ -534,7 +617,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
         topicQuery.bind(id)
 
         
-        val categoryQuery = topicDb.prepare( "SELECT t1.name FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::HNil )
+        val categoryQuery = topicDb.prepare( "SELECT t1.name, t3.weight1, t3.weight2 FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId INNER JOIN linkWeights AS t3 ON t3.topicId=t2.topicId AND t3.contextTopicId=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::Col[Double]::Col[Double]::HNil )
 
         var totalOccurrences = 0
         var topicIds = List[(String, Int, Int)]()
@@ -555,9 +638,20 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             categoryQuery.bind( topicId )
             for ( category <- categoryQuery )
             {
-                println( "    " + _1(category).get )
+                val name = _1(category).get
+                val weight1 = _2(category).get
+                val weight2 = _3(category).get
+                println( "    " + name + ": " + weight1 + ", " + weight2 )
             }
         }
+    }
+    
+    def execute( inputText : String, debugOutFile : String, htmlOutFile : String )
+    {
+        val b = new Builder(inputText)
+        val forest = b.build()
+        forest.dumpDebug( debugOutFile )
+        forest.htmlOutput( htmlOutFile )
     }
         
     class Builder( val text : String )
@@ -622,6 +716,9 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                     // TODO: Do something with this result
                                     //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])
                                     val topicDetails = for ( td <- sfTopics.toList ) yield (_1(td).get, _2(td).get)
+                                    
+                                    
+                                    
                                     val sfCount = topicDetails.foldLeft(0.0)( (x,y) => x + y._2 )
                                     val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
 
@@ -636,6 +733,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                         {
                                             topicCategoryQuery.bind( topicId )
 
+                                            // First order contexts
                                             var contextWeights = TreeMap[Int, Double]()
                                             for ( row <- topicCategoryQuery )
                                             {
@@ -644,6 +742,26 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                                 val weight2 = _3(row).get
                                                 
                                                 contextWeights = contextWeights.updated( cid, weight1 )
+                                            }
+                                            
+                                            // Second order contexts
+                                            var secondOrderWeights = TreeMap[Int, Double]()
+                                            for ( (contextId, contextWeight) <- contextWeights.toList )
+                                            {
+                                                topicCategoryQuery.bind( contextId )
+                                                
+                                                for ( row <- topicCategoryQuery )
+                                                {
+                                                    val cid = _1(row).get
+                                                    val weight1 = _2(row).get
+                                                    val weight2 = _3(row).get
+                                                    
+                                                    if ( !contextWeights.contains(cid) )
+                                                    {
+                                                        // 2nd order context weights are lowered by the weight of the first link
+                                                        contextWeights = contextWeights.updated( cid, contextWeight * weight1)
+                                                    }
+                                                }
                                             }
 
                                             topicCategoryMap = topicCategoryMap.updated(topicId, contextWeights)
@@ -656,8 +774,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             }
                                         }
                                     }
-                                    
-                                    
+                                                                        
                                     possiblePhrases = (fromIndex, toIndex, thisSf) :: possiblePhrases
                                     
                                     newPhrases = (fromIndex, phrase) :: newPhrases
@@ -700,10 +817,11 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             } )
             
             println( "Building new ambiguity forest" )
-            val f = new AmbiguityForest( wordList, topicNameMap )
+
+            val f = new AmbiguityForest( wordList, topicNameMap, topicCategoryMap )
             f.addTopics( possiblePhrasesSorted )
-            f.buildContextWeights( topicCategoryMap )
-            f.applyContexts( topicCategoryMap, topicDb )
+            f.buildContextWeights()
+            f.applyContexts( topicDb )
             
             f
         }
