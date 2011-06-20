@@ -308,6 +308,10 @@ object Utils
     def luceneTextTokenizer( page : String ) : List[String] =
     {
     	val textSource = new StringReader( page )
+    	
+    	// Consider using org.apache.lucene.analysis.standard.StandardAnalyzer instead as it filters out 's, moves to lower case, removes stop words.
+    	// Add ASCIIFoldingFilter to fold weird punctation down to ascii
+    	// And org.apache.lucene.analysis.PorterStemFilter for porter stemming? Not clear how useful stemming is.
         val tokenizer = new StandardTokenizer( LUCENE_30, textSource )
     
         var run = true

@@ -8,6 +8,7 @@ import org.apache.hadoop.io.SequenceFile.{createWriter, Reader => HadoopReader}
 import java.io.{File, BufferedReader, FileReader, StringReader, Reader}
 import java.util.{HashMap, HashSet}
 
+import scala.collection.mutable.ArrayBuffer
 import scala.collection.immutable.{TreeMap, TreeSet}
 
 import java.io.{File, FileOutputStream, DataOutputStream, DataInputStream, FileInputStream}
@@ -281,13 +282,13 @@ object PhraseMap
         println( "Utilisation: " + (mem/(1024*1024) ) )
         var carr = new EfficientArray[EfficientIntPair](numContexts)
         
-        if ( true )
+        if ( false )
         {
             println( "Utilisation: " + (mem/(1024*1024) ) )
             println( "Building in-memory context array of size: " + numContexts )
             var index = 0
             val eip = new EfficientIntPair(0,0)
-            var biContextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::HNil )
+            var biContextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM bidirectionalCategoriesAndContexts ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::HNil )
             for ( pair <- biContextQuery )
             {
                 val from = _1(pair).get
@@ -305,8 +306,33 @@ object PhraseMap
             }
             carr.save( new DataOutputStream( new FileOutputStream( new File( "categories.bin" ) ) ) )
         }
-        
-        //carr.load( new DataInputStream( new FileInputStream( new File( "categories.bin" ) ) ) )
+        else
+        {
+            println( "Loading category fast map file." )
+            carr.load( new DataInputStream( new FileInputStream( new File( "categories.bin" ) ) ) )
+         
+            if ( false )
+            {   
+                println( "Verifying map." )
+                var index = 0
+                val eip = new EfficientIntPair(0,0)
+                var biContextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM bidirectionalCategoriesAndContexts ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::HNil )
+                for ( pair <- biContextQuery )
+                {
+                    val from = _1(pair).get
+                    val to = _2(pair).get
+                    
+                    assert( carr(index).first == from )
+                    assert( carr(index).second == to )
+
+                    index += 1    
+                    if ( (index % 100000) == 0 )
+                    {
+                        println( index + " Utilisation: " + (mem/(1024*1024) ) )
+                    }
+                }
+            }
+        }
         
         var index = 0
         var contextQuery = sql.prepare( "SELECT topicId, contextTopicId FROM categoriesAndContexts ORDER BY topicId", Col[Int]::Col[Int]::HNil )
@@ -327,7 +353,7 @@ object PhraseMap
         {
             def getContext( topicId : Int ) =
             {
-                var contextSet = TreeSet[Int]()
+                val contextSet = ArrayBuffer[Int]()
                 
                 var fIndex = Utils.lowerBound( new EfficientIntPair(topicId, 0), carr, comp )
                 
@@ -337,7 +363,8 @@ object PhraseMap
                     val v = carr(fIndex)
                     if ( v.first == topicId )
                     {
-                        contextSet = contextSet + v.second
+                        //contextSet = contextSet + v.second
+                        contextSet.append( v.second )
                         fIndex += 1
                     }
                     else
@@ -349,17 +376,50 @@ object PhraseMap
                 contextSet
             }
             
+            def intersectionCount( c1 : ArrayBuffer[Int], c2 : ArrayBuffer[Int] ) =
+            {
+                var count = 0
+                var i1 = 0
+                var i2 = 0
+                
+                while ( i1 < c1.size && i2 < c2.size )
+                {
+                    val v1 = c1(i1)
+                    val v2 = c2(i2)
+                    if ( v1 == v2 )
+                    {
+                        count += 1
+                        i1 += 1
+                        i2 += 1
+                    }
+                    else if ( v1 < v2 )
+                    {
+                        i1 += 1
+                    }
+                    else
+                    {
+                        i2 += 1
+                    }
+                }
+                
+                count
+            }
+            
             val fromId = _1(pair).get
             val toId = _2(pair).get
             
             val fromContext = getContext( fromId )
             val toContext = getContext( toId )
             
-            val intersectionContext = fromContext & toContext
-            val weight1 = intersectionContext.size.toDouble / fromContext.size.toDouble
-            val weight2 = intersectionContext.size.toDouble / toContext.size.toDouble
+            assert( toContext.toList.contains( fromId ) )
             
-            println( ":: " + fromId + ", " + toId + ", " + intersectionContext.size + ", " + fromContext.size + ", " + toContext.size )
+            //val ic = (fromContext & toContext).size.toDouble
+            val ic = 1.0 + intersectionCount(fromContext, toContext).toDouble
+            
+            val weight1 = ic / (1.0 + fromContext.size.toDouble)
+            val weight2 = ic / (1.0 + toContext.size.toDouble)
+            
+            //println( ":: " + fromId + ", " + toId + ", " + ic + ", " + fromContext.size + ", " + toContext.size )
             insertWeightQuery.exec( fromId, toId, weight1, weight2 )
             
             index += 1 

@@ -28,6 +28,9 @@ import org.seacourt.utility.{Graph}
 
 // Richard Armitage, 'The Vulcans', Scooter Libby
 
+// NOTE, SCC may not be as appropriate as other 'Community structure' algorithms: http://en.wikipedia.org/wiki/Community_structure
+// NOTE: Might be able to merge topics that are very similar to each other to decrease context space (Fast unfolding of communities in large networks, or Modularity maximisation).
+
 class SurfaceForm( val phraseId : Int, val phraseWeight : Double, val topics : List[(Int, Double)] )
 {
     var topicWeights = TreeMap[Int, Double]()
