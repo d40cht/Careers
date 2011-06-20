@@ -213,8 +213,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         type SiteCentre = Double
         type EdgeWeight = Double
         
-        // Build a map from contexts to weighted ambiguity alternatives
+        // NOTE: This is not quite right yet. Shouldn't allow links from one alternative in an
+        // SF to another alternative in the same SF. Also, within an alternative SHOULD allow
+        // links between sites in that alternative
         
+        // Build a map from contexts to weighted ambiguity alternatives
         var reverseContextMap = TreeMap[ContextId, List[(AmbiguityAlternative, SiteCentre, EdgeWeight)]]()
         for ( site <- sites )
         {
