@@ -212,13 +212,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         type ContextId = Int
         type SiteCentre = Double
         type EdgeWeight = Double
-        
-        // NOTE: This is not quite right yet. Shouldn't allow links from one alternative in an
-        // SF to another alternative in the same SF. Also, within an alternative SHOULD allow
-        // links between sites in that alternative
-        
+                
         // Build a map from contexts to weighted ambiguity alternatives
-        var reverseContextMap = TreeMap[ContextId, List[(AmbiguityAlternative, SiteCentre, EdgeWeight)]]()
+        class REdge( val site : AmbiguitySite, val alt : AmbiguityAlternative, val sf : SurfaceForm, val weight : Double ) {}
+        
+        var reverseContextMap = TreeMap[ContextId, List[REdge]]()
         for ( site <- sites )
         {
             for ( alternative <- site.combs )
@@ -231,7 +229,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         {
                             val weight = sf.phraseWeight * topicWeight * contextWeight
                             val siteCenter = (startIndex + endIndex).toDouble / 2.0
-                            val updatedList = (alternative, siteCenter, weight) :: reverseContextMap.getOrElse(contextId, List[(AmbiguityAlternative, SiteCentre, EdgeWeight)]() )
+                            val updatedList = new REdge(site, alternative, sf, weight) :: reverseContextMap.getOrElse(contextId, List[REdge]() )
                             reverseContextMap = reverseContextMap.updated(contextId, updatedList)
                         }
                     }
@@ -239,21 +237,27 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
         }
         
+        // Shouldn't allow links from one alternative in an
+        // SF to another alternative in the same SF. Also, within an alternative SHOULD allow
+        // links between sites in that alternative
+
         // Weight each topic based on shared contexts (and distances to those contexts)
         val distWeighting = new NormalDistributionImpl( 0.0, 10.0 )
         for ( (contextId, alternatives) <- reverseContextMap )
         {
-            for ( (alt1, center1, weight1) <- alternatives )
+            for ( edge1 <- alternatives )
             {
-                for ( (alt2, center2, weight2) <- alternatives )
+                for ( edge2 <- alternatives )
                 {
-                    if ( alt1 != alt2 )
+                    if ( (edge1.site != edge2.site) || (edge1.alt == edge2.alt && edge1.sf != edge2.sf) )
                     {
+                        val center1 = (edge1.site.start + edge1.site.end).toDouble / 2.0
+                        val center2 = (edge2.site.start + edge2.site.end).toDouble / 2.0
                         val distance = (center1 - center2)
                         val distanceWeight = distWeighting.density( distance )
-                        val totalWeight = weight1 * weight2 * distanceWeight
-                        alt1.weight += totalWeight
-                        alt2.weight += totalWeight
+                        val totalWeight = edge1.weight * edge2.weight * distanceWeight
+                        edge1.alt.weight += totalWeight
+                        edge2.alt.weight += totalWeight
                     }
                 }
             }
