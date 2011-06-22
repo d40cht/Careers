@@ -73,24 +73,24 @@ class DisambiguatorTest extends FunSuite
             
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
             val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
-            //val fileText = fromFile("./src/test/scala/data/secv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
             
             //val fileText = "gerry adams troubles bloody sunday"
             //val fileText = "rice cambridge oxford yale harvard"
+            //val fileText = "the leaf, a new electric car from nissan. Blah blah blah blah blah blah blah. One autumn morning, the leaf dropped from the tree."
             
             // At present no shared context between 'smith waterman' and 'gene sequencing'.
             // A case for broadening the context to an additional step away?
             //val fileText = "smith waterman gene sequencing"
             //val fileText = "smith waterman gene sequencing bioinformatics"
             
+            //val fileText = "objective caml haskell"
+            //val fileText = "smith waterman gene sequencing"
+            
             val b = new d.Builder(fileText)
             val forest = b.build()
             forest.dumpDebug( "ambiguitydebug.xml" )
             forest.htmlOutput( "ambiguity.html" )
-
-            
-            //val res = b.resolve(2)
-            //println( res )
         }
     }
     
@@ -100,7 +100,7 @@ class DisambiguatorTest extends FunSuite
         {
             val tests = List[(String, List[String])](
                 ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
-                ("tea party palin", List[String]("Main:Tea Party movement", "Main:Sarah Palin")),
+                ("tea party palin", List[String]("Main:Tea Party protests", "Main:Sarah Palin")),
                 // Currently rice ends up as Rice, Oregon because the article mentions 'Wheat' by link
                 //("cereal wheat barley rice", List[String]("Main:Cereal", "Main:Wheat", "Main:Barley", "Main:Rice")),
                 
@@ -117,17 +117,22 @@ class DisambiguatorTest extends FunSuite
                 
                 // Do we have 'covent' in the dictionary?
                 //("la scala covent garden puccini", List[String]()),
-                //("smith waterman gene sequencing", List[String]("Main:Smith Waterman", "Main:Gene Sequencing")),
-                ("smith waterman gene sequencing bioinformatics", List[String]("Main:Smith Waterman", "Main:Gene Sequencing")),
+                ("smith waterman gene sequencing", List[String]("Main:Smith–Waterman algorithm", "Main:Gene sequencing")),
+                ("smith waterman gene sequencing bioinformatics", List[String]("Main:Smith–Waterman algorithm", "Main:Gene sequencing", "Main:Bioinformatics")),
                 
                 // Obsessed with the programming language
                 //("java coffee tea", List[String]("Main:Java", "Main:Coffee", "Main:Tea")),
                 
                 //("rice cambridge oxford yale harvard", List[String]("Main:Rice University", "Main:University of Cambridge", "Main:University of Oxford", "Main:Yale University", "Main:Harvard University" )),
                 //("rice cheney george bush", List[String]("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush")),
-                ("george bush john major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
-                ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C++", "Main:Design pattern (computer science)") ),
+                //("george bush john major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
+                ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C++", "Main:Design Patterns") ),
                 //("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
+                ("the leaf, nissan's new electric car", List[String]("Main:Nissan Leaf", "Main:Nissan Motors", "Main:Electric car")),
+                ("one autumn morning, the leaf dropped from the tree", List[String]("Main:Autumn", "Main:Leaf", "Main:Tree")),
+                ("the leaf, a new electric car from nissan. Blah blah blah blah blah blah blah. One autumn morning, the leaf dropped from the tree.",
+                    List[String]("Main:Nissan Leaf", "Main:Electric car", "Main:Nissan Motors", "Main:Autumn", "Main:Leaf", "Main:Tree") ),
+                //("the leaf, nissan's new electric car. one autumn morning, the leaf fell from the tree.", List[String]()),
                 ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
                 
             for ( (phrase, res) <- tests )
@@ -137,6 +142,7 @@ class DisambiguatorTest extends FunSuite
                 val forest = b.build()
                 var dres = forest.disambiguated
                 
+                println( phrase, dres.map( x=>x.name) )
                 assert( dres.length === res.length )
                 for ( (topicl, expected) <- dres.zip(res) )
                 {
@@ -206,7 +212,7 @@ class DisambiguatorTest extends FunSuite
         assert( fourth.start === 8 )
         assert( fourth.end === 10 )
         
-        def toWords( l : List[AmbiguityAlternative] ) = l.map( el => el.sites.map( t => words.slice( t._1, t._2+1 ) ) )
+        def toWords( l : List[AmbiguityAlternative] ) = l.map( el => el.sites.map( t => words.slice( t.start, t.end+1 ) ) )
 
         first.buildCombinations()
         second.buildCombinations()
