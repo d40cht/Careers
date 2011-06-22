@@ -38,7 +38,11 @@ class SurfaceForm( val phraseId : Int, val phraseWeight : Double, val topics : L
     var topicWeights = TreeMap[Int, Double]()
 }
 
-class AmbiguityAlternative( val sites : List[(Int, Int, SurfaceForm)] )
+class AltSite( val start : Int, val end : Int, val sf : SurfaceForm )
+{
+}
+
+class AmbiguityAlternative( val sites : List[AltSite] )
 {
     var weight = 0.0
 }
@@ -228,7 +232,6 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         for ( (contextId, contextWeight) <- topicCategoryMap(topicId) )
                         {
                             val weight = sf.phraseWeight * topicWeight * contextWeight
-                            val siteCenter = (startIndex + endIndex).toDouble / 2.0
                             val updatedList = new REdge(site, alternative, sf, weight) :: reverseContextMap.getOrElse(contextId, List[REdge]() )
                             reverseContextMap = reverseContextMap.updated(contextId, updatedList)
                         }
@@ -251,8 +254,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 {
                     if ( (edge1.site != edge2.site) || (edge1.alt == edge2.alt && edge1.sf != edge2.sf) )
                     {
-                        val center1 = (edge1.site.start + edge1.site.end).toDouble / 2.0
-                        val center2 = (edge2.site.start + edge2.site.end).toDouble / 2.0
+                        val center1 = (edge1.alt.start + edge1.alt.end).toDouble / 2.0
+                        val center2 = (edge2.alt.start + edge2.alt.end).toDouble / 2.0
                         val distance = (center1 - center2)
                         val distanceWeight = distWeighting.density( distance )
                         val totalWeight = edge1.weight * edge2.weight * distanceWeight
