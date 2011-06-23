@@ -473,6 +473,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
     lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
     
     val topicDb = new SQLiteWrapper( new File(topicFileName) )
+    topicDb.exec( "PRAGMA cache_size=2000000" )
 
     
     def phraseQuery( phrase : String ) =
@@ -486,7 +487,8 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
         topicQuery.bind(id)
 
         
-        val categoryQuery = topicDb.prepare( "SELECT t1.name, t3.weight1, t3.weight2 FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId INNER JOIN linkWeights AS t3 ON t3.topicId=t2.topicId AND t3.contextTopicId=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::Col[Double]::Col[Double]::HNil )
+        //val categoryQuery = topicDb.prepare( "SELECT t1.name, t3.weight1, t3.weight2 FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId INNER JOIN linkWeights AS t3 ON t3.topicId=t2.topicId AND t3.contextTopicId=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::Col[Double]::Col[Double]::HNil )
+        val categoryQuery = topicDb.prepare( "SELECT t1.name, t2.weight1, t2.weight2 FROM topics AS t1 INNER JOIN linkWeights AS t2 ON t1.id=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::Col[Double]::Col[Double]::HNil )
 
         var totalOccurrences = 0
         var topicIds = List[(String, Int, Int)]()
@@ -527,11 +529,8 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
         def build() : AmbiguityForest =
         {
             val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
-            // numTopicsForWhichThisIsAContext
-            val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC", Col[Int]::Col[Int]::HNil )
-            val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight1, weight2 FROM linkWeights WHERE topicId=?", Col[Int]::Col[Double]::Col[Double]::HNil )
-            
-            //val normalisationQuery = topicDb.prepare( "SELECT MAX(count) FROM numTopicsForWhichThisIsAContext", Col[Int]::HNil )
+            val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC LIMIT 50", Col[Int]::Col[Int]::HNil )
+            val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight FROM linkWeights2 WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::HNil )
             
             var possiblePhrases = List[(Int, Int, SurfaceForm)]()
             var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
@@ -539,13 +538,10 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             var wordIndex = 0
             var topicSet = TreeSet[Int]()
             
-            //val maxCategoryCount = _1(normalisationQuery.onlyRow).get
-            
             println( "Parsing text and building topic and category maps." )
-            //var surfaceFormMap = TreeMap[Int, SurfaceForm]()
             for ( word <- wordList )
             {
-                //println( "  " + word )
+                println( "  " + word )
                 val wordLookup = lookup.lookupWord( word )
                         
                 wordLookup match
@@ -601,7 +597,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             {
                                                 val cid = _1(row).get
                                                 val weight1 = _2(row).get
-                                                val weight2 = _3(row).get
+                                                //val weight2 = _3(row).get
                                                 
                                                 contextWeights = contextWeights.updated( cid, weight1 )
                                             }
@@ -618,7 +614,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                                     {
                                                         val cid = _1(row).get
                                                         val weight1 = _2(row).get
-                                                        val weight2 = _3(row).get
+                                                        //val weight2 = _3(row).get
                                                         
                                                         if ( !contextWeights.contains(cid) )
                                                         {
