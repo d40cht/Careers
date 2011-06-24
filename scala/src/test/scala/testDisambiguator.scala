@@ -71,8 +71,11 @@ class DisambiguatorTest extends FunSuite
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
+            val fileText = fromFile("./src/test/scala/data/georgecv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
-            val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
             
             //val fileText = "gerry adams troubles bloody sunday"
