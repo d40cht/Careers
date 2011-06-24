@@ -69,7 +69,7 @@ class DisambiguatorTest extends FunSuite
     {
         if ( true )
         {
-            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./dbout.sqlite" )
             
             val fileText = fromFile("./src/test/scala/data/georgecv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
@@ -99,7 +99,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
             val tests = List[(String, List[String])](
                 ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
@@ -138,9 +138,10 @@ class DisambiguatorTest extends FunSuite
                 //("the leaf, nissan's new electric car. one autumn morning, the leaf fell from the tree.", List[String]()),
                 ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
                 
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./dbout.sqlite" )
             for ( (phrase, res) <- tests )
             {
-                val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+                //val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
                 val b = new d.Builder(phrase)
                 val forest = b.build()
                 var dres = forest.disambiguated
