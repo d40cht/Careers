@@ -1,0 +1,79 @@
+Gavin Edward LIGHTFOOT
+PERSONAL DETAILS
+Address 43B North Way, Oxford, OX3 9ES
+Telephone 07980 979840 Email mail@gavinlightfoot.com
+Date of Birth 4 November 1977 Nationality British
+EDUCATION & QUALIFICATIONS
+1996 – 2000 University of Oxford, Brasenose College
+Physics – Undergraduate Masters (MPhys (Hons))
+1989 – 1996 Newcastle-under-Lyme School, Staffordshire
+GCSEs: (5 A grades): Physics, French, Maths, Biology, Chemistry, Geography, German, 
+English Language, English Literature, O+C board Additional Maths
+A Levels: (3 A grades) Physics, Maths, Further Maths, Chemistry, General Studies.
+• School Physics Scholarship (1994 – 1996)
+EMPLOYMENT HISTORY
+Full Time
+• Overview Limited (London) – Senior Embedded Software Engineer (Sep 2007 – present)
+• Design and implementation of new hardware and software features, and maintenance of current 
+features, for intelligent CCTV cameras (C language)
+• Porting of existing product features to a new FPGA-based platform (C/Verilog)
+• Creation of a new user interface framework with full internationalisation and localisation support (C)
+• Port of an existing Win32-based video codec to the FGPA platform including code optimisation and 
+creation and integration of custom hardware acceleration blocks (C++/Verilog)
+• Integration of a GPRS/3G modem to provide remote video from and control of a camera
+• Setup and maintenance of a Linux server for hosting Subversion and Apache/MySQL. Development of 
+intranet sites to support management and production activities
+• Decisionsoft Limited (Oxford) – Technical Analyst (Nov 2004 – Sep 2007)
+• Work directly with clients (HMRC, Companies House) to capture and implement XML and XBRL 
+schema requirements
+• Design and coding of fully functional customer-facing products (Java) and one-off tools (Java, Excel, 
+VB) and to support the schema capture and generation processes
+• Extensive testing of existing schemas and code including refactoring for better maintainability and 
+extending unit- and functional-test coverage to increase reliability
+• Reading Room Limited (London) – Senior Web Developer (Nov 2002 – Nov 2004)
+• Design and implementation of new functionality on large sites (Disability Rights Commission, 
+Newham Borough Council) in collaboration with other developers. Personal responsibility for entire 
+sites, both front-end and content management system design and implementation.
+• Use of a wide range of web technologies (ASP, PHP, Java, Javascript, PERL, ColdFusion, SQL) and 
+integration of multiple technologies within individual sites.
+• Cancer Research UK (Oxford) (Oct 2001 – Nov 2002) 
+• Office Manager for the Oxford regional office
+• Working for the e-business department on web design including the creation of HTML pages, design 
+and coding of JavaScript functionality for pages and the creation of web graphicsTemporary
+• Dun & Bradstreet (Sydney, Australia) (Dec 2000 - Mar 2001) 
+• Designed and produced marketing and information brochures for internal and client use
+• Worked on the typesetting and layout of three business information resource books
+• Automation of document layout processing tasks using PERL
+• Metawave Video Systems (Stoke-on-Trent) (Jul - Aug 1999)
+• Developed utilities using Visual Basic to allow viewing of PCB layout and drill files
+• Identified areas where component list processing operations, previously carried out manually, could be 
+automated and developed appropriate utilities
+• Development of a system to automate the transfer of the component database from a legacy system to 
+a PC based system and to subsequently manage the database
+Part time
+• Nightclub promotion (Oxford) (Jan - Mar 2000) 
+• Organized and promoted a series of student nights in Oxford
+• Designed, produced and distributed promotional materials
+• Liaised with the management and staff of the club
+POSITIONS OF RESPONSIBILITY
+• 'Cherwell' Oxford University independent student newspaper (Jan 1997 - Jan 1998)
+• Layout editor and sub-editor of the Sport section, working to print deadlines
+• On-line co-editor involving the transfer of the entire newspaper to its own web site on a weekly basis
+• Young Enterprise Scheme (Oct 1994 - Mar 1995)
+• Acted as Marketing Director for a 'Young Enterprise' company - involving organizing advertising for 
+the company's products and managing the advertising budget in co-operation with the Finance Director 
+and other members of the company
+GENERAL SKILLS
+• Software Advanced: C++, C, Python, Java, PHP; SDL, SQLite, wxWidgets.
+Intermediate: ASP, PERL, Pascal, various assembler; STL, BOOST, PyLab.
+• Platforms Win32, Linux, Renesas M16, Altera NIOS
+• Hardware Electronics: video, audio, power supply, digital interface
+FPGA: Verilog
+• Other applications Visual Studio, Eclipse, Code::Blocks, Altera Quartus/NIOS EDS, Photoshop
+• Personal projects Digital-DJ audio mixing software
+PIC-based USB MIDI controller
+PIC-based controller for a direct-drive LCD matrix display
+Distributed server XML database in C++ for Win32 and Linux
+Low-power stereo FM transmitter
+Class-D audio power amplifier
+• Foreign Languages    Basic French and Spanish

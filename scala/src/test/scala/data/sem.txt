@@ -1,0 +1,95 @@
+
+Personal Knowledge
+Unix (9 years)
+Extensive knowledge of Debian GNU/Linux 2.x-3.x. Currently I administer ﬁve
+computers that run Debian Sarge, including a multi-purpose server trygub.com. I
+am also very comfortable with SuSE, Ubuntu, SunOS and Mac OS X.
+
+Fortran (7 years)
+Expert level. Last year I have coauthored a scientiﬁc application of approximately 100K lines of Fortran code in length. My contributions to this project
+consisted of 5K lines of highly reusable code, migration of the entire project to
+Fortran95 and porting to a number of new platforms and compilers.
+
+Python (4 years)
+Expert level. Used Python for rapid development and prototyping as well as for
+production programming. Proﬁcient in the use of standard library and Tkinter.
+In 2005 I wrote a computational chemistry package PathQuest (over 12K lines of
+code) and a demonstrational GUI application MBSBand (1K).
+
+XML/XSLT (3 years)
+I can write valid XML documents and XSL stylesheets, design DTDs and XML
+Schemas, and have working knowledge of libXML 2.x and libXSLT 1.x parsers
+and experience in the use of XPath, XPointer and XLink languages.
+
+Databases (2 years)
+Fluent in SQL and relational database development. Considerable experience with
+PostgreSQL 8.x server setup and administration: I support a Zope website with
+PostgreSQL database server backend (http://www.slovnenya.com). Competent
+using Oracle 10g and MySQL 5.0.
+
+Software Development (5 years)
+Excellent knowledge of programming logic and design, user interfaces design,
+software development life cycle, version control with CVS and SVN, backup and
+recovery with rsync and rdiff-backup, and project management with make.
+
+Scientific expertise
+
+Great problem-solving experience. Understanding of statistics, random processes
+and optimisation methods. Conﬁdent use of OPTIM, CHARMM, GAUSSIAN,
+GAMESS, LAPACK, BLAS, ScaLAPACK, and Mathematica computing engine.
+
+C/C++ (2 years)
+Used C to write both standalone programs and Python extensions. Good
+knowledge of object-oriented design concepts, STL, Python C/API, C++, Qt
+toolkit and Borland C++Builder.
+†
+
+I require a work permit
+
+Apache/Zope (1 year)
+Good command of Zope 2.x and Apache 2.x servers setup and conﬁguration. Experience with Plone content management system, JavaScript, standard compliant
+web development using XHTML and CSS, and CGI scripting with Python.
+
+Hardware
+
+I am experienced in building computers from components and have detailed
+knowledge of scientiﬁc computing and requirements thereof. Benchmarked and
+ﬁne tuned hardware of numerous computer systems in the past.
+
+Algorithms
+
+Knowledge of complexity analysis, a variety of algorithm design techniques and
+advanced data structures. Deep understanding of graph algorithms. Familiarity
+with a wide range of numerical methods and good practices in software design.
+
+Text processing
+
+A
+Excellent knowledge of LTEX2e document preparation system and Vim text
+editor. Used awk and sed for basic text processing, and Python for advanced
+editing purposes. Have a good command of Perl-style regular expressions.
+
+Other
+
+I have signiﬁcant teaching and training experience, the ability to manage my time
+effectively and work under pressure, and am conﬁdent and persuasive in communication. I have published 15 articles in peer-reviewed journals.
+
+Experience
+University of Cambridge
+Post-doctoral research associate
+January 2006 – December 2006
+TechExpert company, Kyiv, Ukraine
+IT instructor (part-time)
+January 2001 – June 2002
+
+Education
+University of Cambridge
+Ph.D. in theoretical chemistry
+October 2002 – December 2005
+University of Kiev-Mohyla Academy, Kyiv, Ukraine
+S.D. in biophysics (with distinction)
+September 2001 – June 2002
+B.A. in physics (with distinction)
+September 1997 – June 2001
+
+

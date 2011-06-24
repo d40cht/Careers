@@ -1,0 +1,184 @@
+Rob Donald - Curriculum Vitae
+Email: rob@statsresearch.co.uk, Web: http://www.statsresearch.co.uk
+Mob: 07780 650 910
+Profile – Systems and Data Analyst
+I have experience in the analysis and design of solutions for new projects as well as
+maintenance projects. In my last role, on a neurosurgical research project, I used R
+and MATLAB for statistical modelling research and the statistical analysis of clinical
+trial data. I was also heavily involved in the design of the Phase 1 and Phase 2 clinical
+studies including the required statistical techniques and sample sizes.
+The software systems for the project used C#, Java and C++. I was involved in the
+design and support of a C# web application used by research nurses for manual data
+entry. I was required to design and implement a Java based application that produced
+reports for each patient on the study. For the C++ section of the project I was required
+to integrate new functions into an existing MFC based C++ application.
+I am particularly skilled at quickly analysing the “big picture” and, because of my
+understanding of the principles of software design using several languages, I am able
+to rapidly adapt to the tasks of data preparation often required at the start of a
+statistical investigation.
+I have deliberately kept my technical skills up to date and I can work on standalone
+projects with minimal supervision or within a larger team environment and I am
+experienced in setting up development environments to support the full software
+lifecycle.
+I have extensive experience in the creation and presentation of material describing
+complex problems. I am skilled at presenting this type of material to a non-specialist
+audience often in an international setting.
+I am currently studying part time (nights and weekends) for a PhD in Statistics and
+Machine Learning at the University of Glasgow, School of Mathematics and
+Statistics. I am jointly supervised by Professor Stephen Senn, a leading authority on
+clinical trial design, and Professor Mark Girolami, Director of the Centre for
+Computational Statistics and Machine Learning at University College London.
+Skill Sets
+I have experience of systems analysis, software design and development using the
+following technologies:
+•
+•
+•
+•
+•
+•
+
+R Statistical Programming Framework, MATLAB
+C#, Java, C++ (ANSI and MFC), C
+HTML/CSS, ASP, JSP, PHP
+Unix system administration, PERL and Unix Shell Scripts
+Project documentation using MS Office, MS Visio and LaTeX text processing
+Microsoft SQL Server, MySQL, Postgresql, Oracle
+
+Curriculum Vitae – Rob Donald
+
+Page 1 of 3
+
+Education
+Sep 1980 – Jun 1984
+University of Strathclyde, BSc Electrical and Electronic Engineering (Hons 2:1)
+Jan 2007 – Oct 2007
+Open University, 2 x 30 Credit Modules.
+M249 Practical Modern Statistics, M346 Linear Statistical Modelling
+Nov 2007 – Present
+Studying part time (nights and weekends) for a PhD in Applied Statistics at the
+University of Glasgow. My thesis involves research into the online assessment of
+event prediction models.
+Recent Project History
+Jan 2008 – Dec 2010
+Project Title: AvertIT (European medical research project, http://www.avert-it.org)
+Roles: Statistical Analyst, R and MATLAB; Java, C++, C# Developer
+Technologies: NetBeans 6.9 with SubVersion, Windows 2008 Server admin, MS
+Visual Studio Tools, ASP.NET web application
+Worked on EU funded medical research project as the statistical analyst and systems
+programmer.
+My project team worked with neurosurgical ICU clinicians in six teaching hospitals
+around Europe and data security specialists from the National eScience Centre at the
+University of Glasgow.
+Techniques used: neural network research using Matlab, R, C and C++; Java
+programming using the NetBeans environment with SubVersion source code control;
+Windows 2008 Server admin; C# Data processing using MS Visual Studio; ASP.NET
+Web based data collection application.
+I presented progress reports to the neurosurgeons and their clinical teams in the six
+countries involved in the study and also presented the team’s work to external
+research groups.
+I contributed to full technical progress reports required for yearly formal EU
+evaluation and have attended the actual review meetings in Brussels and Glasgow. I
+also analysed the trial data and presented interim results at meetings held in each of
+the participating hospitals around Europe and at an international scientific conference
+(ICP 2010, Tübingen, Germany).
+The project produced encouraging research results, which were then taken to clinical
+trial stage. A Phase 1 clinical study with 30 patients has been completed and the
+project has now progressed to a Phase 2 clinical study, aiming to recruit another 46
+patients.
+
+Curriculum Vitae – Rob Donald
+
+Page 2 of 3
+
+Nov 2004 – Dec 2007
+Project Title: Data Collection Product, (C3 Global, SME providing enterprise
+performance solutions, http://www.c3global.com)
+Roles: Product Architect, Java Developer, JSP Developer
+Technologies: Eclipse with SubVersion, Apache Tomcat Web Server
+Worked on a Linux based self contained data acquisition system for international
+supermarket refrigeration supplier (Danfoss, http://www.danfoss.com).
+Starting from a limited client market requirement, I produced the concept design and
+helped with the project proposal. I developed the secure communications layer used to
+acquire data from the embedded systems on site. I supported the system integration
+tests and handover to client. After a successful delivery, I carried out second line
+support investigations as required.
+Jan 2001 – Oct 2004
+Project Title: Support Centre Alarm Handling Application, (C3 Global, SME
+providing enterprise performance solutions, http://www.c3global.com)
+Roles: Product Architect, Java Developer, JSP Developer
+Technologies: Eclipse with SubVersion, Apache Tomcat Web Server
+Worked on an enterprise level data acquisition and service centre application for a
+major supermarket refrigeration supplier (Danfoss, http://www.danfoss.com).
+Designed the initial architecture of the system from client’s limited specification and
+led the small team that produced the pilot system for the client. I was the technical
+lead in the larger team that took the project to production level across two data centres
+(USA/Europe) serving the global reach of the system. The system consists of a
+heterogeneous server environment running Linux and Microsoft Server systems.
+Full Employment Summary
+Dates
+
+Company
+
+Roles
+
+Jan 2011 - Present
+
+Stats Research Ltd
+
+Consultant Data Analyst,
+Statistical Analysis and
+Software Programming
+
+Feb 1997 – Dec 2010
+
+C3 Global Ltd (SME providing
+enterprise performance solutions)
+
+Statistical analyst, product
+architect, developer (Java, C#,
+C++)
+
+Aug 1989 – Jan 1997
+
+Diagnostics and Measuring Systems,
+(SME providing vibration data
+analysis solutions)
+
+Engineering Manager. Main
+company activity was the
+analysis of vibration signal
+information
+
+Jun 1986 – Jul 1989
+
+Honeywell Control Systems
+
+Software Design
+
+Jul 1984 – Apr 1986
+
+Smiths Aerospace and Defence
+
+Hardware Design
+
+Sep 1980 – Jun 1984
+
+Full Time Education
+
+University of Strathclyde, BSc
+Electrical and Electronic
+Engineering (Hons 2:1)
+
+Sep 1973 – Sep 1980
+
+Denholm Ship Management/Overseas
+Containers Ltd
+
+Marine Engineer
+
+Curriculum Vitae – Rob Donald
+
+Page 3 of 3
+
+
