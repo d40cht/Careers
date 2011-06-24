@@ -1,4 +1,6 @@
-@(title:String = "")(body: => Html)
+@(title:String="", session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)(content: => Html)
+
+@import views.Application.html
 
 <!DOCTYPE html>
 <html>
@@ -10,7 +12,7 @@
     </head>
     <body>
         <div id="header">
-            <h1>Some header stuff</h1>
+            <h1>Career matcher</h1>
         </div>
         
         <div id="location"> 
@@ -19,26 +21,25 @@
         
         <div id="container"> 
             <div id="sidebar" class="body">
-                <h3>join in:</h3>
-                <ul>
-                    <li>login</li>
-                    <li>register</li>
-                </ul>
-                
-                <h3>find out more:</h3>
-                <ul>                    
-                    <li>help</li>
-                    <li>about</li>
-                </ul>
+                @views.Application.html.sidebar(session)
             </div>
             
             <div id="main">
+            
+                @if( flash.contains("error") ) {
+                    <div class="error">
+                        @{flash.get("error")}
+                    </div>
+                }
+                
+                @if( true ) {
+                    <div class="info">
+                        @{flash.get("info")}
+                    </div>
+                }
+                
                 <div id="content" class="body">
-                    @body
-                    
-                    <h1>blah</h1>
-                    <h1>blah</h1>
-                    <h1>blah</h1>
+                    @content
                 </div>                
             </div>
         </div>

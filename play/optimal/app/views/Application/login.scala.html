@@ -1,0 +1,14 @@
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)
+
+@main(title="Home", session=session, flash=flash) {
+    <h1>Sign-in page</h1>
+    <form action="@action(controllers.Application.login)" method="GET">
+        <table>
+            <tr><td>Email address:</td> <td><input type="text" name="username"/></td></tr>
+            <tr><td>Password:</td> <td><input type="password" name="password"/></td></tr>
+            <tr><td></td> <td><input type="submit" value="Login!"/></td></tr>
+        </table>
+        
+    </form>
+
+}

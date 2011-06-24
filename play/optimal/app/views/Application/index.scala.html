@@ -1,8 +1,5 @@
-@main(title = "Home") {
-    
-    <form action="@action(controllers.Application.sayHello)" method="GET">
-        <input type="text" name="myName"/>
-        <input type="submit" value="Say hello!"/>
-    </form>
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)
 
+@main(title="Home", session=session, flash=flash) {
+    <h1>Hello world</h1>
 }

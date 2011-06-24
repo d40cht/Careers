@@ -47,6 +47,7 @@ strong {
 
 /* Header */
 #header {
+        padding: 20px;
         height: 100px;
 }
 
@@ -119,11 +120,20 @@ list-style-type: circle;
          padding: 0px;
 }
 
+div.error {
+    background-color: #f00;
+}
+
+div.info {
+    background-color: #0f0;
+}
+
 /* Content */
 #main {
       margin-left: 141px;
       padding: 5px 32px 15px 32px;
       color: black;
+      min-height:300px;
 }
 
 #main a {

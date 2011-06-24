@@ -1,0 +1,25 @@
+@(session:play.mvc.Scope.Session)
+
+
+@if( !session.contains("user") ) {
+    <h3>join in:</h3>
+    <ul>
+        <li><a href="@action(controllers.Application.login)">login</a></li>
+        <li><a href="@action(controllers.Application.register)">register</a></li>
+    </ul>
+} else {
+    <h3></h3>
+    <ul>
+        <li>Hello @{session.get("user")} </li>
+        <li>administer</li>
+        <li><a href="@action(controllers.Application.logout)">logout</a></li>
+    </ul>
+}
+
+<h3>find out more:</h3>
+<ul>                    
+    <li>help</li>
+    <li>about</li>
+</ul>
+
+
