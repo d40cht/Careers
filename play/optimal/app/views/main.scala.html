@@ -9,10 +9,42 @@
         <script src="@asset("public/javascripts/jquery-1.5.2.min.js")" type="text/javascript"></script>
     </head>
     <body>
-        Some header stuff
-        <hr/>
-        @body
-        <hr/>
-        Some footer stuff
+        <div id="header">
+            <h1>Some header stuff</h1>
+        </div>
+        
+        <div id="location"> 
+            <a href="/">home</a> &gt; Tutorial
+        </div> 
+        
+        <div id="container"> 
+            <div id="sidebar" class="body">
+                <h3>join in:</h3>
+                <ul>
+                    <li>login</li>
+                    <li>register</li>
+                </ul>
+                
+                <h3>find out more:</h3>
+                <ul>                    
+                    <li>help</li>
+                    <li>about</li>
+                </ul>
+            </div>
+            
+            <div id="main">
+                <div id="content" class="body">
+                    @body
+                    
+                    <h1>blah</h1>
+                    <h1>blah</h1>
+                    <h1>blah</h1>
+                </div>                
+            </div>
+        </div>
+        
+        <div id="footer">
+            Some footer stuff
+        </div>
     </body>
 </html>
