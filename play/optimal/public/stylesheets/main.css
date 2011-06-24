@@ -121,11 +121,13 @@ list-style-type: circle;
 }
 
 div.error {
-    background-color: #f00;
+    padding: 3px 6px;
+    background-color: #f99;
 }
 
 div.info {
-    background-color: #0f0;
+    padding: 3px 6px;
+    background-color: #9f9;
 }
 
 /* Content */
@@ -133,7 +135,7 @@ div.info {
       margin-left: 141px;
       padding: 5px 32px 15px 32px;
       color: black;
-      min-height:300px;
+      min-height:400px;
 }
 
 #main a {
