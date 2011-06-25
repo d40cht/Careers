@@ -17,7 +17,20 @@
         
         <div id="location"> 
             Put &gt; some &gt; breadcrumbs &gt; here...
-        </div> 
+        </div>
+        <div id="messages">
+            @if( flash.contains("error") ) {
+                <div class="error">
+                    <strong>&gt;&gt; @{flash.get("error")}</strong>
+                </div>
+            }
+            
+            @if( flash.contains("info") ) {
+                <div class="info">
+                    <strong>&gt;&gt; @{flash.get("info")}</strong>
+                </div>
+            }
+        </div>
         
         <div id="container"> 
             <div id="sidebar" class="body">
@@ -25,19 +38,6 @@
             </div>
             
             <div id="main">
-            
-                @if( flash.contains("error") ) {
-                    <div class="error">
-                        @{flash.get("error")}
-                    </div>
-                }
-                
-                @if( flash.contains("info") ) {
-                    <div class="info">
-                        @{flash.get("info")}
-                    </div>
-                }
-                
                 <div id="content" class="body">
                     @content
                 </div>                

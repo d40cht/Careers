@@ -15,9 +15,9 @@
         <li><a href="">Manage alerts</a></li>
     </ul>
     
-    <h3>User</h3>
+    <h3>User: @{session.get("user")}</h3>
     <ul>
-        <li><a href="">Administer</a></li>
+        <li><a href="">Settings</a></li>
         <li><a href="@action(controllers.Application.logout)">Logout</a></li>
     </ul>
 }
