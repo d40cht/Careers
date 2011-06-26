@@ -3,29 +3,74 @@ package controllers
 import play._
 import play.mvc._
 
+import java.security.MessageDigest
+
+import org.scalaquery.session._
+import org.scalaquery.ql.basic.{BasicTable => Table}
+
+import org.scalaquery.session.Database.threadLocalSession
+import org.scalaquery.ql.extended.H2Driver.Implicit._
+
+// Import the query language
+import org.scalaquery.ql._
+
+// Import the standard SQL types
+import org.scalaquery.ql.TypeMapper._
+
+// To interrogate the H2 DB: java -jar ../../../play-1.2.2RC2/framework/lib/h2-1.3.149.jar
+package models
+{
+    object Users extends Table[(Long, String, String, String, Boolean)]("Users")
+    {
+        def id = column[Long]("id")
+        def email = column[String]("email")
+        def password = column[String]("password")
+        def fullName = column[String]("fullName")
+        def isAdmin = column[Boolean]("isAdmin")
+        
+        def * = id ~ email ~ password ~ fullName ~ isAdmin
+    }
+}
+
 object Application extends Controller {
     
     import views.Application._
     
+    private def passwordHash( x : String) = MessageDigest.getInstance("SHA").digest(x.getBytes).map( 0xff & _ ).map( {"%02x".format(_)} ).mkString
+    
     def index = html.index( session, flash )
     def login =
     {
-        val name = params.get("username")
+        val email = params.get("email")
 
-        if ( name == null )
+        if ( email == null )
         {
             html.login( session, flash )
-        }        
-        else if ( name == "alex" )
-        {
-            flash += ("info" -> ("Welcome " + name))
-            session += ("user" -> "alex")
-            Action(index)
         }
         else
         {
-            flash += ("error" -> ("Unknown user " + name))
-            html.login(session, flash)
+            val db = Database.forDataSource(play.db.DB.datasource)
+            
+            val hashedpw = passwordHash( params.get("password") )
+            db withSession
+            {
+                val res = (for ( u <- models.Users if u.email === email && u.password === hashedpw ) yield u.id ~ u.fullName ).list
+                
+                if ( res != Nil )
+                {
+                    val userId = res.head._1
+                    val name = res.head._2
+                    
+                    flash += ("info" -> ("Welcome " + name ))
+                    session += ("user" -> name)
+                    Action(index)
+                }
+                else
+                {
+                    flash += ("error" -> ("Unknown user " + email))
+                    html.login(session, flash)
+                }
+            }
         }
     }
     def logout =
@@ -36,6 +81,46 @@ object Application extends Controller {
         Action(index)
     }
     
-    def register = html.register( session, flash )
+    def register = 
+    {
+        val email = params.get("email")
+        if ( email != null )
+        {
+            val name = params.get("username")
+            val password1 = params.get("password1")
+            val password2 = params.get("password2")
+            
+            if ( password1 != password2 )
+            {
+                flash += ("error" -> "Passwords do not match. Please try again.")
+                html.register(session, flash)
+            }
+            else
+            {
+                val db = Database.forDataSource(play.db.DB.datasource)
+                db withSession
+                {
+                    val res = (for ( u <- models.Users if u.email === name ) yield u.id).list
+                    if ( res != Nil )
+                    {
+                        flash += ("error" -> "Email address already taken. Please try again.")
+                        html.register(session, flash)
+                    }
+                    else
+                    {
+                        val cols = models.Users.email ~ models.Users.password ~ models.Users.fullName ~ models.Users.isAdmin
+                        cols.insert( email, passwordHash( password1 ), name, false )
+                        
+                        flash += ("info" -> ("Thanks for registering " + name + ". Please login." ))
+                        Action(login)
+                    }
+                }
+            }
+        }
+        else
+        {
+            html.register( session, flash )
+        }
+    }
        
 }
