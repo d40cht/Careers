@@ -1,7 +1,9 @@
 package controllers
 
 import play._
+import play.libs._
 import play.mvc._
+import play.cache._
 
 import java.security.MessageDigest
 
@@ -73,6 +75,14 @@ object Application extends Controller {
             }
         }
     }
+    
+    def captcha(id:String) = {
+        val captcha = Images.captcha
+        val code = captcha.getText("#E4EAFD")
+        Cache.set(id, code, "10mn")
+        captcha
+    }
+    
     def logout =
     {
         val name = session.get("user")
@@ -83,43 +93,55 @@ object Application extends Controller {
     
     def register = 
     {
+        val uid = Codec.UUID
         val email = params.get("email")
         if ( email != null )
         {
             val name = params.get("username")
             val password1 = params.get("password1")
             val password2 = params.get("password2")
+            val captchauid = params.get("uid")
+            val captcha = params.get("captcha")
             
             if ( password1 != password2 )
             {
                 flash += ("error" -> "Passwords do not match. Please try again.")
-                html.register(session, flash)
+                html.register(session, flash, uid)
             }
             else
             {
-                val db = Database.forDataSource(play.db.DB.datasource)
-                db withSession
+                val stored = Cache.get(captchauid)
+                if ( stored.isEmpty || stored.get != captcha )
                 {
-                    val res = (for ( u <- models.Users if u.email === name ) yield u.id).list
-                    if ( res != Nil )
+                    flash += ("error" -> "Captcha text does not match. Please try again.")
+                    html.register(session, flash, uid)
+                }
+                else
+                {
+                    val db = Database.forDataSource(play.db.DB.datasource)
+                    db withSession
                     {
-                        flash += ("error" -> "Email address already taken. Please try again.")
-                        html.register(session, flash)
-                    }
-                    else
-                    {
-                        val cols = models.Users.email ~ models.Users.password ~ models.Users.fullName ~ models.Users.isAdmin
-                        cols.insert( email, passwordHash( password1 ), name, false )
-                        
-                        flash += ("info" -> ("Thanks for registering " + name + ". Please login." ))
-                        Action(login)
+                        val res = (for ( u <- models.Users if u.email === name ) yield u.id).list
+                        if ( res != Nil )
+                        {
+                            flash += ("error" -> "Email address already taken. Please try again.")
+                            html.register(session, flash, uid)
+                        }
+                        else
+                        {
+                            val cols = models.Users.email ~ models.Users.password ~ models.Users.fullName ~ models.Users.isAdmin
+                            cols.insert( email, passwordHash( password1 ), name, false )
+                            
+                            flash += ("info" -> ("Thanks for registering " + name + ". Please login." ))
+                            Action(login)
+                        }
                     }
                 }
             }
         }
         else
         {
-            html.register( session, flash )
+            html.register( session, flash, uid )
         }
     }
        
