@@ -10,6 +10,7 @@ import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
+import org.apache.lucene.analysis.ASCIIFoldingFilter
 
 import java.io.{StringReader, OutputStream, InputStream}
 import org.dbpedia.extraction.wikiparser._
@@ -312,7 +313,8 @@ object Utils
     	// Consider using org.apache.lucene.analysis.standard.StandardAnalyzer instead as it filters out 's, moves to lower case, removes stop words.
     	// Add ASCIIFoldingFilter to fold weird punctation down to ascii
     	// And org.apache.lucene.analysis.PorterStemFilter for porter stemming? Not clear how useful stemming is.
-        val tokenizer = new StandardTokenizer( LUCENE_30, textSource )
+        val tokenizerBase = new StandardTokenizer( LUCENE_30, textSource )
+        val tokenizer = new ASCIIFoldingFilter( tokenizerBase )
     
         var run = true
         var wordList : List[String] = Nil

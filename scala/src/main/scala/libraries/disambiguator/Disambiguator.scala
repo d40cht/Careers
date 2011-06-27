@@ -5,12 +5,15 @@ import java.util.{TreeMap => JTreeMap}
 import math.{max, log, pow}
 import java.io.{File, DataInputStream, FileInputStream}
 
+
+
+
 import org.apache.commons.math.distribution.NormalDistributionImpl
 
 import scala.xml.XML
 
 import scala.util.matching.Regex
-import scala.collection.mutable.{ListBuffer}
+import scala.collection.mutable.{ListBuffer, Queue}
 
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility.StopWords.stopWordSet
@@ -161,7 +164,7 @@ class AmbiguitySite( var start : Int, var end : Int )
 
 
 
-class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]] )
+class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper )
 {
     class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
     
@@ -303,7 +306,9 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
 
         // Weight each topic based on shared contexts (and distances to those contexts)
         println( "Building weighted topic edges." )
-        val distWeighting = new NormalDistributionImpl( 0.0, 5.0 )
+        val distWeighting1 = new NormalDistributionImpl( 0.0, 3.0 )
+        val distWeighting2 = new NormalDistributionImpl( 0.0, 10.0 )
+        //println( "::::::::::::::::: " + distWeighting.density(0.0) )
         
         var count = 0
         for ( (contextId, alternatives) <- reverseContextMap )
@@ -326,7 +331,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         val center1 = (edge1.altSite.start + edge1.altSite.end).toDouble / 2.0
                         val center2 = (edge2.altSite.start + edge2.altSite.end).toDouble / 2.0
                         val distance = (center1 - center2)
-                        val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
+                        //val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
+                        val distanceWeight = distWeighting1.density( distance ) + distWeighting2.density( distance )
                         //println( ":: " + distance + ", " + distanceWeight )
                         val totalWeight = (edge1.weight * edge2.weight) * distanceWeight
                         edge1.alt.weight += totalWeight
@@ -357,25 +363,77 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
             }
         }
-        
+    }
+    
+    def dumpGraph( linkFile : String, nameFile : String )
+    {
         println( "Building topic and context association graph." )
-        //var reverseContextMap = TreeMap[ContextId, List[REdge]]()
-        /*var weightMap = TreeMap[ContextId, List[(ContextId, Double)]]()
+     
+        var topicWeights = disambiguated.foldLeft( TreeMap[Int, Double]() )( (x, y) => x.updated( y.topicId, y.weight ) )
+        
+        
+        var topicLinkCount = TreeMap[Int, Int]()
+        var els = TreeMap[Int, Int]()
+        var contextWeights = TreeMap[Int, Double]()
+        var count = 0
         for ( ss <- disambiguated )
         {
+            if ( !els.contains( ss.topicId ) )
+            {
+                els = els.updated( ss.topicId, count )
+                count += 1
+            }
+            topicLinkCount = topicLinkCount.updated( ss.topicId, 1 + topicLinkCount.getOrElse( ss.topicId, 0 ) )
+            
             for ( (contextId, weight) <- topicCategoryMap(ss.topicId) )
             {
-                weightMap = weightMap.updated( ss., weightMap.getOrElse( (contextId, weight), List[(Int, Double)]() ) )
+                if ( !topicWeights.contains( contextId ) )
+                {
+                    val oldWeight = contextWeights.getOrElse( contextId, 0.0 )
+                    contextWeights = contextWeights.updated( contextId, oldWeight max (ss.weight * weight) )
+                    if ( !els.contains( contextId ) )
+                    {
+                        els = els.updated( contextId, count )
+                        count += 1
+                    }
+                }
+                topicLinkCount = topicLinkCount.updated( contextId, 1 + topicLinkCount.getOrElse( contextId, 0 ) )
             }
         }
         
-        for ( ss <- disambiguated )
+        
+        val n = new java.io.PrintWriter( new File(nameFile) )
+        for ( (id, cid) <- els )
         {
-            for ( fromId <- topicCategoryMap(ss.topicId) )
+            if ( topicWeights.contains( id ) )
             {
-                for ( (
+                n.println( cid + " " + topicWeights(id) + " " + topicNameMap(id) )
             }
-        }*/
+            else
+            {
+                n.println( cid + " " + contextWeights(id) + " " + topicNameMap(id) )
+            }
+        }
+        n.close()
+        
+        val p = new java.io.PrintWriter( new File(linkFile) )
+        val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight FROM linkWeights2 WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::HNil )
+        for ( (id, cid) <- els )
+        {
+            topicCategoryQuery.bind( id )
+            for ( v <- topicCategoryQuery )
+            {
+                val targetId = _1(v).get
+                val weight = _2(v).get
+                
+                if ( id != targetId && els.contains( targetId ) )
+                {    
+                    val targetCid = els( targetId )
+                    p.println( cid + " " + targetCid + " " + weight )
+                }
+            }
+        }
+        p.close()
     }
     
     
@@ -682,7 +740,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             
             println( "Building new ambiguity forest" )
 
-            val f = new AmbiguityForest( wordList, topicNameMap, topicCategoryMap )
+            val f = new AmbiguityForest( wordList, topicNameMap, topicCategoryMap, topicDb )
             f.addTopics( possiblePhrasesSorted )
             //f.buildContextWeights()
             //f.applyContexts( topicDb )

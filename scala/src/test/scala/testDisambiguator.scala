@@ -69,12 +69,12 @@ class DisambiguatorTest extends FunSuite
     {
         if ( true )
         {
-            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./dbout.sqlite" )
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
-            val fileText = fromFile("./src/test/scala/data/georgecv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/georgecv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
-            //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
+            val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
             
@@ -94,12 +94,13 @@ class DisambiguatorTest extends FunSuite
             val forest = b.build()
             forest.dumpDebug( "ambiguitydebug.xml" )
             forest.htmlOutput( "ambiguity.html" )
+            forest.dumpGraph( "test.graph", "test.names" )
         }
     }
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val tests = List[(String, List[String])](
                 ("python palin", List[String]("Main:Monty Python", "Main:Michael Palin")),
@@ -133,12 +134,11 @@ class DisambiguatorTest extends FunSuite
                 //("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
                 ("the leaf, nissan's new electric car", List[String]("Main:Nissan Leaf", "Main:Nissan Motors", "Main:Electric car")),
                 ("one autumn morning, the leaf dropped from the tree", List[String]("Main:Autumn", "Main:Leaf", "Main:Tree")),
+                ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")),
                 ("the leaf, a new electric car from nissan. Blah blah blah blah blah blah blah. One autumn morning, the leaf dropped from the tree.",
-                    List[String]("Main:Nissan Leaf", "Main:Electric car", "Main:Nissan Motors", "Main:Autumn", "Main:Leaf", "Main:Tree") ),
-                //("the leaf, nissan's new electric car. one autumn morning, the leaf fell from the tree.", List[String]()),
-                ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
+                    List[String]("Main:Nissan Leaf", "Main:Electric car", "Main:Nissan Motors", "Main:Autumn", "Main:Leaf", "Main:Tree") ) )
                 
-            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./dbout.sqlite" )
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             for ( (phrase, res) <- tests )
             {
                 //val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
@@ -153,6 +153,8 @@ class DisambiguatorTest extends FunSuite
                     val topic = topicl.name
                     assert( topic === expected )
                 }
+                
+                forest.dumpGraph( "test.graph", "test.names" )
             }
         }
     }
