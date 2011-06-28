@@ -67,15 +67,15 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( true )
+        if ( false )
         {
-            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./dbout.sqlite" )
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
-            //val fileText = fromFile("./src/test/scala/data/georgecv.txt").getLines.mkString(" ")
+            val fileText = fromFile("./src/test/scala/data/georgecv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
-            val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
             
             //val fileText = "gerry adams troubles bloody sunday"
@@ -94,12 +94,13 @@ class DisambiguatorTest extends FunSuite
             val forest = b.build()
             forest.dumpDebug( "ambiguitydebug.xml" )
             forest.htmlOutput( "ambiguity.html" )
+            forest.dumpGraph( "test.graph", "test.names" )
         }
     }
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
             val tests = List[(String, List[String])](
                 ("python palin", List("Main:Monty Python", "Main:Michael Palin")),
@@ -110,6 +111,8 @@ class DisambiguatorTest extends FunSuite
                 // Produces a rubbish list of categories
                 //("a cup of coffee or a cup of english breakfast in the morning", Nil)
                 ("cereal maize barley rice", List("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
+                
+                ("cherwell oxford university student newspaper", List("Main:Cherwell (newspaper)", "Main:University of Oxford", "Main:Student newspaper")),
                 
                 // Because the tokenizer is insensitive to punctuation we end up with 'cambridge united' as the sf and
                 // then a massive football context being asserted!
@@ -139,7 +142,7 @@ class DisambiguatorTest extends FunSuite
                 ("infra red background radiation", List("Main:Infrared", "Main:Background radiation")),
                 ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
                 
-            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./dbout.sqlite" )
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             for ( (phrase, res) <- tests )
             {
                 //val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
@@ -156,6 +159,8 @@ class DisambiguatorTest extends FunSuite
                     val topic = topicl.name
                     assert( topic === expected )
                 }
+                
+                forest.dumpGraph( "test.graph", "test.names" )
             }
         }
     }
