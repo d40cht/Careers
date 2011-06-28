@@ -67,7 +67,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./dbout.sqlite" )
             
@@ -99,7 +99,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val tests = List[(String, List[String])](
                 ("python palin", List("Main:Monty Python", "Main:Michael Palin")),
