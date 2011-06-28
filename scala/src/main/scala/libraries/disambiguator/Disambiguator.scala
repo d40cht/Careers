@@ -541,13 +541,14 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             println( "Parsing text and building topic and category maps." )
             for ( word <- wordList )
             {
-                println( "  " + word )
+                //println( "  " + word )
                 val wordLookup = lookup.lookupWord( word )
                         
                 wordLookup match
                 {
                     case Some(wordId) =>
                     {
+                        //println( "  matched" )
                         val newPhrase = lookup.getIter()
                         activePhrases = (wordIndex, newPhrase) :: activePhrases
                         
@@ -638,11 +639,12 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             }
                                         }
                                     }
-                                                                        
+
+                                    //println( "-> " + wordList.slice(fromIndex, toIndex+1) )                              
                                     possiblePhrases = (fromIndex, toIndex, thisSf) :: possiblePhrases
-                                    
-                                    newPhrases = (fromIndex, phrase) :: newPhrases
                                 }
+                                
+                                newPhrases = (fromIndex, phrase) :: newPhrases
                             }
                         }
                         activePhrases = newPhrases
