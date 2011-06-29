@@ -288,7 +288,6 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         {
                             val weight = altWeight * topicWeight * contextWeight
                             
-                            
                             if ( weight > AmbiguityForest.minContextEdgeWeight )
                             {
                                 val updatedList = new REdge(site, alternative, altSite, topicId, weight) :: reverseContextMap.getOrElse(contextId, List[REdge]() )
@@ -306,8 +305,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
 
         // Weight each topic based on shared contexts (and distances to those contexts)
         println( "Building weighted topic edges." )
-        val distWeighting1 = new NormalDistributionImpl( 0.0, 3.0 )
-        val distWeighting2 = new NormalDistributionImpl( 0.0, 10.0 )
+        val distWeighting1 = new NormalDistributionImpl( 0.0, 8.0 )
+        val distWeighting2 = new NormalDistributionImpl( 0.0, 15.0 )
         //println( "::::::::::::::::: " + distWeighting.density(0.0) )
         
         var count = 0
@@ -328,18 +327,21 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 {
                     if ( (edge1.site != edge2.site) || (edge1.alt == edge2.alt && edge1.altSite.sf != edge2.altSite.sf) )
                     {
-                        val center1 = (edge1.altSite.start + edge1.altSite.end).toDouble / 2.0
-                        val center2 = (edge2.altSite.start + edge2.altSite.end).toDouble / 2.0
-                        val distance = (center1 - center2)
-                        //val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
-                        val distanceWeight = distWeighting1.density( distance ) + distWeighting2.density( distance )
-                        //println( ":: " + distance + ", " + distanceWeight )
-                        val totalWeight = (edge1.weight * edge2.weight) * distanceWeight
-                        edge1.alt.weight += totalWeight
-                        edge2.alt.weight += totalWeight
-                        
-                        edge1.altSite.sf.topicWeights = edge1.altSite.sf.topicWeights.updated( edge1.topicId, edge1.altSite.sf.topicWeights.getOrElse( edge1.topicId, 0.0 ) + totalWeight )
-                        edge2.altSite.sf.topicWeights = edge2.altSite.sf.topicWeights.updated( edge2.topicId, edge2.altSite.sf.topicWeights.getOrElse( edge2.topicId, 0.0 ) + totalWeight )
+                        if ( edge1.topicId != edge2.topicId )
+                        {
+                            val center1 = (edge1.altSite.start + edge1.altSite.end).toDouble / 2.0
+                            val center2 = (edge2.altSite.start + edge2.altSite.end).toDouble / 2.0
+                            val distance = (center1 - center2)
+                            //val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
+                            val distanceWeight = distWeighting1.density( distance ) + distWeighting2.density( distance )
+                            //println( ":: " + distance + ", " + distanceWeight )
+                            val totalWeight = (edge1.weight * edge2.weight);// * distanceWeight
+                            edge1.alt.weight += totalWeight
+                            edge2.alt.weight += totalWeight
+                            
+                            edge1.altSite.sf.topicWeights = edge1.altSite.sf.topicWeights.updated( edge1.topicId, edge1.altSite.sf.topicWeights.getOrElse( edge1.topicId, 0.0 ) + totalWeight )
+                            edge2.altSite.sf.topicWeights = edge2.altSite.sf.topicWeights.updated( edge2.topicId, edge2.altSite.sf.topicWeights.getOrElse( edge2.topicId, 0.0 ) + totalWeight )
+                        }
                     }
                 }
             }
@@ -365,7 +367,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         }
     }
     
-    def dumpGraph( linkFile : String, nameFile : String )
+    def dumpGraphOld( linkFile : String, nameFile : String )
     {
         println( "Building topic and context association graph." )
      
@@ -433,6 +435,70 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
             }
         }
+        p.close()
+    }
+    
+    def dumpGraph( linkFile : String, nameFile : String )
+    {
+        var count = 0
+        var idMap = TreeMap[Int, Int]()
+        for ( ss <- disambiguated )
+        {
+            if ( !idMap.contains(ss.topicId) )
+            {
+                idMap = idMap.updated( ss.topicId, count )
+                count += 1
+            }
+        }
+        
+        val n = new java.io.PrintWriter( new File(nameFile) )
+        
+        // A map from context ids to topic ids with weights
+        var connections = TreeMap[Int, List[(Int, Double)]]()
+        for ( ss <- disambiguated )
+        {
+            for ( (contextId, weight) <- topicCategoryMap(ss.topicId) )
+            {
+                val oldList = connections.getOrElse( contextId, List[(Int, Double)]() )
+                connections = connections.updated( contextId, (ss.topicId, weight) :: oldList )
+            }
+            
+            n.println( idMap(ss.topicId) + " " + ss.weight + " " + topicNameMap(ss.topicId) )
+        }
+        n.close()
+        
+        var localWeights = TreeMap[(Int, Int), Double]()
+        for ( ss <- disambiguated )
+        {
+            for ( (contextId, weight1) <- topicCategoryMap(ss.topicId) )
+            {
+                for ( (topicId, weight2) <- connections( contextId ) )
+                {
+                    if ( contextId != topicId )
+                    {
+                        val fromId = idMap(ss.topicId)
+                        val toId = idMap(topicId)
+                        
+                        if ( fromId != toId )
+                        {
+                            val minId = fromId min toId
+                            val maxId = fromId max toId
+                            
+                            val weight = weight1 * weight2
+                            val oldWeight = localWeights.getOrElse( (minId, maxId), 0.0 )
+                            localWeights = localWeights.updated( (minId, maxId), oldWeight + weight )
+                        }
+                    }
+                }
+            }
+        }
+        
+        val p = new java.io.PrintWriter( new File(linkFile) )
+        for ( ((fromId, toId), weight) <- localWeights )
+        {
+            p.println( fromId + " " + toId + " " + weight )
+        }
+        
         p.close()
     }
     
@@ -572,6 +638,30 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                 val weight2 = _3(category).get
                 println( "    " + name + ": " + weight1 + ", " + weight2 )
             }
+        }
+    }
+    
+    def contextQuery( topics : List[String] )
+    {
+        var contextWeights = TreeMap[String, Double]()
+        for ( t <- topics )
+        {
+            val categoryQuery = topicDb.prepare( "SELECT t3.name, t2.weight FROM topics AS t1 INNER JOIN linkWeights2 AS t2 ON t1.id=t2.topicId INNER JOIN topics AS t3 ON t3.id=t2.contextTopicId WHERE t1.name=? AND t1.id != t2.contextTopicId", Col[String]::Col[Double]::HNil )
+            categoryQuery.bind( t )
+            
+            for ( row <- categoryQuery )
+            {
+                val contextName = _1(row).get
+                val contextWeight = _2(row).get
+                val oldWeight = contextWeights.getOrElse( contextName, 0.0 )
+                contextWeights = contextWeights.updated( contextName, oldWeight + contextWeight )
+            }
+        }
+        
+        val sorted = contextWeights.toList.sortWith( _._2 > _._2 )
+        for ( (name, weight) <- sorted )
+        {
+            println( name + ": " + weight )
         }
     }
 
