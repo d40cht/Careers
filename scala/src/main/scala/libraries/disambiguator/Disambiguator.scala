@@ -111,6 +111,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                 {
                     var algoWeight = 0.0
                     var active = true
+                    var processed = false
                     
                     type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
                     var peers = HashMap[TopicDetailLink, Double]()
@@ -138,7 +139,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                     {
                         for ( (peer, linkWeight) <- peers )
                         {
-                            if ( peer.active )
+                            if ( !peer.processed )
                             {
                                 q.remove( peer.algoWeight, peer )
                             }
@@ -150,7 +151,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                                 
                             // Remove the peer from its parent sf. If it's the last one look up to the alt site
                             // and then the ambiguity alternative to decide whether to cull either
-                            if ( peer.active )
+                            if ( !peer.processed )
                             {
                                 q.add( peer.algoWeight, peer )
                             }
@@ -172,6 +173,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                 {
                     assert( site.sf.topics.size == 1 )
                     val td = site.sf.topics.head
+                    td.active = false
                     td.downWeightPeers( q )
                 }
                 combs = combs - this
@@ -489,7 +491,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 val (weight, td) = q.first
                 //println( "Weight: " + weight )
                 q.remove( weight, td )
-                td.active = false
+                td.processed = true
                 
                 // If it's the last then don't do the downweighting
                 val topicRemoved = td.removeTopic()
@@ -497,6 +499,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 if ( topicRemoved )
                 {
                     td.downWeightPeers( q )
+                    td.active = false
                 }
                 else
                 {
@@ -689,7 +692,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                                                         <element>
                                                             <name>{topicNameMap(topicDetail.topicId)}</name>
                                                             <weight>{topicDetail.algoWeight}</weight>
-                                                            <active>{topicDetail.active}</active>
+                                                            <processed>{topicDetail.processed}</processed>
                                                             {
                                                                 for ( (peer, weight) <- topicDetail.peers.filter(_._1.active) ) yield
                                                                 <peer>
