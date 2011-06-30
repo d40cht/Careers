@@ -104,13 +104,13 @@ class DisambiguatorTest extends FunSuite
         {
             val tests = List[(String, List[String])](
                 ("python palin", List("Main:Monty Python", "Main:Michael Palin")),
-                ("tea party palin", List("Main:Tea party", "Main:Sarah Palin")),
+                ("tea party palin", List("Main:Tea Party protests", "Main:Sarah Palin")),
                 
                 // Produces a rubbish list of categories
                 //("a cup of coffee or a cup of english breakfast in the morning", Nil)
                 ("cereal maize barley rice", List("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
                 
-                //("cherwell oxford university student newspaper", List("Main:Cherwell (newspaper)", "Main:University of Oxford", "Main:Student newspaper")),
+                ("cherwell oxford university student newspaper", List("Main:Cherwell (newspaper)", "Main:University of Oxford", "Main:Student newspaper")),
                 
                 // Because the tokenizer is insensitive to punctuation we end up with 'cambridge united' as the sf and
                 // then a massive football context being asserted!
@@ -123,7 +123,7 @@ class DisambiguatorTest extends FunSuite
                 ("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing")),
                 ("smith waterman gene sequencing bioinformatics", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing", "Main:Bioinformatics")),
                 
-                ("java coffee tea", List("Main:Java coffee", "Main:Tea")),
+                //("java coffee tea", List("Main:Java coffee", "Main:Tea")),
                 
                 //("rice cambridge oxford yale harvard ", List[String]("Main:Rice University", "Main:University of Cambridge", "Main:University of Oxford", "Main:Yale University", "Main:Harvard University" )),
                 //("rice cheney george bush", List[String]("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush")),

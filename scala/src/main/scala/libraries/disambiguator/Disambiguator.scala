@@ -165,11 +165,9 @@ class AmbiguitySite( var start : Int, var end : Int )
 }
 
 
-class RunQ()
-{
+class RunQ[V]()
+{    
     type K = Double
-    type V = WeightedTopic
-    
     private var container = TreeMap[K, HashSet[V]]()
     
     def add( k : K, v : V )
@@ -199,7 +197,7 @@ class RunQ()
     def isEmpty : Boolean = container.isEmpty
 }
 
-class WeightedTopic( val site : AmbiguitySite, val alt : AmbiguityAlternative, val altSite : AltSite, val topicId : Int )// extends Ordered[WeightedTopic]
+class WeightedTopic( val site : AmbiguitySite, val alt : AmbiguityAlternative, val altSite : AltSite, val topicId : Int )
 {
     var weight = 0.0
     var enabled = true
@@ -211,8 +209,21 @@ class WeightedTopic( val site : AmbiguitySite, val alt : AmbiguityAlternative, v
         weight += linkWeight
         linked = (other, linkWeight) :: linked
     }
+}
+
+class WeightedAlternative( val site : AmbiguitySite, val alternative : AmbiguityAlternative )
+{
+    var weight = 0.0
+    var enabled = true
+    var linked = HashMap[WeightedAlternative, Double]()
     
-    //def compare( that : WeightedTopic ) = weight.compare( that.weight )
+    def addLink( to : WeightedAlternative, weightinc : Double )
+    {
+        val oldWeight = linked.getOrElse( to, 0.0 )
+        linked = linked.updated( to, oldWeight + weight )
+        weight += weightinc
+        to.weight += weightinc
+    }
 }
 
 class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper )
@@ -326,93 +337,115 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         println( "Number of edges: " + edgeCount )
         
         
-        println( "Thinning down to one topic per alt site" )
-        val q = new RunQ()
-        
-        for ( w <- weightedTopics ) q.add( w.weight, w )
-        
-        // Thin down to one topic per altSite
-        while ( !q.isEmpty )
         {
-            // Get the current lowest weighted WeightTopic
-            val (weight, wt) = q.first()
-            q.remove( weight, wt )
+            println( "Thinning down to one topic per alt site" )
+            val q = new RunQ[WeightedTopic]()
             
-            //println( "First weight: " + weight )
+            for ( w <- weightedTopics ) q.add( w.weight, w )
             
-            val lastTopicInAltSite = wt.altSite.sf.topics.size == 1
-            if ( !lastTopicInAltSite )
+            // Thin down to one topic per altSite
+            while ( !q.isEmpty )
             {
-                // Remove its siblings and down-weight them
-                for ( (child, linkWeight) <- wt.linked )
-                {
-                    if ( child.enabled && ! child.alone )
-                    {
-                        q.remove( child.weight, child )
-                        child.weight -= linkWeight
-                        q.add( child.weight, child )
-                    }
-                }
+                // Get the current lowest weighted WeightTopic
+                val (weight, wt) = q.first()
+                q.remove( weight, wt )
                 
-                wt.altSite.sf.topics = wt.altSite.sf.topics - wt.topicId
+                //println( "First weight: " + weight )
+                
+                val lastTopicInAltSite = wt.altSite.sf.topics.size == 1
+                if ( !lastTopicInAltSite )
+                {
+                    // Remove its siblings and down-weight them
+                    for ( (child, linkWeight) <- wt.linked )
+                    {
+                        if ( child.enabled && ! child.alone )
+                        {
+                            q.remove( child.weight, child )
+                            child.weight -= linkWeight
+                            q.add( child.weight, child )
+                        }
+                    }
+                    
+                    wt.altSite.sf.topics = wt.altSite.sf.topics - wt.topicId
+                }
+                else
+                {
+                    wt.alone = true
+                }
+                wt.enabled = false
             }
-            else
-            {
-                wt.alone = true
-            }
-            wt.enabled = false
         }
         
         weightedTopics = weightedTopics.filter( _.alone )
         
-        
-        println( "Thining down to one alternative per ambiguity site" )
-        for ( w <- weightedTopics )
         {
-            w.alone = false
-            q.add( w.weight, w )
-        }
-        
-        while ( !q.isEmpty )
-        {
-            val (weight, wt) = q.first()
-            q.remove( weight, wt )
-            
-            assert( wt.altSite.sf.topics.size == 1 )
-            
-            val lastAltInSite = wt.site.combs.size == 1
-            if ( !lastAltInSite )
+            println( "Resolving..." )
+            var lookup = HashMap[AmbiguityAlternative, WeightedAlternative]()
+            for ( w <- weightedTopics )
             {
-                // Remove its siblings and down-weight them
-                for ( (child, linkWeight) <- wt.linked )
+                if ( !lookup.contains( w.alt ) )
                 {
-                    if ( child.enabled && !child.alone )
-                    {
-                        q.remove( child.weight, child )
-                        child.weight -= linkWeight
-                        q.add( child.weight, child )
-                    }
+                    lookup = lookup.updated( w.alt, new WeightedAlternative( w.site, w.alt ) )
                 }
-                
-                wt.site.combs = wt.site.combs.filter( _ != wt.alt )
+                val fromAlt = lookup(w.alt)
+                for ( (toW, weight) <- w.linked )
+                {
+                    if ( !lookup.contains( toW.alt ) )
+                    {
+                        lookup = lookup.updated( toW.alt, new WeightedAlternative( toW.site, toW.alt ) )
+                    }
+                    val toAlt = lookup(toW.alt)
+                    
+                    fromAlt.addLink( toAlt, weight )
+                    toAlt.addLink( fromAlt, weight )
+                }
             }
-            else
+            
+            val q = new RunQ[WeightedAlternative]()
+            for ( (k, wa) <- lookup )
             {
-                wt.alone = true
+                q.add( wa.weight, wa )
             }
-            wt.enabled = false
+            
+            while ( !q.isEmpty )
+            {
+                val (weight, wa) = q.first()
+                q.remove( weight, wa )
+                
+                println( "Weight: " + weight )
+                
+                val lastAltInSite = wa.site.combs.tail == Nil
+                if ( !lastAltInSite )
+                {
+                    for ( (peer, linkWeight) <- wa.linked )
+                    {
+                        if ( peer.enabled )
+                        {
+                            q.remove( peer.weight, peer )
+                            peer.weight -= linkWeight
+                            q.add( peer.weight, peer )
+                        }
+                    }
+                    
+                    wa.site.combs = wa.site.combs.filter( _ != wa.alternative )
+                    wa.enabled = false
+                }
+            }
         }
         
-        weightedTopics = weightedTopics.filter( _.alone ).sortWith( _.altSite.start > _.altSite.start )
-        
-        for ( wt <- weightedTopics )
+        for ( site <- sites )
         {
-            assert( wt.site.combs.length == 1 )
-            val altSite = wt.altSite
-            val topicId = wt.topicId
-            val weight = wt.weight
-            
-            disambiguated = new SureSite( altSite.start, altSite.end, topicId, weight, topicNameMap(topicId) ) :: disambiguated
+            assert( site.combs.length == 1 )
+            val alternative = site.combs.head
+
+            for ( altSite <- alternative.sites.reverse )
+            {
+                assert( altSite.sf.topics.size == 1 )
+                val topicId = altSite.sf.topics.head._1
+                val topicWeight = altSite.sf.topics.head._2
+                
+                disambiguated = new SureSite( altSite.start, altSite.end, topicId, topicWeight, topicNameMap(topicId) ) :: disambiguated
+            }
         }
     }
     
