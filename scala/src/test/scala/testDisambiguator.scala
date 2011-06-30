@@ -67,7 +67,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
@@ -100,17 +100,17 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val tests = List[(String, List[String])](
+                ("cherwell oxford university student newspaper", List("Main:Cherwell (newspaper)", "Main:University of Oxford", "Main:Student newspaper")),
+                
                 ("python palin", List("Main:Monty Python", "Main:Michael Palin")),
-                ("tea party palin", List("Main:Tea Party protests", "Main:Sarah Palin")),
+                ("tea party palin", List("Main:Tea party", "Main:Sarah Palin")),
                 
                 // Produces a rubbish list of categories
                 //("a cup of coffee or a cup of english breakfast in the morning", Nil)
                 ("cereal maize barley rice", List("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
-                
-                ("cherwell oxford university student newspaper", List("Main:Cherwell (newspaper)", "Main:University of Oxford", "Main:Student newspaper")),
                 
                 // Because the tokenizer is insensitive to punctuation we end up with 'cambridge united' as the sf and
                 // then a massive football context being asserted!
@@ -119,7 +119,7 @@ class DisambiguatorTest extends FunSuite
                 
                 
                 // Do we have 'covent' in the dictionary?
-                ("la scala covent garden puccini", List("Main:La Scala", "Main:Royal Opera House", "Main:Giacomo Puccini")),
+                //("la scala covent garden puccini", List("Main:La Scala", "Main:Royal Opera House", "Main:Giacomo Puccini")),
                 ("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing")),
                 ("smith waterman gene sequencing bioinformatics", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing", "Main:Bioinformatics")),
                 
