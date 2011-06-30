@@ -3,7 +3,7 @@ import scala.io.Source._
 
 import java.io.{File, BufferedReader, FileReader, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.immutable.TreeSet
+import scala.collection.immutable.{TreeSet, TreeMap, HashSet}
 
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
@@ -18,7 +18,7 @@ import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.disambiguator._
 import org.seacourt.wikibatch._
-import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup, AmbiguitySite, SurfaceForm, AmbiguityAlternative}
+import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup, AmbiguitySiteBuilder, AmbiguityForest, AmbiguitySite}
 
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
@@ -198,15 +198,15 @@ class DisambiguatorTest extends FunSuite
             else x._2 > y._2
         } )
         
-        var sites = List[AmbiguitySite]()
+        var sites = List[AmbiguitySiteBuilder]()
         for ( (start, end) <- sorted )
         {
             if ( sites == Nil || !sites.head.overlaps( start, end ) )
             {
-                sites = new AmbiguitySite( start, end ) :: sites
+                sites = new AmbiguitySiteBuilder( start, end ) :: sites
             }
             
-            sites.head.extend( start, end, null )
+            sites.head.extend( new AmbiguityForest.SurfaceFormDetails(start, end, 0, 0.0, TreeMap[Int, Double]() ) )
         }
         sites = sites.reverse
         
@@ -224,31 +224,32 @@ class DisambiguatorTest extends FunSuite
         assert( fourth.start === 8 )
         assert( fourth.end === 10 )
         
-        def toWords( l : List[AmbiguityAlternative] ) = l.map( el => el.sites.map( t => words.slice( t.start, t.end+1 ) ) )
+        def toWords( l : List[AmbiguitySite#AmbiguityAlternative] ) = l.foldLeft( HashSet[List[List[String]]]() )( (s, el) => s + el.sites.map( t => words.slice( t.start, t.end+1 ) ) )
 
-        first.buildCombinations()
-        second.buildCombinations()
-        third.buildCombinations()
-        fourth.buildCombinations()
+        val res1 = toWords( first.buildSite().combs.toList )
+        val res2 = toWords( second.buildSite().combs.toList )
+        val res3 = toWords( third.buildSite().combs.toList )
+        val res4 = toWords( fourth.buildSite().combs.toList )
         
-        assert( toWords( first.combs ) ===
-            ( ("covent"::Nil) :: ("garden"::Nil) :: Nil ) ::
-            ( ("covent" :: "garden" ::Nil) :: Nil ) :: Nil )
+        assert( res1.size == 2 )
+        assert( res1.contains( ("covent"::Nil) :: ("garden"::Nil) :: Nil ) )
+        assert( res1.contains( ("covent" :: "garden" ::Nil) :: Nil ) )
+        
+        assert( res2.size == 4 )
 
-        assert( toWords( second.combs ) ===
-            ( ("barack"::Nil) :: ("hussein"::Nil) :: ("obama"::Nil) :: Nil ) ::
-            ( ("barack"::Nil) :: ("hussein"::"obama"::Nil) :: Nil ) ::
-            ( ("barack"::"hussein"::Nil) :: ("obama"::Nil) :: Nil ) ::
-            ( ("barack"::"hussein"::"obama"::Nil) :: Nil ) :: Nil )
+        assert( res2.contains( ("barack"::Nil) :: ("hussein"::Nil) :: ("obama"::Nil) :: Nil ) )
+        assert( res2.contains( ("barack"::Nil) :: ("hussein"::"obama"::Nil) :: Nil ) )
+        assert( res2.contains( ("barack"::"hussein"::Nil) :: ("obama"::Nil) :: Nil ) )
+        assert( res2.contains( ("barack"::"hussein"::"obama"::Nil) :: Nil ) )
     
-        assert( toWords( third.combs ) ===
-            ( ("design"::Nil) :: ("pattern"::Nil) :: ("language"::Nil) :: Nil ) ::
-            ( ("design"::Nil) :: ("pattern"::"language"::Nil) ::Nil ) ::
-            ( ("design"::"pattern"::Nil) :: ("language"::Nil) ::Nil ) :: Nil )
-
-        assert( toWords( fourth.combs ) ===
-            ( ("about"::Nil) :: ("boy"::Nil) :: Nil ) ::
-            ( ("about"::"a"::"boy"::Nil) :: Nil ) :: Nil )
+        assert( res3.size == 3 )
+        assert( res3.contains( ("design"::Nil) :: ("pattern"::Nil) :: ("language"::Nil) :: Nil ) )
+        assert( res3.contains( ("design"::Nil) :: ("pattern"::"language"::Nil) ::Nil ) )
+        assert( res3.contains( ("design"::"pattern"::Nil) :: ("language"::Nil) ::Nil ) )
+    
+        assert( res4.size == 2 )
+        assert( res4.contains( ("about"::Nil) :: ("boy"::Nil) :: Nil ) )
+        assert( res4.contains( ("about"::"a"::"boy"::Nil) :: Nil ) )
         
     }
     
