@@ -51,14 +51,49 @@ object AmbiguityForest
     val minPhraseWeight         = 0.005
     val minContextEdgeWeight    = 1.0e-6
     val numAllowedContexts      = 100
-    val secondOrderContexts     = false
+    
+    val secondOrderContexts             = true
+    val secondOrderContextDownWeight    = 0.1
+    
+    val reversedContexts                = false
 }
 
 
-
+class RunQ[V]()
+{    
+    type K = Double
+    private var container = TreeMap[K, HashSet[V]]()
+    
+    def add( k : K, v : V )
+    {
+        val el = container.getOrElse( k, HashSet[V]() )
+        container = container.updated( k, el + v )
+    }
+    
+    def remove( k : K, v : V )
+    {
+        val el = container(k)
+        if ( el.size == 1 )
+        {
+            container = container - k
+        }
+        else
+        {
+            container = container.updated( k, el - v )
+        }   
+    }
+    def first() : (K, V) =
+    {
+        val h = container.head
+        
+        (h._1, h._2.head)
+    }
+    def isEmpty : Boolean = container.isEmpty
+}
 
 class AmbiguitySite( val start : Int, val end : Int )
 {
+    type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
     var combs = HashSet[AmbiguityAlternative]()
     
     class AmbiguityAlternative( siteDetails : List[AmbiguityForest.SurfaceFormDetails] )
@@ -80,6 +115,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                 {
                     var algoWeight = 0.0
                     var active = true
+                    var processed = false
                     
                     type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
                     var peers = HashMap[TopicDetailLink, Double]()
@@ -89,16 +125,40 @@ class AmbiguitySite( val start : Int, val end : Int )
                     def altSite = AltSite.this
                     def alternative = AmbiguityAlternative.this
                     def site = AmbiguitySite.this
-                    
-                    def cullUpwards()
+
+                    def removeTopic() =
                     {
                         if ( topics.size > 1 )
                         {
                             topics = topics - this
+                            true
                         }
                         else
                         {
-                            alternative.cullUpwards()
+                            false
+                        }
+                    }
+                    
+                    def downWeightPeers( q : RunQ[TopicDetailLink] )
+                    {
+                        for ( (peer, linkWeight) <- peers )
+                        {
+                            if ( !peer.processed )
+                            {
+                                q.remove( peer.algoWeight, peer )
+                            }
+                            
+                            algoWeight -= linkWeight
+                            peer.algoWeight -= linkWeight
+                            alternative.algoWeight -= linkWeight
+                            peer.alternative.algoWeight -= linkWeight
+                                
+                            // Remove the peer from its parent sf. If it's the last one look up to the alt site
+                            // and then the ambiguity alternative to decide whether to cull either
+                            if ( !peer.processed )
+                            {
+                                q.add( peer.algoWeight, peer )
+                            }
                         }
                     }
                 }
@@ -107,12 +167,19 @@ class AmbiguitySite( val start : Int, val end : Int )
             }
         }
         
-        def cullUpwards()
+        def cullUpwards( q : RunQ[TopicDetailLink] )
         {
             activeSiteCount -= 1
          
             if ( (activeSiteCount == 0) && (combs.size > 1) )
             {
+                for ( site <- sites )
+                {
+                    assert( site.sf.topics.size == 1 )
+                    val td = site.sf.topics.head
+                    td.active = false
+                    td.downWeightPeers( q )
+                }
                 combs = combs - this
             }
         }
@@ -236,38 +303,6 @@ class AmbiguitySiteBuilder( var start : Int, var end : Int )
 }
 
 
-class RunQ[V]()
-{    
-    type K = Double
-    private var container = TreeMap[K, HashSet[V]]()
-    
-    def add( k : K, v : V )
-    {
-        val el = container.getOrElse( k, HashSet[V]() )
-        container = container.updated( k, el + v )
-    }
-    
-    def remove( k : K, v : V )
-    {
-        val el = container(k)
-        if ( el.size == 1 )
-        {
-            container = container - k
-        }
-        else
-        {
-            container = container.updated( k, el - v )
-        }   
-    }
-    def first() : (K, V) =
-    {
-        val h = container.head
-        
-        (h._1, h._2.head)
-    }
-    def isEmpty : Boolean = container.isEmpty
-}
-
 class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper )
 {
     class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
@@ -377,11 +412,13 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         var reverseContextMap = TreeMap[ContextId, List[(TopicDetailLink, Double)]]()
         for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites )
         {
-            val altWeight = alternative.sites.foldLeft(1.0)( _ * _.sf.phraseWeight )
+            val altWeight = alternative.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight )
             for ( topicDetail <- altSite.sf.topics )
             {
                 allTds = topicDetail :: allTds
-                for ( (contextId, contextWeight) <- topicCategoryMap(topicDetail.topicId) )
+                
+                val contexts = topicCategoryMap(topicDetail.topicId)
+                for ( (contextId, contextWeight) <- contexts )
                 {       
                     val weight = altWeight * topicDetail.topicWeight * contextWeight
                     
@@ -391,6 +428,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         reverseContextMap = reverseContextMap.updated(contextId, updatedList)
                     }
                 }
+                allTds = topicDetail :: allTds
             }
         }
         
@@ -413,7 +451,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         }
         println( "Contexts in play: " + reverseContextMap.size + ", inner count: " + count )
         
-        for ( (contextId, alternatives) <- reverseContextMap; (topicDetail1, weight1) <- alternatives; (topicDetail2, weight2) <- alternatives )
+        def buildLinks( topicDetail1 : TopicDetailLink, topicDetail2 : TopicDetailLink, linkWeight: Double ) =
         {
             if ( (topicDetail1.site != topicDetail2.site) || (topicDetail1.alternative == topicDetail2.alternative && topicDetail1.sf != topicDetail2.sf) )
             {
@@ -425,65 +463,85 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     //val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
                     val distanceWeight = (distWeighting1.density( distance )/distWeighting1.density(0.0)) + 1.0 + 0.0*(distWeighting2.density( distance )/distWeighting2.density(0.0))
                     //println( ":: " + distance + ", " + distanceWeight )
-                    val totalWeight = weight1 * weight2// * distanceWeight
+                    val totalWeight = linkWeight// * distanceWeight
                     topicDetail1.alternative.algoWeight += totalWeight
                     topicDetail2.alternative.algoWeight += totalWeight
                     
                     topicDetail1.algoWeight += totalWeight
                     topicDetail2.algoWeight += totalWeight
                     
-                    topicDetail1.peers = topicDetail1.peers.updated( topicDetail2, totalWeight )
-                    topicDetail2.peers = topicDetail2.peers.updated( topicDetail1, totalWeight )
+                    val oldWeight1 = topicDetail1.peers.getOrElse( topicDetail2, 0.0 )
+                    val oldWeight2 = topicDetail2.peers.getOrElse( topicDetail1, 0.0 )
+                    topicDetail1.peers = topicDetail1.peers.updated( topicDetail2, oldWeight1 + totalWeight )
+                    topicDetail2.peers = topicDetail2.peers.updated( topicDetail1, oldWeight2 + totalWeight )
+                    
+                    println( "Linking: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + totalWeight )
                 }
             }
         }
         
-        //dumpResolutions()
+        // Topics linked to each other
+        if ( true )
+        {
+            for ( site1 <- sites; alternative1 <- site1.combs; altSite1 <- alternative1.sites; topicDetail1 <- altSite1.sf.topics )
+            {
+                val contexts = topicCategoryMap(topicDetail1.topicId)
+                for ( site2 <- sites; alternative2 <- site2.combs; altSite2 <- alternative2.sites; topicDetail2 <- altSite2.sf.topics )
+                {
+                    if ( contexts.contains( topicDetail2.topicId ) )
+                    {
+                        val linkWeight = contexts( topicDetail2.topicId )
+                        val altWeight1 = alternative1.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight )
+                        val altWeight2 = alternative2.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight )
+                        
+                        
+                        println( "Direct link: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + altWeight1 * altWeight2 * linkWeight )
+                        buildLinks( topicDetail1, topicDetail2, altWeight1 * altWeight2 * linkWeight )
+                    }
+                }
+            }
+        }
         
+        // Topics linked via contexts
+        for ( (contextId, alternatives) <- reverseContextMap; (topicDetail1, weight1) <- alternatives; (topicDetail2, weight2) <- alternatives )
+        {
+            buildLinks( topicDetail1, topicDetail2, weight1 * weight2 )
+        }
+        
+        dumpResolutions()
         if ( true )
         {
             println( "Running new algo framework" )
             
+            // Add all interesting elements to the queue.
             val q = new RunQ[TopicDetailLink]()
-            for ( (contextId, alternatives) <- reverseContextMap; (topicDetail, weight) <- alternatives )
-            {
-                q.add( topicDetail.algoWeight, topicDetail )
-            }
-            
-            for ( td <- allTds.filter( _.peers.size == 0 ) ) q.add( 0.0, td )
+            for ( td <- allTds ) q.add( td.algoWeight, td )
             
             while ( !q.isEmpty )
             {
                 val (weight, td) = q.first
-              
                 q.remove( weight, td )
-                td.active = false
+                td.processed = true
                 
-                td.cullUpwards()
+                // If it's the last then don't do the downweighting
+                val topicRemoved = td.removeTopic()
                 
-                for ( (peer, linkWeight) <- td.peers )
+                if ( topicRemoved )
                 {
-                    if ( peer.active )
-                    {
-                        val oldWeight = peer.algoWeight
-                        q.remove( peer.algoWeight, peer )
-                                                
-                        peer.algoWeight -= weight
-                        peer.alternative.algoWeight -= weight
-                        
-                        // Remove the peer from its parent sf. If it's the last one look up to the alt site
-                        // and then the ambiguity alternative to decide whether to cull either
-                        
-                        q.add( peer.algoWeight, peer )
-                    }
+                    td.downWeightPeers( q )
+                    td.active = false
+                }
+                else
+                {
+                    td.alternative.cullUpwards( q )
                 }
             }
             
-            /*for ( site <- sites )
+            for ( site <- sites )
             {
                 assert( site.combs.size == 1 )
                 for ( alt <- site.combs.head.sites ) assert( alt.sf.topics.size == 1 )
-            }*/
+            }
         }
         
         println( "Dumping resolutions." )
@@ -664,6 +722,14 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                                                         <element>
                                                             <name>{topicNameMap(topicDetail.topicId)}</name>
                                                             <weight>{topicDetail.algoWeight}</weight>
+                                                            <processed>{topicDetail.processed}</processed>
+                                                            {
+                                                                for ( (peer, weight) <- topicDetail.peers.filter(_._1.active).toList.sortWith( _._2 > _._2 ) ) yield
+                                                                <peer>
+                                                                    <name>{topicNameMap(peer.topicId)}</name>
+                                                                    <weight>{weight}</weight>
+                                                                </peer>
+                                                            }
                                                         </element>
                                                 }
                                                 </topics>
@@ -701,7 +767,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             {
                 val resolution = phraseIt.head
                 val topicLink = if (resolution.name.startsWith("Main:")) resolution.name.drop(5) else resolution.name
-                val size = 18.0 + log(resolution.weight)
+                val size = if (resolution.weight == 0.0) 3.0 else 18.0 + log(resolution.weight)
                 val fs = "font-size:"+size.toInt
                 l.append(
                     <a href={ "http://en.wikipedia.org/wiki/" + topicLink } title={"Weight: " + resolution.weight } style={fs} >
@@ -818,6 +884,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
             val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC LIMIT 50", Col[Int]::Col[Int]::HNil )
             val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight FROM linkWeights2 WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::HNil )
+            val topicCategoryQueryReverse = topicDb.prepare( "SELECT topicId, weight FROM linkWeights2 WHERE contextTopicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::HNil )
             
             var possiblePhrases = List[AmbiguityForest.SurfaceFormDetails]()
             var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
@@ -874,6 +941,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                     
                                     for ( (topicId, topicCount) <- topicDetails )
                                     {
+                                        //println( "Querying context for: " + topicId )
                                         assert( topicId != 0 )
                                         topicSet = topicSet + topicId
                                         if ( !topicCategoryMap.contains(topicId) )
@@ -885,10 +953,21 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             for ( row <- topicCategoryQuery )
                                             {
                                                 val cid = _1(row).get
-                                                val weight1 = _2(row).get
+                                                val weight = _2(row).get
                                                 //val weight2 = _3(row).get
                                                 
-                                                contextWeights = contextWeights.updated( cid, weight1 )
+                                                contextWeights = contextWeights.updated( cid, weight )
+                                            }
+                                            
+                                            if ( AmbiguityForest.reversedContexts )
+                                            {
+                                                topicCategoryQueryReverse.bind( topicId )
+                                                for ( row <- topicCategoryQueryReverse )
+                                                {
+                                                    val cid = _1(row).get
+                                                    val weight = _2(row).get
+                                                    contextWeights = contextWeights.updated( cid, weight )
+                                                }
                                             }
                                             
                                             // Second order contexts
@@ -902,13 +981,13 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                                     for ( row <- topicCategoryQuery )
                                                     {
                                                         val cid = _1(row).get
-                                                        val weight1 = _2(row).get
+                                                        val weight = _2(row).get
                                                         //val weight2 = _3(row).get
                                                         
                                                         if ( !contextWeights.contains(cid) )
                                                         {
                                                             // 2nd order context weights are lowered by the weight of the first link
-                                                            contextWeights = contextWeights.updated( cid, contextWeight * weight1 )
+                                                            contextWeights = contextWeights.updated( cid, AmbiguityForest.secondOrderContextDownWeight * contextWeight * weight )
                                                         }
                                                     }
                                                 }

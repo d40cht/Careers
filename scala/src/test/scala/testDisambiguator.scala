@@ -67,7 +67,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( true )
+        if ( false )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
@@ -100,10 +100,12 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
             val tests = List[(String, List[String])](
+                ("st johns college durham university", List("Main:St John's College, Durham", "Main:Durham university")),
                 ("la scala covent garden puccini", List("Main:La Scala", "Main:Royal Opera House", "Main:Giacomo Puccini")),
+                ("cherwell oxford university student newspaper", List("Main:Cherwell (newspaper)", "Main:University of Oxford", "Main:Student newspaper")),
                 ("python palin", List("Main:Monty Python", "Main:Michael Palin")),
                 ("tea party palin", List("Main:Tea Party protests", "Main:Sarah Palin")),
                 
@@ -111,20 +113,17 @@ class DisambiguatorTest extends FunSuite
                 //("a cup of coffee or a cup of english breakfast in the morning", Nil)
                 ("cereal maize barley rice", List("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
                 
-                ("cherwell oxford university student newspaper", List("Main:Cherwell (newspaper)", "Main:University of Oxford", "Main:Student newspaper")),
-                
-                // Because the tokenizer is insensitive to punctuation we end up with 'cambridge united' as the sf and
-                // then a massive football context being asserted!
                 ("cambridge united kingdom", List("Main:Cambridge", "Main:United Kingdom")),
                 ("objective caml, haskell", List("Main:Objective Caml", "Main:Haskell (programming language)")),
                 
-                ("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing")),
-                ("smith waterman gene sequencing bioinformatics", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing", "Main:Bioinformatics")),
+                ("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:DNA sequencing")),
+                ("smith waterman gene sequencing bioinformatics", List("Main:Smith–Waterman algorithm", "Main:DNA sequencing", "Main:Bioinformatics")),
                 
                 //("java coffee tea", List("Main:Java coffee", "Main:Tea")),
                 
                 //("rice cambridge oxford yale harvard ", List[String]("Main:Rice University", "Main:University of Cambridge", "Main:University of Oxford", "Main:Yale University", "Main:Harvard University" )),
                 //("rice cheney george bush", List[String]("Main:Condoleezza Rice", "Main:Dick Cheney", "Main:George W. Bush")),
+                ("cheney bush rumsfeld", List[String]("Main:Dick Cheney", "Main:George W. Bush", "Main:Donald Rumsfeld")),
                 //("george bush john major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
                 ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C++", "Main:Design Patterns") ),
                 //("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
@@ -135,9 +134,8 @@ class DisambiguatorTest extends FunSuite
                 //("the leaf, a new electric car from nissan. Bloork bloork bloork bloork bloork bloork bloork. One autumn morning, the leaf dropped from the tree.",
                 //    List[String]("Main:Nissan Leaf", "Main:Electric car", "Main:Nissan Motors", "Main:Autumn", "Main:Leaf", "Main:Tree") ),
                 ("university of cambridge united kingdom", List("Main:University of Cambridge", "Main:United Kingdom")),
-                //("st johns college durham university", List("Main:St John's College, Durham", "Main:Durham university")),
                 ("hills road sixth form college cambridge", List("Main:Hills Road Sixth Form College", "Main:Cambridge")),
-                ("infra red background radiation", List("Main:Infrared", "Main:Background radiation")),
+                ("infra red background radiation", List("Main:Infrared", "Main:Cosmic microwave background radiation")),
                 ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
                 
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
