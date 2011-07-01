@@ -67,7 +67,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
@@ -100,9 +100,10 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val tests = List[(String, List[String])](
+                ("la scala covent garden puccini", List("Main:La Scala", "Main:Royal Opera House", "Main:Giacomo Puccini")),
                 ("python palin", List("Main:Monty Python", "Main:Michael Palin")),
                 ("tea party palin", List("Main:Tea Party protests", "Main:Sarah Palin")),
                 
@@ -117,9 +118,6 @@ class DisambiguatorTest extends FunSuite
                 ("cambridge united kingdom", List("Main:Cambridge", "Main:United Kingdom")),
                 ("objective caml, haskell", List("Main:Objective Caml", "Main:Haskell (programming language)")),
                 
-                
-                // Do we have 'covent' in the dictionary?
-                ("la scala covent garden puccini", List("Main:La Scala", "Main:Royal Opera House", "Main:Giacomo Puccini")),
                 ("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing")),
                 ("smith waterman gene sequencing bioinformatics", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing", "Main:Bioinformatics")),
                 

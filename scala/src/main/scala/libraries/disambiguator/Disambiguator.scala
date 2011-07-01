@@ -51,7 +51,7 @@ object AmbiguityForest
     val minPhraseWeight         = 0.005
     val minContextEdgeWeight    = 1.0e-6
     val numAllowedContexts      = 100
-    val secondOrderContexts     = true
+    val secondOrderContexts     = false
 }
 
 
@@ -110,7 +110,7 @@ class AmbiguitySite( val start : Int, val end : Int )
         def cullUpwards()
         {
             activeSiteCount -= 1
-            
+         
             if ( (activeSiteCount == 0) && (combs.size > 1) )
             {
                 combs = combs - this
@@ -232,6 +232,7 @@ class AmbiguitySiteBuilder( var start : Int, var end : Int )
         
         site
     }
+
 }
 
 
@@ -372,18 +373,23 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
                 
         println( "Building weighted context edges." )
+        var allTds = List[TopicDetailLink]()
         var reverseContextMap = TreeMap[ContextId, List[(TopicDetailLink, Double)]]()
         for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites )
         {
             val altWeight = alternative.sites.foldLeft(1.0)( _ * _.sf.phraseWeight )
-            for ( topicDetail <- altSite.sf.topics; (contextId, contextWeight) <- topicCategoryMap(topicDetail.topicId) )
+            for ( topicDetail <- altSite.sf.topics )
             {
-                val weight = altWeight * topicDetail.topicWeight * contextWeight
-                
-                if ( weight > AmbiguityForest.minContextEdgeWeight )
-                {
-                    val updatedList = (topicDetail, weight) :: reverseContextMap.getOrElse(contextId, List[(TopicDetailLink, Double)]() )
-                    reverseContextMap = reverseContextMap.updated(contextId, updatedList)
+                allTds = topicDetail :: allTds
+                for ( (contextId, contextWeight) <- topicCategoryMap(topicDetail.topicId) )
+                {       
+                    val weight = altWeight * topicDetail.topicWeight * contextWeight
+                    
+                    if ( weight > AmbiguityForest.minContextEdgeWeight )
+                    {
+                        val updatedList = (topicDetail, weight) :: reverseContextMap.getOrElse(contextId, List[(TopicDetailLink, Double)]() )
+                        reverseContextMap = reverseContextMap.updated(contextId, updatedList)
+                    }
                 }
             }
         }
@@ -432,7 +438,9 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
         }
         
-        if ( false )
+        //dumpResolutions()
+        
+        if ( true )
         {
             println( "Running new algo framework" )
             
@@ -442,9 +450,12 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 q.add( topicDetail.algoWeight, topicDetail )
             }
             
+            for ( td <- allTds.filter( _.peers.size == 0 ) ) q.add( 0.0, td )
+            
             while ( !q.isEmpty )
             {
                 val (weight, td) = q.first
+              
                 q.remove( weight, td )
                 td.active = false
                 
@@ -454,6 +465,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 {
                     if ( peer.active )
                     {
+                        val oldWeight = peer.algoWeight
                         q.remove( peer.algoWeight, peer )
                                                 
                         peer.algoWeight -= weight
@@ -467,11 +479,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
             }
             
-            for ( site <- sites )
+            /*for ( site <- sites )
             {
                 assert( site.combs.size == 1 )
                 for ( alt <- site.combs.head.sites ) assert( alt.sf.topics.size == 1 )
-            }
+            }*/
         }
         
         println( "Dumping resolutions." )
@@ -648,7 +660,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                                                 <text>{words.slice( altSite.start, altSite.end+1 ).mkString(" ")}</text>
                                                 <topics>
                                                 {
-                                                    for ( topicDetail <- altSite.sf.topics.toList.sortWith( _.algoWeight > _.algoWeight ).slice(0, 5) ) yield
+                                                    for ( topicDetail <- altSite.sf.topics.toList.sortWith( _.algoWeight > _.algoWeight ).slice(0, 10) ) yield
                                                         <element>
                                                             <name>{topicNameMap(topicDetail.topicId)}</name>
                                                             <weight>{topicDetail.algoWeight}</weight>
