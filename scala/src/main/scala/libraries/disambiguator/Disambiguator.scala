@@ -48,7 +48,7 @@ object AmbiguityForest
     
     class SurfaceFormDetails( val start : Int, val end : Int, val phraseId : PhraseId, val weight : Weight, val topicDetails : TopicWeightDetails )
         
-    val minPhraseWeight         = 0.005
+    val minPhraseWeight         = 0.01
     val minContextEdgeWeight    = 1.0e-6
     val numAllowedContexts      = 100
     
@@ -463,7 +463,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     //val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
                     val distanceWeight = (distWeighting1.density( distance )/distWeighting1.density(0.0)) + 1.0 + 0.0*(distWeighting2.density( distance )/distWeighting2.density(0.0))
                     //println( ":: " + distance + ", " + distanceWeight )
-                    val totalWeight = linkWeight// * distanceWeight
+                    val totalWeight = linkWeight * distanceWeight
                     topicDetail1.alternative.algoWeight += totalWeight
                     topicDetail2.alternative.algoWeight += totalWeight
                     
@@ -475,7 +475,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     topicDetail1.peers = topicDetail1.peers.updated( topicDetail2, oldWeight1 + totalWeight )
                     topicDetail2.peers = topicDetail2.peers.updated( topicDetail1, oldWeight2 + totalWeight )
                     
-                    println( "Linking: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + totalWeight )
+                    //println( "Linking: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + totalWeight )
                 }
             }
         }
@@ -495,8 +495,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         val altWeight2 = alternative2.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight )
                         
                         
-                        println( "Direct link: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + altWeight1 * altWeight2 * linkWeight )
-                        buildLinks( topicDetail1, topicDetail2, altWeight1 * altWeight2 * linkWeight )
+                        //println( "Direct link: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + altWeight1 * altWeight2 * linkWeight )
+                        buildLinks( topicDetail1, topicDetail2, altWeight1 * altWeight2 * linkWeight * linkWeight )
                     }
                 }
             }
@@ -718,13 +718,13 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                                                 <text>{words.slice( altSite.start, altSite.end+1 ).mkString(" ")}</text>
                                                 <topics>
                                                 {
-                                                    for ( topicDetail <- altSite.sf.topics.toList.sortWith( _.algoWeight > _.algoWeight ).slice(0, 10) ) yield
+                                                    for ( topicDetail <- altSite.sf.topics.toList.sortWith( _.algoWeight > _.algoWeight ).slice(0, 5) ) yield
                                                         <element>
                                                             <name>{topicNameMap(topicDetail.topicId)}</name>
                                                             <weight>{topicDetail.algoWeight}</weight>
                                                             <processed>{topicDetail.processed}</processed>
                                                             {
-                                                                for ( (peer, weight) <- topicDetail.peers.filter(_._1.active).toList.sortWith( _._2 > _._2 ) ) yield
+                                                                for ( (peer, weight) <- topicDetail.peers.filter(_._1.active).toList.sortWith( _._2 > _._2 ).slice(0,5) ) yield
                                                                 <peer>
                                                                     <name>{topicNameMap(peer.topicId)}</name>
                                                                     <weight>{weight}</weight>
@@ -877,6 +877,20 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
         var topicNameMap = TreeMap[Int, String]()
         var contextWeightMap = TreeMap[Int, Double]()
         
+        def allowedPhrase( words : List[String] ) =
+        {
+            var allowed = true
+            if ( words.size == 1 )
+            {
+                val word = words.head
+                if ( word.matches( "[0-9]+" ) )
+                {
+                    allowed = false
+                }
+            }
+            
+            allowed
+        }
         
         
         def build() : AmbiguityForest =
@@ -914,17 +928,15 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                             {
                                 topicQuery.bind(phraseId)
                                 val sfTopics = topicQuery.toList
+                                val toIndex = wordIndex
                                 
                                 //println( ":: " + phraseId)
-                                if ( sfTopics != Nil )
+                                if ( sfTopics != Nil && allowedPhrase(wordList.slice(fromIndex, toIndex+1)) ) 
                                 {
                                     // This surface form has topics. Query phrase relevance and push back details
                                     phraseCountQuery.bind(phraseId)
                                     
                                     val phraseCount = _1(phraseCountQuery.onlyRow).get
-                                    
-                                    
-                                    val toIndex = wordIndex
                                     
                                     // TODO: Do something with this result
                                     //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])

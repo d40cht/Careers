@@ -67,7 +67,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
@@ -100,7 +100,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val tests = List[(String, List[String])](
                 // Don't worry about this one now. The parser failed to pull a decent amount of link detail from the John's page.
