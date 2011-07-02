@@ -24,9 +24,9 @@
         $(document).ready( function()
         {
             geocoder = new google.maps.Geocoder();
-            var latlng = new google.maps.LatLng(-34.397, 150.644);
+            var latlng = new google.maps.LatLng(54.559322587438636, -4.1748046875);
             var myOptions = {
-              zoom: 11,
+              zoom: 5,
               center: latlng,
               mapTypeId: google.maps.MapTypeId.ROADMAP
             };
@@ -41,6 +41,7 @@
                 if (status == google.maps.GeocoderStatus.OK)
                 {
                     map.setCenter(results[0].geometry.location);
+                    map.setZoom(10);
                     if ( marker != null )
                     {
                         marker.setMap(null);    
