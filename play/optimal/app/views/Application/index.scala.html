@@ -1,13 +1,27 @@
 @(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)
 
 @main(title="Home", session=session, flash=flash) {
-    <h1>Hello world</h1>
+    <h1>Add position</h1>
     
-    <h2>A map</h2>
-    <div id="map_canvas" style="width:350px; height:350px"></div>
-    <div>
-        <input id="address" type="textbox" value="Sydney, NSW">
-        <input type="button" value="Encode" onclick="codeAddress()">
-    </div>
-    <h2>Below a map</h2>
+    <h2>Details</h2>
+    
+    <table>
+    <tr>
+        <td><form>
+            <table>
+                <tr><td>Company url</td><td><input type="text" name="companyUrl"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></tr>
+                <tr><td>Company name</td><td><input type="text" name="companyName"/></td><td/></tr>
+                <tr><td>Department</td><td><input type="text" name="department"/></td><td/></tr>
+                <tr><td>Job title</td><td><input type="text" name="jobTitle"/></td><td/></tr>
+                <tr><td>Address</td><td><input type="text" name="address" id="address"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></td></tr>
+                <tr><td>Location</td><td><input type="text" name="location" id="loc"/></td></td></tr>
+            </table>
+            
+            <br/>
+            <input type="submit" value="Submit"/>
+        </form></td>
+        
+        <td><div id="map_canvas" style="width:350px; height:200px"></div></td>
+    </tr>
+    </table>
 }
