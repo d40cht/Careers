@@ -46,6 +46,9 @@ object Application extends Controller {
     def uploadCV = html.uploadCV( session, flash )
     def manageCVs = html.manageCVs( session, flash )
     def manageSearches = html.manageSearches( session, flash )
+    def about = html.about( session, flash )
+    def help = html.help( session, flash )
+    def contact = html.contact( session, flash )
     
     def login =
     {
