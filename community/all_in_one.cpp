@@ -253,6 +253,7 @@ class Community {
   bool one_level();
 };
 
+/*
 inline void
 Community::remove(int node, int comm, double dnodecomm) {
   assert(node>=0 && node<size);
@@ -282,6 +283,7 @@ Community::modularity_gain(int node, int comm, double dnodecomm, double w_degree
   
   return (dnc - totc*degc/m2);
 }
+*/
 
 Community::Community(char * filename, char * filename_w, int type, int nbp, double minm) {
   g = Graph(filename, filename_w, type);

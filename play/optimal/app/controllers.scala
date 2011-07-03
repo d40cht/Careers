@@ -41,6 +41,12 @@ object Application extends Controller {
     private def passwordHash( x : String) = MessageDigest.getInstance("SHA").digest(x.getBytes).map( 0xff & _ ).map( {"%02x".format(_)} ).mkString
     
     def index = html.index( session, flash )
+    def addPosition = html.addPosition( session, flash )
+    
+    def uploadCV = html.uploadCV( session, flash )
+    def manageCVs = html.manageCVs( session, flash )
+    def manageSearches = html.manageSearches( session, flash )
+    
     def login =
     {
         val email = params.get("email")
