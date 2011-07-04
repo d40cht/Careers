@@ -28,7 +28,7 @@ CREATE TABLE "CVs" (
 
 CREATE TABLE "CVMetaData" (
     "cvId"          bigint(20) NOT NULL,
-    "added"     timestamp DEFAULT NOW() NOT NULL,
+    "added"         timestamp DEFAULT NOW() NOT NULL,
     "topicWeights"  CLOB NOT NULL,
     "wordCloud"     CLOB NOT NULL,
     

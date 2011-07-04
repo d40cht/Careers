@@ -52,6 +52,16 @@ package models
         
         def * = id ~ added ~ description ~ userId ~ pdf ~ text
     }
+    
+    object CVMetaData extends Table[(Long, Timestamp, Blob, Blob)]("CVMetaData")
+    {
+        def cvId            = column[Long]("cvId")
+        def added           = column[Timestamp]("added")
+        def topicWeights    = column[Blob]("topicWeights")
+        def wordCloud       = column[Blob]("wordCloud")
+        
+        def * = cvId ~ added ~ topicWeights ~ wordCloud
+    }
 }
 
 object Application extends Controller {
@@ -118,6 +128,39 @@ object Application extends Controller {
         else
         {
             html.uploadCV( session, flash )
+        }
+    }
+    
+    // TODO: Add validation to these data classes. Encryption? IP address restrictions?
+    def listCVs =
+    {
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val unprocessedCVs = for {
+                Join(cv, md) <- models.CVs leftJoin models.CVMetaData on (_.id is _.cvId)
+            } yield cv.id ~ md.added.?
+            
+            <cvs>
+            {
+                for ( (id, added) <- unprocessedCVs.list.filter( _._2.isEmpty ) ) yield <id>{id}</id>
+            }
+            </cvs>
+        }
+    }
+    
+    def cvText =
+    {
+        val cvId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.text ).list
+            val blob = text.head
+            val data = blob.getBytes(1, blob.length().toInt)
+            
+            new String(data)
         }
     }
     
