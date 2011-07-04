@@ -5,6 +5,7 @@ import play.libs._
 import play.mvc._
 import play.cache._
 
+import java.sql.{Timestamp, Blob}
 import java.security.MessageDigest
 
 import org.scalaquery.session._
@@ -22,15 +23,27 @@ import org.scalaquery.ql.TypeMapper._
 // To interrogate the H2 DB: java -jar ../../../play-1.2.2RC2/framework/lib/h2-1.3.149.jar
 package models
 {
-    object Users extends Table[(Long, String, String, String, Boolean)]("Users")
+    object Users extends Table[(Long, Timestamp, String, String, String, Boolean)]("Users")
     {
-        def id = column[Long]("id")
-        def email = column[String]("email")
-        def password = column[String]("password")
-        def fullName = column[String]("fullName")
-        def isAdmin = column[Boolean]("isAdmin")
+        def id          = column[Long]("id")
+        def added       = column[Timestamp]("added")
+        def email       = column[String]("email")
+        def password    = column[String]("password")
+        def fullName    = column[String]("fullName")
+        def isAdmin     = column[Boolean]("isAdmin")
         
-        def * = id ~ email ~ password ~ fullName ~ isAdmin
+        def * = id ~ added ~ email ~ password ~ fullName ~ isAdmin
+    }
+    
+    object CVs extends Table[(Long, Timestamp, Long, Blob, Blob)]("CVs")
+    {
+        def id          = column[Long]("id")
+        def added       = column[Timestamp]("added")
+        def userId      = column[Long]("userId")
+        def pdf         = column[Blob]("pdf")
+        def text        = column[Blob]("text")
+        
+        def * = id ~ added ~ userId ~ pdf ~ text
     }
 }
 
@@ -43,7 +56,33 @@ object Application extends Controller {
     def index = html.index( session, flash )
     def addPosition = html.addPosition( session, flash )
     
-    def uploadCV = html.uploadCV( session, flash )
+    def uploadCV =
+    {
+        val pdfData = params.get("pdf")
+        val textData = params.get("text")
+        
+        val isUpload = pdfData != null || textData != null
+        
+        if ( isUpload )
+        {
+            val db = Database.forDataSource(play.db.DB.datasource)
+            
+            if ( textData == null )
+            {
+                // Convert the pdf to plain text here.
+            }
+            
+            db withSession
+            {
+                
+            }            
+        }
+        else
+        {
+            html.uploadCV( session, flash )
+        }
+    }
+    
     def manageCVs = html.manageCVs( session, flash )
     def manageSearches = html.manageSearches( session, flash )
     def about = html.about( session, flash )

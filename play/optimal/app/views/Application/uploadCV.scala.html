@@ -3,4 +3,18 @@
 @main(title="Home", session=session, flash=flash) {
     <h1>Upload a CV for analysis</h1>
     
+    You can upload a CV in either PDF or plain text format (or both). If you just upload a PDF then we will convert it to text automatically. The text version of your CV will be the one we use for our analysis.
+    The description field is to allow you to give a name to various different uploaded versions of your CV so you can tell which is which.
+    
+    <br>
+    <br>
+    
+    <form action="@action(controllers.Application.uploadCV)" method="POST">
+    <table>
+        <tr><td>Description:</td><td><input type="text" name="description"></td></tr>
+        <tr><td>Pdf:</td><td><input type="file" name="pdf"></td></tr>
+        <tr><td>Plaintext:</td><td><input type="file" name="text"></td></tr>
+        <tr><td></td><td><input type="submit" value="Submit"/></td></tr>
+    </table>
+    </form>
 }

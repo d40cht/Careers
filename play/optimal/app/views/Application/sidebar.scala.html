@@ -1,6 +1,5 @@
 @(session:play.mvc.Scope.Session)
 
-
 @if( !session.contains("user") ) {
     <h3>Join in:</h3>
     <ul>
@@ -15,6 +14,7 @@
     </ul>
     <ul>
         <li><a href="@action(controllers.Application.manageCVs)">Manage CVs</a></li>
+        <li><a href="@action(controllers.Application.manageCVs)">Manage positions</a></li>
         <li><a href="@action(controllers.Application.manageSearches)">Manage searches</a></li>
     </ul>
     

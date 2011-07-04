@@ -47,12 +47,19 @@ strong {
 
 /* Header */
 #header {
-        padding: 20px;
-        height: 100px;
+        padding: 10px;
+        height: 80px;
+        background-color: #d0d0f0;
 }
 
-#header img {
-        padding: 18px 0 0 20px;
+#header h1 {
+    color: #000000;
+    font-weight: bold;
+    padding: 10px;
+    border: none;
+}
+#header h1 a {
+    color: #000000;
 }
 
 #header .blurb {
@@ -68,7 +75,7 @@ strong {
 /* Breadcrumbs */
 #location {
     padding: 5px 15px;
-    background-color: #747473;
+    background-color: #444493;
     color: #ddd;
 }
 
@@ -83,7 +90,7 @@ strong {
 
 /* Column separator */
 #container {
-           background: #fff url(static/col.gif) repeat-y 140px 0;
+           background: #fff;
 }
 
 /* Sidebar */
