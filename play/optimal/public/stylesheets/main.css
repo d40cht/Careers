@@ -53,13 +53,13 @@ strong {
 }
 
 #header h1 {
-    color: #000000;
+    color: #333;
     font-weight: bold;
     padding: 10px;
     border: none;
 }
 #header h1 a {
-    color: #000000;
+    color: #333;
 }
 
 #header .blurb {

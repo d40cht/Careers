@@ -1,6 +1,11 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(java.sql.Timestamp, String)])
 
 @main(title="Home", session=session, flash=flash) {
     <h1>Manage your existing CVs</h1>
     
+    <ul>
+    @cvs.map { (row) =>
+        <li>@row._1 : @row._2</li>
+    }
+    </ul>
 }

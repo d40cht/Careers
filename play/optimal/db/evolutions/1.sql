@@ -16,11 +16,12 @@ CREATE TABLE "Users" (
 );
 
 CREATE TABLE "CVs" (
-    "id"        bigint(20) NOT NULL AUTO_INCREMENT,
-    "added"     timestamp DEFAULT NOW() NOT NULL,
-    "userId"    bigint(20) NOT NULL,
-    "pdf"       BLOB,
-    "text"      CLOB NOT NULL,
+    "id"            bigint(20) NOT NULL AUTO_INCREMENT,
+    "added"         timestamp DEFAULT NOW() NOT NULL,
+    "description"   varchar(255) NOT NULL,  
+    "userId"        bigint(20) NOT NULL,
+    "pdf"           BLOB,
+    "text"          CLOB NOT NULL,
     
     CONSTRAINT fk_CVs_userId FOREIGN KEY("userId") REFERENCES "Users"("id")
 );

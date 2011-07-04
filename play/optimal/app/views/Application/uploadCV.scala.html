@@ -9,7 +9,7 @@
     <br>
     <br>
     
-    <form action="@action(controllers.Application.uploadCV)" method="POST">
+    <form action="@action(controllers.Application.uploadCV)" method="POST" enctype="multipart/form-data">
     <table>
         <tr><td>Description:</td><td><input type="text" name="description"></td></tr>
         <tr><td>Pdf:</td><td><input type="file" name="pdf"></td></tr>
