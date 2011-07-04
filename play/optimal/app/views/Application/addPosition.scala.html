@@ -1,4 +1,4 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : List[String])
 
 @main(title="Home", session=session, flash=flash) {
     <h1>Add position</h1>
@@ -18,7 +18,9 @@
                 <tr><td>End year</td><td><input type="text" name="endYear"/></td><td/></tr>
                 <tr><td>Address</td><td><input type="text" name="address" id="address"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></td></tr>
                 <tr><td>Location</td><td><input type="text" name="location" id="loc"/></td></td></tr>
-                <tr><td>CV of position</td><td><select><option value="NavetasCV2011">NavetasCV2011</option></select></td><td/></tr>
+                <tr><td>CV of position</td><td><select>
+                    @cvs.map { description => <option value=@description>@description</option> }
+                </select></td><td/></tr>
             </table>
             
             <br/>

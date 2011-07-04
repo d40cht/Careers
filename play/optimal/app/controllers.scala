@@ -71,7 +71,18 @@ object Application extends Controller {
     private def passwordHash( x : String) = MessageDigest.getInstance("SHA").digest(x.getBytes).map( 0xff & _ ).map( {"%02x".format(_)} ).mkString
     
     def index = html.index( session, flash )
-    def addPosition = html.addPosition( session, flash )
+    def addPosition =
+    {
+        val userId = session("userId").get.toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.description ).list
+            
+            html.addPosition( session, flash, cvs )
+        }
+    }
     
     private def readFileToBytes( path : File ) =
     {

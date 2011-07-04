@@ -3,9 +3,17 @@
 @main(title="Home", session=session, flash=flash) {
     <h1>Manage your existing CVs</h1>
     
-    <ul>
-    @cvs.map { (row) =>
-        <li>@row._1 : @row._2</li>
-    }
-    </ul>
+    <table>
+        <tr><th>Date added</th><th>Description</th><th>Pdf</th><th>Plain text</th><th>Analysis</th></tr>
+    
+        @cvs.map { (row) =>
+            <tr>
+                <td>@row._1</td>
+                <td>@row._2</td>
+                <td>No pdf</td>
+                <td>No plain text</td>
+                <td>No analysis</td>
+            </tr>
+        }
+    </table>
 }
