@@ -14,6 +14,12 @@
                 <tr><td>Company name</td><td><input type="text" name="companyName"/></td><td/></tr>
                 <tr><td>Department</td><td><input type="text" name="department"/></td><td/></tr>
                 <tr><td>Job title</td><td><input type="text" name="jobTitle"/></td><td/></tr>
+                <tr><td>Years of experience relevant to this position</td><td>
+                <select>
+                    @for( y <- 0 until 20 ) {
+                        <option value=@y>@y</option>
+                    }
+                </select>
                 <tr><td>Start year</td><td><input type="text" name="startYear"/></td><td/></tr>
                 <tr><td>End year</td><td><input type="text" name="endYear"/></td><td/></tr>
                 <tr><td>Address</td><td><input type="text" name="address" id="address"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></td></tr>

@@ -131,7 +131,7 @@ object Application extends Controller {
                 val userId = session("userId").get.toLong
                 val cols = models.CVs.userId ~ models.CVs.description ~ models.CVs.pdf ~ models.CVs.text
                 
-                cols.insert( userId, description, new SerialBlob( pdfData ), new SerialBlob( textData ) )
+                cols.insert( userId, description, if (pdfData == null) null else new SerialBlob( pdfData ), new SerialBlob( textData ) )
                 flash += ("info" -> ("CV uploaded and added to the processing queue. You'll get an email when it is ready.") )
                 Action(manageCVs)
             }            
