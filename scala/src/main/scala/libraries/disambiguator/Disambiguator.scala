@@ -52,11 +52,17 @@ object AmbiguityForest
     val minContextEdgeWeight    = 1.0e-6
     val numAllowedContexts      = 100
     
+    // Smith-waterman requires this
     val secondOrderContexts             = true
     val secondOrderContextDownWeight    = 0.1
     
+    // Reversed contexts run slowly and seem to perform badly
     val reversedContexts                = false
+    
+    // Works for some things, but screws up 'cambridge united kingdom'
     val topicDirectLinks                = true
+    
+    // Not clear that this has any particular power
     val upweightCategories              = true
 }
 

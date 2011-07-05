@@ -103,9 +103,12 @@ class DisambiguatorTest extends FunSuite
         {
             val tests = List[(String, List[String])](
             
+                //("carbon offset certification", List()),
+                ("cambridge united kingdom", List("Main:Cambridge", "Main:United Kingdom")),
+                //("one autumn morning, the leaf dropped from the tree", List[String]("Main:Autumn", "Main:Leaf", "Main:Tree")),
                 //("university of cambridge kings college ba archaeology anthropology", List("Main:University of Cambridge", "Main:King's College, Cambridge", "Main:Bachelor's degree", "Main:Archaeology", "Main:Anthropology")),
                 
-                //("annual conference paper", List()),
+
                 // Beware British spelling (visualization/visualisation)
                 ("education london school of economics", List("Main:Education", "Main:London School of Economics")),
                 
@@ -116,7 +119,7 @@ class DisambiguatorTest extends FunSuite
                 //("world congress of environmental resource economists", List()),
                 ("world congress of environmental resource economics", List("Main:Environmental economics", "Main:Natural resource economics")),
                 //("mapping happiness across space and time", List()),
-                //("carbon offset certification", List()),
+                
                 //("imperial college london centre for environmental policy msc", List()),
                 
                 
@@ -138,7 +141,7 @@ class DisambiguatorTest extends FunSuite
                 //("a cup of coffee or a cup of english breakfast in the morning", Nil)
                 ("cereal maize barley rice", List("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
                 
-                //("cambridge united kingdom", List("Main:Cambridge", "Main:United Kingdom")),
+                
                 ("objective caml, haskell", List("Main:Objective Caml", "Main:Haskell (programming language)")),
                 
                 ("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:DNA sequencing")),
@@ -153,7 +156,7 @@ class DisambiguatorTest extends FunSuite
                 ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C++", "Main:Design Patterns") ),
                 //("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
                 ("the leaf, nissan's new electric car", List[String]("Main:Nissan Leaf", "Main:Nissan Motors", "Main:Electric car")),
-                //("one autumn morning, the leaf dropped from the tree", List[String]("Main:Autumn", "Main:Leaf", "Main:Tree")),
+                
                 
                 // Distance metric to be developed later.
                 //("the leaf, a new electric car from nissan. Bloork bloork bloork bloork bloork bloork bloork. One autumn morning, the leaf dropped from the tree.",
