@@ -18,7 +18,6 @@ import org.seacourt.utility._
 import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.disambiguator._
 import org.seacourt.wikibatch._
-import org.seacourt.disambiguator.{PhraseMapBuilder, PhraseMapLookup, AmbiguitySiteBuilder, AmbiguityForest, AmbiguitySite}
 
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
@@ -100,9 +99,28 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
             val tests = List[(String, List[String])](
+                //("annual conference paper", List()),
+                // Beware British spelling (visualization/visualisation)
+                ("education london school of economics", List()),
+                ("gis spatial analysis and visualisation and spatial econometrics", List("Main:Geographic information system", "Main:Spatial analysis", "Main:Visualization (computer graphics)", "Main:Spatial econometrics")),
+                // Stemming? 'resource economists' would be much nicer as 'resource economics'
+                //("world congress of environmental resource economists", List()),
+                ("world congress of environmental resource economics", List("Main:Environmental economics", "Main:Natural resource economics")),
+                //("mapping happiness across space and time", List()),
+                //("carbon offset certification", List()),
+                //("imperial college london centre for environmental policy msc", List()),
+                ("university of cambridge kings college ba archaeology anthropology", List("Main:University of Cambridge", "Main:King's College, Cambridge", "Main:Bachelor's degree", "Main:Archaeology", "Main:Anthropology")),
+                
+                // Nasty resolution.
+                //("department of geography environment and centre for climate change economics", List()),
+                ("environmental quality wellbeing economics", List("Main:Environmental economics", "Main:Quality of life", "Main:Economics")),
+                
+                ("education london school of economics political science", List()),
+                ("email mobile website", List("Main:Email", "Main:Mobile phone", "Main:Website")),
+                ("statistics stata r", List("Main:Statistics", "Main:Stata", "Main:R (programming language)") ),
                 // Don't worry about this one now. The parser failed to pull a decent amount of link detail from the John's page.
                 //("st johns college durham university", List("Main:St John's College, Durham", "Main:Durham university")),
                 ("la scala covent garden puccini", List("Main:La Scala", "Main:Royal Opera House", "Main:Giacomo Puccini")),
@@ -149,9 +167,11 @@ class DisambiguatorTest extends FunSuite
                 forest.htmlOutput( "ambiguity.html" )
                 var dres = forest.disambiguated
                 
-                println( phrase, dres.map( x=>x.name) )
-                assert( dres.length === res.length )
-                for ( (topicl, expected) <- dres.zip(res) )
+                val dresf = dres.filter( _.weight > 0.0 )
+                println( phrase, dresf.map( x=>x.name) )
+                
+                assert( dresf.length === res.length )
+                for ( (topicl, expected) <- dresf.zip(res) )
                 {
                     val topic = topicl.name
                     assert( topic === expected )

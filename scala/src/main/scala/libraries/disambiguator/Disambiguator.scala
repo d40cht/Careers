@@ -52,7 +52,7 @@ object AmbiguityForest
     val minContextEdgeWeight    = 1.0e-6
     val numAllowedContexts      = 100
     
-    val secondOrderContexts             = true
+    val secondOrderContexts             = false
     val secondOrderContextDownWeight    = 0.1
     
     val reversedContexts                = false
@@ -99,6 +99,7 @@ class AmbiguitySite( val start : Int, val end : Int )
     class AmbiguityAlternative( siteDetails : List[AmbiguityForest.SurfaceFormDetails] )
     {
         val sites = siteDetails.map( x => new AltSite( x ) )
+        val weight = sites.foldLeft(1.0)( _ * _.sf.phraseWeight )
         var activeSiteCount = sites.length
         var algoWeight = 0.0
 
@@ -373,10 +374,12 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     {
                         for ( alternative <- site.combs ) yield
                         <alternative>
+                            <weight>{alternative.weight}</weight>
                         {
                             for ( altSite <- alternative.sites ) yield
                             <surfaceForm>
                                 <name>{words.slice(altSite.start, altSite.end+1)}</name>
+                                <weight>{altSite.sf.phraseWeight}</weight>
                                 <topics>
                                 {
                                     for ( topicDetail <- altSite.sf.topics.toList.sortWith( _.topicWeight > _.topicWeight ).slice(0,5) ) yield
@@ -412,7 +415,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         var reverseContextMap = TreeMap[ContextId, List[(TopicDetailLink, Double)]]()
         for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites )
         {
-            val altWeight = alternative.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight )
+            val altWeight = log( alternative.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight ) )
             for ( topicDetail <- altSite.sf.topics )
             {
                 allTds = topicDetail :: allTds
@@ -463,7 +466,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     //val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
                     val distanceWeight = (distWeighting1.density( distance )/distWeighting1.density(0.0)) + 1.0 + 0.0*(distWeighting2.density( distance )/distWeighting2.density(0.0))
                     //println( ":: " + distance + ", " + distanceWeight )
-                    val totalWeight = linkWeight * distanceWeight
+                    val totalWeight = linkWeight// * distanceWeight
                     topicDetail1.alternative.algoWeight += totalWeight
                     topicDetail2.alternative.algoWeight += totalWeight
                     
@@ -481,7 +484,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         }
         
         // Topics linked to each other
-        if ( true )
+        if ( false )
         {
             for ( site1 <- sites; alternative1 <- site1.combs; altSite1 <- alternative1.sites; topicDetail1 <- altSite1.sf.topics )
             {
@@ -815,7 +818,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
 
         
         //val categoryQuery = topicDb.prepare( "SELECT t1.name, t3.weight1, t3.weight2 FROM topics AS t1 INNER JOIN categoriesAndContexts AS t2 ON t1.id=t2.contextTopicId INNER JOIN linkWeights AS t3 ON t3.topicId=t2.topicId AND t3.contextTopicId=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::Col[Double]::Col[Double]::HNil )
-        val categoryQuery = topicDb.prepare( "SELECT t1.name, t2.weight FROM topics AS t1 INNER JOIN linkWeights2 AS t2 ON t1.id=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::Col[Double]::Col[Double]::HNil )
+        val categoryQuery = topicDb.prepare( "SELECT t1.name, t2.weight FROM topics AS t1 INNER JOIN linkWeights2 AS t2 ON t1.id=t2.contextTopicId WHERE t2.topicId=? ORDER BY t1.name ASC", Col[String]::Col[Double]::HNil )
 
         var totalOccurrences = 0
         var topicIds = List[(String, Int, Int)]()
@@ -837,9 +840,8 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             for ( category <- categoryQuery )
             {
                 val name = _1(category).get
-                val weight1 = _2(category).get
-                val weight2 = _3(category).get
-                println( "    " + name + ": " + weight1 + ", " + weight2 )
+                val weight = _2(category).get
+                println( "    " + name + ": " + weight )
             }
         }
     }
@@ -879,17 +881,8 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
         
         def allowedPhrase( words : List[String] ) =
         {
-            var allowed = true
-            if ( words.size == 1 )
-            {
-                val word = words.head
-                if ( word.matches( "[0-9]+" ) )
-                {
-                    allowed = false
-                }
-            }
-            
-            allowed
+            val allNumbers = words.foldLeft( true )( _ && _.matches( "[0-9]+" ) )
+            !allNumbers
         }
         
         
@@ -909,7 +902,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
             println( "Parsing text and building topic and category maps." )
             for ( word <- wordList )
             {
-                //println( "  " + word )
+                println( "  " + word )
                 val wordLookup = lookup.lookupWord( word )
                         
                 wordLookup match

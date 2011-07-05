@@ -1,7 +1,7 @@
 package org.seacourt.disambiguator.Community
 
 import scala.collection.mutable.ArrayBuffer
-
+/*
 // We only handle the weighted case.
 class Graph( val nb_nodes : Int, val nb_links : Int )
 {
@@ -307,5 +307,6 @@ class Community
     }
 }
 
+*/
 
 
