@@ -52,10 +52,12 @@ object AmbiguityForest
     val minContextEdgeWeight    = 1.0e-6
     val numAllowedContexts      = 100
     
-    val secondOrderContexts             = false
+    val secondOrderContexts             = true
     val secondOrderContextDownWeight    = 0.1
     
     val reversedContexts                = false
+    val topicDirectLinks                = true
+    val upweightCategories              = true
 }
 
 
@@ -110,8 +112,10 @@ class AmbiguitySite( val start : Int, val end : Int )
             
             val sf = new SurfaceForm( siteDetail.phraseId, siteDetail.weight, siteDetail.topicDetails )
             
-            class SurfaceForm( val phraseId : Int, val phraseWeight : Double, topicDetails : AmbiguityForest.TopicWeightDetails )
+            class SurfaceForm( val phraseId : Int, _phraseWeight : Double, topicDetails : AmbiguityForest.TopicWeightDetails )
             {
+                val phraseWeight = if ( _phraseWeight > AmbiguityForest.minPhraseWeight ) _phraseWeight else 0.0
+
                 class TopicDetail( val topicId : AmbiguityForest.TopicId, val topicWeight : Double )
                 {
                     var algoWeight = 0.0
@@ -349,15 +353,12 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         var asbs = List[AmbiguitySiteBuilder]()
         for ( sf <- sortedPhrases )
         {
-            if ( sf.weight > AmbiguityForest.minPhraseWeight )
+            if ( asbs == Nil || !asbs.head.overlaps( sf.start, sf.end ) )
             {
-                if ( asbs == Nil || !asbs.head.overlaps( sf.start, sf.end ) )
-                {
-                    asbs = new AmbiguitySiteBuilder( sf.start, sf.end ) :: asbs
-                }
-                
-                asbs.head.extend( sf )
+                asbs = new AmbiguitySiteBuilder( sf.start, sf.end ) :: asbs
             }
+            
+            asbs.head.extend( sf )
         }
         
         println( "Building site alternatives." )
@@ -415,7 +416,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         var reverseContextMap = TreeMap[ContextId, List[(TopicDetailLink, Double)]]()
         for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites )
         {
-            val altWeight = log( alternative.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight ) )
+            val altWeight = alternative.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight )
             for ( topicDetail <- altSite.sf.topics )
             {
                 allTds = topicDetail :: allTds
@@ -484,7 +485,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         }
         
         // Topics linked to each other
-        if ( false )
+        if ( AmbiguityForest.topicDirectLinks )
         {
             for ( site1 <- sites; alternative1 <- site1.combs; altSite1 <- alternative1.sites; topicDetail1 <- altSite1.sf.topics )
             {
@@ -559,7 +560,10 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 if ( altSite.sf.topics.size > 0 )
                 {
                     val canonicalTopic = altSite.sf.topics.toList.sortWith( (x, y) => x.algoWeight > y.algoWeight ).head
-                    disambiguated = new SureSite( altSite.start, altSite.end, canonicalTopic.topicId, canonicalTopic.algoWeight, topicNameMap(canonicalTopic.topicId) ) :: disambiguated
+                    if ( canonicalTopic.algoWeight > 0.0 )
+                    {
+                        disambiguated = new SureSite( altSite.start, altSite.end, canonicalTopic.topicId, canonicalTopic.algoWeight, topicNameMap(canonicalTopic.topicId) ) :: disambiguated
+                    }
                 }
             }
         }
@@ -890,7 +894,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
         {
             val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
             val topicQuery = topicDb.prepare( "SELECT topicId, count FROM phraseTopics WHERE phraseTreeNodeId=? ORDER BY count DESC LIMIT 50", Col[Int]::Col[Int]::HNil )
-            val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight FROM linkWeights2 WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::HNil )
+            val topicCategoryQuery = topicDb.prepare( "SELECT t1.contextTopicId, t1.weight, t2.name FROM linkWeights2 AS t1 INNER JOIN topics AS t2 ON t1.contextTopicId=t2.id WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::Col[String]::HNil )
             val topicCategoryQueryReverse = topicDb.prepare( "SELECT topicId, weight FROM linkWeights2 WHERE contextTopicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::HNil )
             
             var possiblePhrases = List[AmbiguityForest.SurfaceFormDetails]()
@@ -958,10 +962,19 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             for ( row <- topicCategoryQuery )
                                             {
                                                 val cid = _1(row).get
-                                                val weight = _2(row).get
+                                                var weight = _2(row).get
+                                                val name = _3(row).get
                                                 //val weight2 = _3(row).get
                                                 
-                                                contextWeights = contextWeights.updated( cid, weight )
+                                                if ( AmbiguityForest.upweightCategories && name.startsWith( "Category:") )
+                                                {
+                                                    weight = 1.0
+                                                }
+                                                
+                                                if ( cid != topicId )
+                                                {
+                                                    contextWeights = contextWeights.updated( cid, weight )
+                                                }
                                             }
                                             
                                             if ( AmbiguityForest.reversedContexts )
@@ -991,8 +1004,11 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                                         
                                                         if ( !contextWeights.contains(cid) )
                                                         {
-                                                            // 2nd order context weights are lowered by the weight of the first link
-                                                            contextWeights = contextWeights.updated( cid, AmbiguityForest.secondOrderContextDownWeight * contextWeight * weight )
+                                                            if ( cid != topicId )
+                                                            {
+                                                                // 2nd order context weights are lowered by the weight of the first link
+                                                                contextWeights = contextWeights.updated( cid, AmbiguityForest.secondOrderContextDownWeight * contextWeight * weight )
+                                                            }
                                                         }
                                                     }
                                                 }
