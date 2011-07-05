@@ -8,6 +8,7 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
     val berkeleydb = "berkeleydb" % "je" % "3.2.76"
     val commonsMath = "org.apache.commons" % "commons-math" % "2.0"
     val automaticresourcemanagement = "com.github.jsuereth.scala-arm" % "scala-arm_2.8.0" % "0.2"
+    val httpclient = "org.apache.httpcomponents" % "httpclient" % "4.1.1"
     
     //val entryClass = "Crunch"
     //val entryClass = "SurfaceForms"
