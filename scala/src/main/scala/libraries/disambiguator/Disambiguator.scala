@@ -49,12 +49,15 @@ object AmbiguityForest
     class SurfaceFormDetails( val start : Int, val end : Int, val phraseId : PhraseId, val weight : Weight, val topicDetails : TopicWeightDetails )
         
     val minPhraseWeight         = 0.01
-    val minContextEdgeWeight    = 1.0e-12
+    val minContextEdgeWeight    = 1.0e-10
     val numAllowedContexts      = 100
     
     // Smith-waterman (and other sparse articles) require this
     val secondOrderContexts             = true
-    val secondOrderContextDownWeight    = 1.0
+    
+    // Fewer than this number of first order contexts, go wider
+    val secondOrderKickin               = 100
+    val secondOrderContextDownWeight    = 0.1
     
     // Reversed contexts run slowly and seem to perform badly
     val reversedContexts                = false
@@ -71,6 +74,7 @@ object AmbiguityForest
     // Upweights more frequently referenced topics if false
     // (problems with 'python palin' - Sarah dominates Michael)
     val normaliseTopicWeightings        = true
+    val minTopicRelWeight               = 0.001
 }
 
 
@@ -520,13 +524,13 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 {
                     if ( contexts.contains( topicDetail2.topicId ) )
                     {
-                        val linkWeight = contexts( topicDetail2.topicId )
-                        val altWeight1 = alternative1.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight )
-                        val altWeight2 = alternative2.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight )
+                        val linkWeight = contexts( topicDetail2.topicId ) 
+                        val altWeight1 = alternative1.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight ) * topicDetail1.topicWeight
+                        val altWeight2 = alternative2.sites.foldLeft(1.0)( (x, y) => x * y.sf.phraseWeight ) * topicDetail2.topicWeight
                         
                         
                         //println( "Direct link: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + altWeight1 * altWeight2 * linkWeight )
-                        buildLinks( topicDetail1, topicDetail2, altWeight1 * altWeight2 * linkWeight * linkWeight )
+                        buildLinks( topicDetail1, topicDetail2, altWeight1 * altWeight2 * linkWeight )
                     }
                 }
             }
@@ -937,8 +941,9 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
         {
             val listOf = topicName.startsWith( "Main:List of" ) || topicName.startsWith( "Main:Table of" )
             val isCategory = topicName.startsWith( "Category:" )
+            val postcodeArea = topicName.endsWith( "postcode area" )
             
-            !listOf && !isCategory
+            !listOf && !isCategory && !postcodeArea
         }
         
         def allowedContext( contextName : String ) =
@@ -1003,7 +1008,8 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                     val sfWeight = (sfCount.toDouble / phraseCount.toDouble)
 
                                     val topicDownWeight = if (AmbiguityForest.normaliseTopicWeightings) sfCount else 1.0
-                                    val weightedTopics = topicDetails.foldLeft( TreeMap[AmbiguityForest.TopicId, AmbiguityForest.Weight]() )( (x, y) => x.updated( y._1, y._2.toDouble / topicDownWeight.toDouble ) )
+                                    val filteredTopics = topicDetails.map ( v => (v._1, v._2.toDouble / topicDownWeight.toDouble ) ).filter( v => v._2 > AmbiguityForest.minTopicRelWeight )
+                                    val weightedTopics = filteredTopics.foldLeft( TreeMap[AmbiguityForest.TopicId, AmbiguityForest.Weight]() )( (x, y) => x.updated( y._1, y._2 ) )
                                     //val weightedTopics = for ( td <- topicDetails ) yield (td._1, td._2.toDouble / sfCount.toDouble)
                                     val thisSf = new AmbiguityForest.SurfaceFormDetails( fromIndex, toIndex, phraseId, sfWeight, weightedTopics )
                                     
@@ -1049,7 +1055,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             }
                                             
                                             // Second order contexts
-                                            if ( AmbiguityForest.secondOrderContexts )
+                                            if ( AmbiguityForest.secondOrderContexts && contextWeights.size < AmbiguityForest.secondOrderKickin )
                                             {
                                                 var secondOrderWeights = TreeMap[Int, Double]()
                                                 for ( (contextId, contextWeight) <- contextWeights.toList )
