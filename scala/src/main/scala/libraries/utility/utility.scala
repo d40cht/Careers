@@ -291,7 +291,7 @@ object Utils
     def normalize( raw : String ) : String =
     {
         // Deal with: double/triple spaces, embedded xml tags
-        raw.toLowerCase().filter(_ != '\'' )
+        raw.toLowerCase().filter(_ != '\'' ).map( x => if (x =='/' || x == '-') ' ' else x )
     }
     
     def normalizeTopicTitle( topicTitle : String ) : String =
@@ -461,7 +461,24 @@ object Utils
         searchBetween(0, xs.length-1)
     }
     
-
+    def withTemporaryDirectory( code : String => Unit )
+    {
+        val dirStr = "temp" + System.nanoTime().toString()
+        val dir = new File(dirStr)
+        dir.mkdir()
+        try
+        {
+            code(dirStr)
+        }
+        finally
+        {
+            for ( child <- dir.list )
+            {
+                new File(dir, child).delete()
+            }
+            dir.delete()
+        }
+    }
 }
 
 class LinkExtractor
