@@ -50,7 +50,7 @@ object AmbiguityForest
     class SurfaceFormDetails( val start : Int, val end : Int, val phraseId : PhraseId, val weight : Weight, val topicDetails : TopicWeightDetails )
         
     val minPhraseWeight         = 0.005
-    val minContextEdgeWeight    = 1.0e-12
+    val minContextEdgeWeight    = 1.0e-8
     val numAllowedContexts      = 100
     
     // Smith-waterman (and other sparse articles) require this
@@ -197,6 +197,24 @@ class AmbiguitySite( val start : Int, val end : Int )
                 
                 var topics : HashSet[TopicDetail] = topicDetails.foldLeft(HashSet[TopicDetail]())( (s, x) => s + new TopicDetail( x._1, if ( _phraseWeight > AmbiguityForest.minPhraseWeight ) x._2 else 0.0 ) )
             }
+        }
+        
+        def remove( q : RunQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
+        {
+            for ( site <- sites )
+            {
+                for( td <- site.sf.topics )
+                {
+                    q.remove( td.algoWeight, td )
+                    td.processed = true
+                    td.active = false
+                    td.downWeightPeers( q, topicNameMap )
+                }
+                
+                // Clear the topics out
+                site.sf.topics = site.sf.topics.empty
+            }
+            combs = combs - this
         }
         
         def cullUpwards( q : RunQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
@@ -552,6 +570,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         println( "Links in play: " + linkCount )
         
         dumpResolutions()
+        
+        // Prune out alternatives
         if ( true )
         {
             println( "Running new algo framework" )
@@ -560,6 +580,33 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             val q = new RunQ[TopicDetailLink]()
             for ( td <- allTds ) q.add( td.algoWeight, td )
             
+            // Prune alternatives before topics
+            if ( true )
+            {
+                println( "Pruning down to one alternative per site." )
+                var done = false
+                
+                sites.map( x => assert( x.combs.size >= 1 ) )
+                while ( !done )
+                {
+                    val prunableSites = sites.filter( _.combs.size > 1 )
+                    
+                    if ( prunableSites != Nil )
+                    {
+                        val allAlternatives = for ( site <- prunableSites; alt <- site.combs.toList ) yield alt
+                        val leastWeight = allAlternatives.reduceLeft( (x, y) => if (x.altAlgoWeight < y.altAlgoWeight) x else y )
+                        leastWeight.remove( q, topicNameMap )
+                    }
+                    else
+                    {
+                        done = true
+                    }
+                }
+                
+                sites.map( x =>assert( x.combs.size == 1 ) )
+            }
+            
+            println( "Pruning down to one topic per site." )
             while ( !q.isEmpty )
             {
                 val (weight, td) = q.first
@@ -599,12 +646,16 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     //println( "  " + alt.sf.topics.head.algoWeight + " " + topicNameMap(alt.sf.topics.head.topicId) )
                     
                     val fromTopic = alt.sf.topics.head
-                    for ( (toTopic, weight) <- fromTopic.peers )
+                    val totalWeight = fromTopic.peers.foldLeft(0.0)( _ + _._2 )
+                    var weightSoFar = 0.0
+                    for ( (toTopic, weight) <- fromTopic.peers.toList.sortWith( _._2 > _._2 ) )
                     {
-                        if ( toTopic.active )
+                        if ( toTopic.active && (weightSoFar < 0.60 * totalWeight) )
                         {
-                            v.addEdge( fromTopic.topicId, toTopic.topicId, weight )
+                            //v.addEdge( fromTopic.topicId, toTopic.topicId, weight )
+                            v.addEdge( fromTopic.topicId, toTopic.topicId, log( weight / minContextEdgeWeight ) )
                         }
+                        weightSoFar += weight
                     }
                 }
                 
@@ -834,18 +885,25 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         val wordArr = words.toArray
         var i = 0
         var phraseIt = disambiguated
+
+        def wikiLink( topicName : String ) =
+        {
+            val wikiBase = "http://en.wikipedia.org/wiki/"
+            wikiBase + (if (topicName.startsWith("Main:")) topicName.drop(5) else topicName)
+        }
                 
+        
         val l = ListBuffer[scala.xml.Elem]()
         while ( i < wordArr.size )
         {
             if ( phraseIt != Nil && phraseIt.head.start == i )
             {
                 val resolution = phraseIt.head
-                val topicLink = if (resolution.name.startsWith("Main:")) resolution.name.drop(5) else resolution.name
+                val topicLink = wikiLink( resolution.name )
                 val size = if (resolution.weight == 0.0) 3.0 else 18.0 + log(resolution.weight)
                 val fs = "font-size:"+size.toInt
                 l.append(
-                    <a href={ "http://en.wikipedia.org/wiki/" + topicLink } title={"Weight: " + resolution.weight } style={fs} >
+                    <a href={ topicLink } title={"Weight: " + resolution.weight } style={fs} >
                         {"[" + words.slice( resolution.start, resolution.end+1 ).mkString(" ") + "] "}
                     </a> )
                 i = resolution.end+1
@@ -866,17 +924,21 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 structure match
                 {
                     case InternalNode( children )   => <ul> <li/> { for ( c <- children.sortWith( _.size > _.size ) ) yield communityToHtml(c) } <li/> </ul>
-                    case LeafNode( children )       => for ( c <- children.sortWith( (x,y) => topicFromId(x).weight > topicFromId(y).weight ) ) yield <li> {topicNameMap(c) + " " + topicFromId(c).weight} </li>
+                    case LeafNode( children )       => for ( c <- children.sortWith( (x,y) => topicFromId(x).weight > topicFromId(y).weight ) ) yield
+                        <li>
+                            <a href={wikiLink(topicNameMap(c))}> {topicNameMap(c) + " " + topicFromId(c).weight} </a> 
+                        </li>
                 }
             }
             </ul>
+        
         
         val output =
             <html>
                 <head></head>
                 <body>
                     <div>{ l.toList }</div>
-                    <div>{ communityToHtml( communities ) }</div>
+                    <div>{ if ( communities == null ) <span/> else communityToHtml( communities ) }</div>
                 </body>
             </html>
             

@@ -104,7 +104,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( true )
+        if ( false )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
@@ -137,9 +137,12 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
             val tests = List[(String, List[String])](
+            
+                // Kings college london rather than cambridge. Dull dull.
+                //("university of cambridge kings college ba archaeology anthropology", List("Main:University of Cambridge", "Main:King's College, Cambridge", "Main:Bachelor's degree", "Main:Archaeology", "Main:Anthropology")),
             
                 //("carbon offset certification", List()),
                 ("one autumn morning, the leaf dropped from the tree", List[String]("Main:Autumn", "Main:Leaf", "Main:Tree")),
@@ -154,8 +157,7 @@ class DisambiguatorTest extends FunSuite
 
                 
                 
-                // Kings college london rather than cambridge. Dull dull.
-                //("university of cambridge kings college ba archaeology anthropology", List("Main:University of Cambridge", "Main:King's College, Cambridge", "Main:Bachelor's degree", "Main:Archaeology", "Main:Anthropology")),
+                
                 
 
                 // Beware British spelling (visualization/visualisation)
@@ -200,7 +202,7 @@ class DisambiguatorTest extends FunSuite
                 
                 ("objective caml, haskell", List("Main:Objective Caml", "Main:Haskell (programming language)")),
                 
-                ("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:DNA sequencing")),
+                //("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:DNA sequencing")),
                 ("smith waterman gene sequencing bioinformatics", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing", "Main:Bioinformatics")),
                 
                 ("java coffee tea", List("Main:Java", "Main:Coffee", "Main:Tea")),
