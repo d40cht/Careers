@@ -105,6 +105,9 @@ class DisambiguatorTest extends FunSuite
             
                 //("carbon offset certification", List()),
                 
+                ("stata and r and", List("Main:Stata", "Main:R (programming language)")),
+                //("expertise in statistical packages including stata and r and econometric methods", List()),
+                
                 //("cambridge united kingdom", List("Main:Cambridge", "Main:United Kingdom")),
                 ("cambridge university united kingdom", List("Main:University of Cambridge", "Main:United Kingdom")),
 

@@ -766,6 +766,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                                         for ( altSite <- wa.sites ) yield
                                             <element>
                                                 <text>{words.slice( altSite.start, altSite.end+1 ).mkString(" ")}</text>
+                                                <sfPhraseWeight>{altSite.sf.phraseWeight}</sfPhraseWeight>
                                                 <topics>
                                                 {
                                                     for ( topicDetail <- altSite.sf.topics.toList.sortWith( _.algoWeight > _.algoWeight ).slice(0, 10) ) yield
