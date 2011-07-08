@@ -104,7 +104,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
@@ -112,8 +112,8 @@ class DisambiguatorTest extends FunSuite
             //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
-            //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
-            val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
+            val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
             
             //val fileText = "gerry adams troubles bloody sunday"
             //val fileText = "rice cambridge oxford yale harvard"
@@ -137,7 +137,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val tests = List[(String, List[String])](
             

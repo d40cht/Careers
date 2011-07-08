@@ -51,13 +51,15 @@ object AmbiguityForest
     class SurfaceFormDetails( val start : Int, val end : Int, val phraseId : PhraseId, val weight : Weight, val topicDetails : TopicWeightDetails )
         
     val minPhraseWeight         = 0.005
-    val minContextEdgeWeight    = 1.0e-10
+    val minContextEdgeWeight    = 1.0e-9
     val numAllowedContexts      = 100
     
     // Smith-waterman (and other sparse articles) require this
     val secondOrderContexts             = true
     
     // Fewer than this number of first order contexts, go wider
+    
+    // Quite sensitive. Drop to 20 but beware Cambridge Ontario
     val secondOrderKickin               = 10
     val secondOrderContextDownWeight    = 0.1
     
@@ -77,6 +79,9 @@ object AmbiguityForest
     // (problems with 'python palin' - Sarah dominates Michael)
     val normaliseTopicWeightings        = true
     val minTopicRelWeight               = 0.00001
+    
+    // Links in the top % of weight are included
+    val linkPercentileFilter            = 0.95
 }
 
 
@@ -490,11 +495,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
         }
         
-        println( "Top N contexts" )
+        /*println( "Top N contexts" )
         for ( (id, weight) <- contextWeightMap.toList.sortWith( (x, y) => x._2 > y._2 ).slice(0, 100) )
         {
             println( "  " + topicNameMap(id) + ": " + weight )
-        }
+        }*/
         
         // Shouldn't allow links from one alternative in an
         // SF to another alternative in the same SF. Also, within an alternative SHOULD allow
@@ -527,7 +532,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         val center2 = (topicDetail2.altSite.start + topicDetail2.altSite.end).toDouble / 2.0
                         val distance = (center1 - center2)
                         //val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
-                        val distanceWeight = 0.3 + (distWeighting1.density( distance )/distWeighting1.density(0.0)) + 0.0*(distWeighting2.density( distance )/distWeighting2.density(0.0))
+                        val distanceWeight = 0.2 + (distWeighting1.density( distance )/distWeighting1.density(0.0)) + 0.0*(distWeighting2.density( distance )/distWeighting2.density(0.0))
                         //println( ":: " + distance + ", " + distanceWeight )
                         val totalWeight = linkWeight * distanceWeight
                         topicDetail1.alternative.altAlgoWeight += totalWeight
@@ -658,17 +663,34 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     //println( "  " + alt.sf.topics.head.algoWeight + " " + topicNameMap(alt.sf.topics.head.topicId) )
                     
                     val fromTopic = alt.sf.topics.head
-                    val totalWeight = fromTopic.peers.filter( _._1.active ).foldLeft(0.0)( _ + _._2 )
-                    var weightSoFar = 0.0
+                    
+                    // Re-weight the topic peer links and trim down to the percentile
+                    var totalWeight = 0.0
+                    val reweighted = fromTopic.peers.filter( _._1.active ).map
+                    { x =>
+                        val toTopic = x._1
+                        val weight = x._2 / ( fromTopic.topicWeight * toTopic.topicWeight * fromTopic.sf.phraseWeight * toTopic.sf.phraseWeight )
+                        totalWeight += weight
+                        (toTopic, weight )
+                    }
+                    
+                    var runningWeight = 0.0
+                    fromTopic.peers = fromTopic.peers.empty
+                    for ( (toTopic, weight) <- reweighted.toList.sortWith( _._2 > _._2 ) )
+                    {
+                        if ( runningWeight < (totalWeight * AmbiguityForest.linkPercentileFilter) )
+                        {
+                            fromTopic.peers = fromTopic.peers.updated( toTopic, weight )
+                            runningWeight += weight
+                        }
+                    }
+                    
+                    
                     for ( (toTopic, weight) <- fromTopic.peers.toList.sortWith( _._2 > _._2 ) )
                     {
-                        if ( toTopic.active )// && (weightSoFar < 0.99 * totalWeight) )
-                        {
-                            //v.addEdge( fromTopic.topicId, toTopic.topicId, 1.0 )
-                            //v.addEdge( fromTopic.topicId, toTopic.topicId, log( weight / AmbiguityForest.minContextEdgeWeight ) )
-                            v.addEdge( fromTopic.topicId, toTopic.topicId, weight )
-                            weightSoFar += weight
-                        }
+                        //v.addEdge( fromTopic.topicId, toTopic.topicId, 1.0 )
+                        //v.addEdge( fromTopic.topicId, toTopic.topicId, log( weight / AmbiguityForest.minContextEdgeWeight ) )
+                        v.addEdge( fromTopic.topicId, toTopic.topicId, weight )
                     }
                 }
                 
@@ -680,6 +702,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         
         println( "Dumping resolutions." )
         dumpResolutions()
+        
+        
         
         for ( site <- sites )
         {
@@ -916,7 +940,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 val size = if (resolution.weight == 0.0) 3.0 else 18.0 + log(resolution.weight)
                 val fs = "font-size:"+size.toInt
                 l.append(
-                    <a href={ topicLink } title={"Weight: " + resolution.weight } style={fs} >
+                    <a id={"%d_%d".format(resolution.start, resolution.end)} href={ topicLink } title={"Weight: " + resolution.weight } style={fs} >
                         {"[" + words.slice( resolution.start, resolution.end+1 ).mkString(" ") + "] "}
                     </a> )
                 i = resolution.end+1
@@ -930,6 +954,39 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         }
         
         val topicFromId = disambiguated.foldLeft(HashMap[Int, SureSite]())( (m, v) => m.updated( v.topicId, v ) )
+        
+        def buildHead() : scala.xml.Elem =
+        {
+            var highlights = List[String]()
+            for ( site <- sites )
+            {
+                val alternative = site.combs.head
+                
+                for ( alt <- alternative.sites )
+                {
+                    var ons = List[String]()
+                    var offs = List[String]()
+                
+                    val fromTopic = alt.sf.topics.head
+                    for ( (toTopic, weight) <- fromTopic.peers )
+                    {
+                        ons = "$('#%d_%d').addClass('hover');".format( toTopic.altSite.start, toTopic.altSite.end ) :: ons
+                        offs = "$('#%d_%d').removeClass('hover');".format( toTopic.altSite.start, toTopic.altSite.end ) :: offs
+                    }
+                
+                    highlights = "$('#%d_%d').mouseover( function() { %s } );".format( fromTopic.altSite.start, fromTopic.altSite.end, ons.mkString(" ") ) :: highlights
+                    highlights = "$('#%d_%d').mouseout( function() { %s } );".format( fromTopic.altSite.start, fromTopic.altSite.end, offs.mkString(" ") ) :: highlights
+                }
+            }
+            
+            val res = "$(document).ready( function() { " + highlights.mkString("\n") + " } );"
+            
+            <head>
+                <style type="text/css">{ ".hover { background-color:#0ff; }" }</style>
+                <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.min.js"></script>
+                <script type="text/javascript"> { res } </script>
+            </head>
+        }
         
         def communityToHtml( structure : CommunityTreeBase ) : scala.xml.Elem =
             {
@@ -956,7 +1013,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         
         val output =
             <html>
-                <head></head>
+                {buildHead()}
                 <body>
                     <div>{ l.toList }</div>
                     <div>{ if ( communities == null ) <span/> else communityToHtml( communities ) }</div>
