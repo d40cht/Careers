@@ -650,10 +650,10 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     var weightSoFar = 0.0
                     for ( (toTopic, weight) <- fromTopic.peers.toList.sortWith( _._2 > _._2 ) )
                     {
-                        if ( toTopic.active && (weightSoFar < 0.60 * totalWeight) )
+                        if ( toTopic.active && (weightSoFar < 0.99 * totalWeight) )
                         {
-                            //v.addEdge( fromTopic.topicId, toTopic.topicId, weight )
-                            v.addEdge( fromTopic.topicId, toTopic.topicId, log( weight / minContextEdgeWeight ) )
+                            v.addEdge( fromTopic.topicId, toTopic.topicId, 1.0 )
+                            //v.addEdge( fromTopic.topicId, toTopic.topicId, log( weight / AmbiguityForest.minContextEdgeWeight ) )
                         }
                         weightSoFar += weight
                     }
