@@ -27,8 +27,8 @@ case class LeafNode( val children : ArrayBuffer[Int] ) extends CommunityTreeBase
 
 class Louvain
 {
-    private var convertPath     = "/home/alex/AW/optimal/community/convert"
-    private var communityPath   = "/home/alex/AW/optimal/community/community"
+    private var convertPath     = "/home/alexw/AW/optimal/community/convert"
+    private var communityPath   = "/home/alexw/AW/optimal/community/community"
     
     private var idMap = HashMap[Int, Int]()
     private var nextId = 0
