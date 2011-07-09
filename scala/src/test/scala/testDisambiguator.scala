@@ -1,7 +1,7 @@
 import org.scalatest.FunSuite
 import scala.io.Source._
 
-import java.io.{File, BufferedReader, FileReader, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
+import java.io.{File, BufferedReader, FileReader, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream, FileWriter}
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.immutable.{TreeSet, TreeMap, HashSet}
 
@@ -10,7 +10,7 @@ import org.apache.lucene.analysis.Token
 import org.apache.lucene.analysis.tokenattributes.TermAttribute
 import org.apache.lucene.analysis.standard.StandardTokenizer
 
-import scala.xml.XML
+import scala.xml.{XML, PrettyPrinter}
 import scala.collection.mutable.Stack
 import scala.collection.mutable.ArrayBuffer
 
@@ -104,7 +104,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "New disambiguator test" )
     {
-        if ( true )
+        if ( false )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             
@@ -137,16 +137,20 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
+            // TODO: Move to text file
             val tests = List[(String, List[String])](
             
                 // Kings college london rather than cambridge. Dull dull.
-                //("university of cambridge kings college ba archaeology anthropology", List("Main:University of Cambridge", "Main:King's College, Cambridge", "Main:Bachelor's degree", "Main:Archaeology", "Main:Anthropology")),
+                ("university of cambridge kings college ba archaeology anthropology", List("Main:University of Cambridge", "Main:King's College, Cambridge", "Main:Bachelor's degree", "Main:Archaeology", "Main:Anthropology")),
+                
+                ("substantial experience producing academic documents with latex lyx and designing attractive documents for print with adobe indesign and photoshop highly proficient with ms office applications",
+                List("Main:Academic journal", "Main:LaTeX", "Main:LyX", "Main:Print", "Main:Adobe InDesign", "Main:Adobe Photoshop", "Main:Microsoft Office", "Main:Application software")), 
             
                 //("carbon offset certification", List()),
                 ("one autumn morning, the leaf dropped from the tree", List[String]("Main:Autumn", "Main:Leaf", "Main:Tree")),
-                //("an existing win32-based video codec to the fpga platform including code optimisation and creation and integration of custom hardware acceleration", List()),
+                ("an existing win32-based video codec to the fpga platform including code optimisation and creation and integration of custom hardware acceleration", List()),
                 
                 
                 ("stata and r and", List("Main:Stata", "Main:R (programming language)")),
@@ -167,42 +171,42 @@ class DisambiguatorTest extends FunSuite
                 ("education london school of economics political science", List("Main:Education", "Main:London School of Economics", "Main:Political science")),
                 ("gis spatial analysis and visualisation and spatial econometrics", List("Main:Geographic information system", "Main:Spatial analysis", "Main:Visualization (computer graphics)", "Main:Spatial econometrics")),
                 // Stemming? 'resource economists' would be much nicer as 'resource economics'
-                //("world congress of environmental resource economists", List()),
+                ("world congress of environmental resource economists", List()),
                 ("world congress of environmental resource economics", List("Main:United States Congress", "Main:Environmental economics", "Main:Natural resource economics")),
-                //("mapping happiness across space and time", List()),
+                ("mapping happiness across space and time", List()),
                 
                 // Nasty resolution
-                //("imperial college london centre for environmental policy msc", List()),
+                ("imperial college london centre for environmental policy msc", List()),
                 
                 
                 // Nasty resolution.
-                //("department of geography environment and centre for climate change economics", List()),
+                ("department of geography environment and centre for climate change economics", List()),
                 ("environmental quality wellbeing economics", List("Main:Environmental quality", "Main:Quality of life", "Main:Economics")),
                 
                 
-                ("email mobile website", List("Main:Email", "Main:Mobile Web")),
+                ("email mobile website", List("Main:Email", "Main:Mobile phone", "Main:Website")),
                 ("r stata", List("Main:R (programming language)", "Main:Stata")),
                 ("statistics stata r", List("Main:Statistics", "Main:Stata", "Main:R (programming language)") ),
                 
                 // Don't worry about this one now. The parser failed to pull a decent amount of link detail from the John's page.
-                //("st johns college durham university", List("Main:St John's College, Durham", "Main:Durham university")),
+                ("st johns college durham university", List("Main:St John's College, Durham", "Main:Durham university")),
                 ("la scala covent garden puccini", List("Main:La Scala", "Main:Royal Opera House", "Main:Giacomo Puccini")),
                 
                 // Too keen on cherwell district
                 ("cherwell oxford university student newspaper", List("Main:Cherwell (newspaper)", "Main:University of Oxford", "Main:Student newspaper")),
                 
                 // Too keen on Sarah Palin
-                //("python palin", List("Main:Monty Python", "Main:Michael Palin")),
+                ("python palin", List("Main:Monty Python", "Main:Michael Palin")),
                 ("tea party palin", List("Main:Tea Party movement", "Main:Sarah Palin")),
                 
                 // Produces a rubbish list of categories
-                //("a cup of coffee or a cup of english breakfast in the morning", List()),
+                ("a cup of coffee or a cup of english breakfast in the morning", List()),
                 ("cereal maize barley rice", List("Main:Cereal", "Main:Maize", "Main:Barley", "Main:Rice")),
                 
                 
                 ("objective caml, haskell", List("Main:Objective Caml", "Main:Haskell (programming language)")),
                 
-                //("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:DNA sequencing")),
+                ("smith waterman gene sequencing", List("Main:Smith–Waterman algorithm", "Main:DNA sequencing")),
                 ("smith waterman gene sequencing bioinformatics", List("Main:Smith–Waterman algorithm", "Main:Gene sequencing", "Main:Bioinformatics")),
                 
                 ("java coffee tea", List("Main:Java", "Main:Coffee", "Main:Tea")),
@@ -212,9 +216,8 @@ class DisambiguatorTest extends FunSuite
                 ("cheney bush rumsfeld", List[String]("Main:Dick Cheney", "Main:George W. Bush", "Main:Donald Rumsfeld")),
                 
                 // Still prefers the younger
-                //("george bush senior john major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
+                ("george bush senior john major invasion of kuwait", List[String]("Main:George H. W. Bush", "Main:John Major", "Main:Invasion of Kuwait")),
                 ("java c design patterns", List[String]("Main:Java (programming language)", "Main:C++", "Main:Design Patterns") ),
-                //("wool design patterns", List[String]("Main:Wool", "Main:Pattern (sewing)")),
                 ("the leaf, nissan's new electric car", List[String]("Main:Nissan Leaf", "Main:Nissan Motors", "Main:Electric car")),
                 
                 
@@ -223,10 +226,30 @@ class DisambiguatorTest extends FunSuite
                 //    List[String]("Main:Nissan Leaf", "Main:Electric car", "Main:Nissan Motors", "Main:Autumn", "Main:Leaf", "Main:Tree") ),
                 ("university of cambridge united kingdom", List("Main:University of Cambridge", "Main:United Kingdom")),
                 ("hills road sixth form college cambridge", List("Main:Hills Road Sixth Form College", "Main:Cambridge")),
-                //("infra red background radiation", List("Main:Infrared", "Main:Background radiation")),
                 ("infra red background radiation", List("Main:Infrared", "Main:Electromagnetic radiation")),
                 ("gerry adams troubles bloody sunday", List[String]("Main:Gerry Adams", "Main:The Troubles", "Main:Bloody Sunday (1972)")) )
                 
+
+            val convert = <tests>
+            {
+                for ( (phrase, topics) <- tests ) yield
+                    <test>
+                        <phrase>{phrase}</phrase>
+                        {
+                            for ( topic <- topics ) yield
+                                <topic>{topic}</topic>
+                        }
+                    </test>
+            
+            }
+            </tests> 
+            
+            val pretty = new PrettyPrinter( 120, 2 )
+            val res = pretty.format( convert )
+            val fw = new FileWriter("shortPhrases.xml" )
+            fw.write( res )
+            fw.close()
+
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
             var fail = false
             for ( (phrase, res) <- tests )

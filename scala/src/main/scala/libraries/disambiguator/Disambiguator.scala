@@ -60,7 +60,7 @@ object AmbiguityForest
     // Fewer than this number of first order contexts, go wider
     
     // Quite sensitive. Drop to 20 but beware Cambridge Ontario
-    val secondOrderKickin               = 10
+    val secondOrderKickin               = 20
     val secondOrderContextDownWeight    = 0.1
     
     // Reversed contexts run slowly and seem to perform badly
@@ -534,7 +534,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         //val distanceWeight = 1.0 + 1000.0*distWeighting.density( distance )
                         val distanceWeight = 0.2 + (distWeighting1.density( distance )/distWeighting1.density(0.0)) + 0.0*(distWeighting2.density( distance )/distWeighting2.density(0.0))
                         //println( ":: " + distance + ", " + distanceWeight )
-                        val totalWeight = linkWeight * distanceWeight
+                        val totalWeight = linkWeight// * distanceWeight
                         topicDetail1.alternative.altAlgoWeight += totalWeight
                         topicDetail2.alternative.altAlgoWeight += totalWeight
                         
@@ -1235,14 +1235,19 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             // First order contexts
                                             var contextWeights = TreeMap[Int, Double]()
                                             
+                                            var categorySet = HashSet[Int]()
+                                            
                                             // Love closures
                                             def addCategory( cid : Int, _weight : Double, name : String )
                                             {
                                                 var weight = _weight
                                                 if ( allowedContext(name) )
                                                 {
-                                                    if ( AmbiguityForest.upweightCategories && name.startsWith( "Category:") )
+                                                    val isCategory = name.startsWith( "Category:")
+                                                    if ( isCategory ) categorySet += cid
+                                                    if ( AmbiguityForest.upweightCategories && isCategory )
                                                     {
+                                                        
                                                         weight = 1.0
                                                     }
                                                     
@@ -1273,18 +1278,22 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                                 var secondOrderWeights = TreeMap[Int, Double]()
                                                 for ( (contextId, contextWeight) <- contextWeights.toList )
                                                 {
-                                                    topicCategoryQuery.bind( contextId )
-                                                    
-                                                    for ( row <- topicCategoryQuery )
+                                                    // Don't follow categories for second order contexts. They generalise too quickly.
+                                                    if ( !categorySet.contains( contextId ) )
                                                     {
-                                                        val cid = _1(row).get
-                                                        val rawWeight = _2(row).get
-                                                        val name = _3(row).get
+                                                        topicCategoryQuery.bind( contextId )
                                                         
-                                                        if ( !contextWeights.contains(cid) )
+                                                        for ( row <- topicCategoryQuery )
                                                         {
-                                                            val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
-                                                            addCategory( cid, weight, name )
+                                                            val cid = _1(row).get
+                                                            val rawWeight = _2(row).get
+                                                            val name = _3(row).get
+                                                            
+                                                            if ( !contextWeights.contains(cid) )
+                                                            {
+                                                                val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
+                                                                addCategory( cid, weight, name )
+                                                            }
                                                         }
                                                     }
                                                 }

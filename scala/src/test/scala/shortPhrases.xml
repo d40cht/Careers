@@ -1,0 +1,270 @@
+<tests>
+  <!-- Kings college london rather than cambridge. Dull dull. -->
+  <test>
+    <phrase>university of cambridge kings college ba archaeology anthropology</phrase>
+    <topic>University of Cambridge</topic>
+    <topic>King's College, Cambridge</topic>
+    <topic>Bachelor's degree</topic>
+    <topic>Archaeology</topic>
+    <topic>Anthropology</topic>
+  </test>
+  
+  <test>
+    <phrase>
+      substantial experience producing academic documents with latex lyx and designing
+      attractive documents for print with adobe indesign and photoshop highly proficient
+      with ms office applications
+    </phrase>
+    <topic>Academic journal</topic>
+    <topic>LaTeX</topic>
+    <topic>LyX</topic>
+    <topic>Print</topic>
+    <topic>Adobe InDesign</topic>
+    <topic>Adobe Photoshop</topic>
+    <topic>Microsoft Office</topic>
+    <topic>Application software</topic>
+  </test>
+  
+  <test>
+    <phrase>one autumn morning, the leaf dropped from the tree</phrase>
+    <topic>Autumn</topic>
+    <topic>Leaf</topic>
+    <topic>Tree</topic>
+  </test>
+  
+  <test>
+    <phrase>
+      an existing win32-based video codec to the fpga platform including code
+      optimisation and creation and integration of custom hardware acceleration
+    </phrase>
+  </test>
+  
+  <test>
+    <phrase>stata and r and</phrase>
+    <topic>Stata</topic>
+    <topic>R (programming language)</topic>
+  </test>
+  
+  <test>
+    <phrase>expertise in statistical packages including stata and r and econometric methods</phrase>
+    <topic>Stata</topic>
+    <topic>R (programming language)</topic>
+    <topic>Econometrics</topic>
+  </test>
+  
+  <test>
+    <phrase>cambridge united kingdom</phrase>
+    <topic>Cambridge</topic>
+    <topic>United Kingdom</topic>
+  </test>
+  
+  <test>
+    <phrase>cambridge university united kingdom</phrase>
+    <topic>University of Cambridge</topic>
+    <topic>United Kingdom</topic>
+  </test>
+  
+  <test>
+    <phrase>education london school of economics</phrase>
+    <topic>Education</topic>
+    <topic>London School of Economics</topic>
+  </test>
+  
+  <test>
+    <phrase>education london school of economics political science</phrase>
+    <topic>Education</topic>
+    <topic>London School of Economics</topic>
+    <topic>Political science</topic>
+  </test>
+  
+  <test>
+    <phrase>gis spatial analysis and visualisation and spatial econometrics</phrase>
+    <topic>Geographic information system</topic>
+    <topic>Spatial analysis</topic>
+    <topic>Visualization (computer graphics)</topic>
+    <topic>Spatial econometrics</topic>
+  </test>
+  
+  <test>
+    <phrase>world congress of environmental resource economists</phrase>
+  </test>
+  
+  <test>
+    <phrase>world congress of environmental resource economics</phrase>
+    <topic>United States Congress</topic>
+    <topic>Environmental economics</topic>
+    <topic>Natural resource economics</topic>
+  </test>
+  
+  <test>
+    <phrase>mapping happiness across space and time</phrase>
+  </test>
+  
+  <test>
+    <phrase>imperial college london centre for environmental policy msc</phrase>
+  </test>
+  
+  <test>
+    <phrase>department of geography environment and centre for climate change economics</phrase>
+  </test>
+  
+  <test>
+    <phrase>environmental quality wellbeing economics</phrase>
+    <topic>Environmental quality</topic>
+    <topic>Quality of life</topic>
+    <topic>Economics</topic>
+  </test>
+  
+  <test>
+    <phrase>email mobile website</phrase>
+    <topic>Email</topic>
+    <topic>Mobile phone</topic>
+    <topic>Website</topic>
+  </test>
+  
+  <test>
+    <phrase>r stata</phrase>
+    <topic>R (programming language)</topic>
+    <topic>Stata</topic>
+  </test>
+  
+  <test>
+    <phrase>statistics stata r</phrase>
+    <topic>Statistics</topic>
+    <topic>Stata</topic>
+    <topic>R (programming language)</topic>
+  </test>
+  
+  <!-- Don't worry about this one now. The parser failed to pull a decent amount of link detail from the John's page. -->
+  <test>
+    <phrase>st johns college durham university</phrase>
+    <topic>St John's College, Durham</topic>
+    <topic>Durham university</topic>
+  </test>
+  
+  <test>
+    <phrase>la scala covent garden puccini</phrase>
+    <topic>La Scala</topic>
+    <topic>Royal Opera House</topic>
+    <topic>Giacomo Puccini</topic>
+  </test>
+  
+  <!-- Too keen on cherwell district -->
+  <test>
+    <phrase>cherwell oxford university student newspaper</phrase>
+    <topic>Cherwell (newspaper)</topic>
+    <topic>University of Oxford</topic>
+    <topic>Student newspaper</topic>
+  </test>
+  
+  <!-- Too keen on Sarah Palin -->
+  <test>
+    <phrase>python palin</phrase>
+    <topic>Monty Python</topic>
+    <topic>Michael Palin</topic>
+  </test>
+  <test>
+    <phrase>tea party palin</phrase>
+    <topic>Tea Party movement</topic>
+    <topic>Sarah Palin</topic>
+  </test>
+  <test>
+    <phrase>a cup of coffee or a cup of english breakfast in the morning</phrase>
+  </test>
+  <test>
+    <phrase>cereal maize barley rice</phrase>
+    <topic>Cereal</topic>
+    <topic>Maize</topic>
+    <topic>Barley</topic>
+    <topic>Rice</topic>
+  </test>
+  <test>
+    <phrase>objective caml, haskell</phrase>
+    <topic>Objective Caml</topic>
+    <topic>Haskell (programming language)</topic>
+  </test>
+  <test>
+    <phrase>smith waterman gene sequencing</phrase>
+    <topic>Smith–Waterman algorithm</topic>
+    <topic>DNA sequencing</topic>
+  </test>
+  <test>
+    <phrase>smith waterman gene sequencing bioinformatics</phrase>
+    <topic>Smith–Waterman algorithm</topic>
+    <topic>Gene sequencing</topic>
+    <topic>Bioinformatics</topic>
+  </test>
+  <test>
+    <phrase>java coffee tea</phrase>
+    <topic>Java</topic>
+    <topic>Coffee</topic>
+    <topic>Tea</topic>
+  </test>
+  <test>
+    <phrase>rice cambridge oxford yale harvard </phrase>
+    <topic>Rice University</topic>
+    <topic>University of Cambridge</topic>
+    <topic>University of Oxford</topic>
+    <topic>Yale University</topic>
+    <topic>Harvard University</topic>
+  </test>
+  <test>
+    <phrase>rice cheney george bush</phrase>
+    <topic>Condoleezza Rice</topic>
+    <topic>Dick Cheney</topic>
+    <topic>George W. Bush</topic>
+  </test>
+  <test>
+    <phrase>cheney bush rumsfeld</phrase>
+    <topic>Dick Cheney</topic>
+    <topic>George W. Bush</topic>
+    <topic>Donald Rumsfeld</topic>
+  </test>
+  
+  <!-- Still prefers the younger -->
+  <test>
+    <phrase>george bush senior john major invasion of kuwait</phrase>
+    <topic>George H. W. Bush</topic>
+    <topic>John Major</topic>
+    <topic>Invasion of Kuwait</topic>
+  </test>
+  
+  <test>
+    <phrase>java c design patterns</phrase>
+    <topic>Java (programming language)</topic>
+    <topic>C++</topic>
+    <topic>Design Patterns</topic>
+  </test>
+  
+  <test>
+    <phrase>the leaf, nissan's new electric car</phrase>
+    <topic>Nissan Leaf</topic>
+    <topic>Nissan Motors</topic>
+    <topic>Electric car</topic>
+  </test>
+  
+  <test>
+    <phrase>university of cambridge united kingdom</phrase>
+    <topic>University of Cambridge</topic>
+    <topic>United Kingdom</topic>
+  </test>
+  
+  <test>
+    <phrase>hills road sixth form college cambridge</phrase>
+    <topic>Hills Road Sixth Form College</topic>
+    <topic>Cambridge</topic>
+  </test>
+  
+  <test>
+    <phrase>infra red background radiation</phrase>
+    <topic>Infrared</topic>
+    <topic>Electromagnetic radiation</topic>
+  </test>
+  
+  <test>
+    <phrase>gerry adams troubles bloody sunday</phrase>
+    <topic>Gerry Adams</topic>
+    <topic>The Troubles</topic>
+    <topic>Bloody Sunday (1972)</topic>
+  </test>
+</tests>
