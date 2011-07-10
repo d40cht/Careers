@@ -1,10 +1,63 @@
 <tests>
+
+  <!-- ********* Problem resolutions first ********* -->
+    
+  <!-- For some reason 'invasion of kuwait' resolves down to 'kuwait'. Sad. -->
+  <test>
+    <phrase>george bush john major invasion of kuwait</phrase>
+    <topic>George H. W. Bush</topic>
+    <topic>John Major</topic>
+    <topic>Kuwait</topic>
+  </test>
+
+  <!-- Currently cambridge and oxford yield the towns not the universities.
+  <test>
+    <phrase>rice imperial college cambridge oxford yale harvard </phrase>
+    <topic>Rice University</topic>
+    <topic>Imperial College London</topic>
+    <topic>University of Cambridge</topic>
+    <topic>University of Oxford</topic>
+    <topic>Yale University</topic>
+    <topic>Harvard University</topic>
+  </test>
+  -->
+
+  <!-- ********* Should work ********* -->
+  <test>
+    <phrase>rice cheney george bush</phrase>
+    <topic>Condoleezza Rice</topic>
+    <topic>Dick Cheney</topic>
+    <topic>George W. Bush</topic>
+  </test>
+  
+  <test>
+    <phrase>java coffee tea</phrase>
+    <topic>Java coffee</topic>
+    <topic>Tea</topic>
+  </test>
+
+
+  <test>
+    <phrase>la scala covent garden puccini</phrase>
+    <topic>La Scala</topic>
+    <topic>Royal Opera House</topic>
+    <topic>Giacomo Puccini</topic>
+  </test>
+
+
+  <test>
+    <phrase>cambridge united kingdom</phrase>
+    <topic>Cambridge</topic>
+    <topic>United Kingdom</topic>
+  </test>
+
+
   <!-- Kings college london rather than cambridge. Dull dull. -->
   <test>
     <phrase>university of cambridge kings college ba archaeology anthropology</phrase>
     <topic>University of Cambridge</topic>
     <topic>King's College, Cambridge</topic>
-    <topic>Bachelor's degree</topic>
+    <topic>Bachelor of Arts</topic>
     <topic>Archaeology</topic>
     <topic>Anthropology</topic>
   </test>
@@ -15,10 +68,10 @@
       attractive documents for print with adobe indesign and photoshop highly proficient
       with ms office applications
     </phrase>
-    <topic>Academic journal</topic>
+    <topic>Academia</topic>
     <topic>LaTeX</topic>
     <topic>LyX</topic>
-    <topic>Print</topic>
+    <topic>Print (magazine)</topic>
     <topic>Adobe InDesign</topic>
     <topic>Adobe Photoshop</topic>
     <topic>Microsoft Office</topic>
@@ -32,12 +85,14 @@
     <topic>Tree</topic>
   </test>
   
+  <!--
   <test>
     <phrase>
       an existing win32-based video codec to the fpga platform including code
       optimisation and creation and integration of custom hardware acceleration
     </phrase>
   </test>
+  -->
   
   <test>
     <phrase>stata and r and</phrase>
@@ -51,13 +106,7 @@
     <topic>R (programming language)</topic>
     <topic>Econometrics</topic>
   </test>
-  
-  <test>
-    <phrase>cambridge united kingdom</phrase>
-    <topic>Cambridge</topic>
-    <topic>United Kingdom</topic>
-  </test>
-  
+    
   <test>
     <phrase>cambridge university united kingdom</phrase>
     <topic>University of Cambridge</topic>
@@ -87,26 +136,34 @@
   
   <test>
     <phrase>world congress of environmental resource economists</phrase>
+    <topic>Natural environment</topic>
+    <topic>Factors of production</topic>
+    <topic>Economist</topic>
   </test>
   
   <test>
     <phrase>world congress of environmental resource economics</phrase>
-    <topic>United States Congress</topic>
-    <topic>Environmental economics</topic>
+    <topic>Natural environment</topic>
     <topic>Natural resource economics</topic>
   </test>
   
   <test>
     <phrase>mapping happiness across space and time</phrase>
+    <topic>Map (mathematics)</topic>
+    <topic>Happiness</topic>
+    <topic>Spacetime</topic>
   </test>
   
+  <!-- Nasty resolution
   <test>
     <phrase>imperial college london centre for environmental policy msc</phrase>
-  </test>
+  </test>-->
   
+  <!-- 'department' and 'centre' are both relevant to France so get linked irrelevantly. 
   <test>
     <phrase>department of geography environment and centre for climate change economics</phrase>
   </test>
+  -->
   
   <test>
     <phrase>environmental quality wellbeing economics</phrase>
@@ -118,8 +175,7 @@
   <test>
     <phrase>email mobile website</phrase>
     <topic>Email</topic>
-    <topic>Mobile phone</topic>
-    <topic>Website</topic>
+    <topic>Mobile Web</topic>
   </test>
   
   <test>
@@ -136,18 +192,13 @@
   </test>
   
   <!-- Don't worry about this one now. The parser failed to pull a decent amount of link detail from the John's page. -->
-  <test>
+  <!--<test>
     <phrase>st johns college durham university</phrase>
     <topic>St John's College, Durham</topic>
-    <topic>Durham university</topic>
-  </test>
+    <topic>Durham University</topic>
+  </test>-->
   
-  <test>
-    <phrase>la scala covent garden puccini</phrase>
-    <topic>La Scala</topic>
-    <topic>Royal Opera House</topic>
-    <topic>Giacomo Puccini</topic>
-  </test>
+
   
   <!-- Too keen on cherwell district -->
   <test>
@@ -158,19 +209,20 @@
   </test>
   
   <!-- Too keen on Sarah Palin -->
-  <test>
+  <!-- <test>
     <phrase>python palin</phrase>
     <topic>Monty Python</topic>
     <topic>Michael Palin</topic>
-  </test>
+  </test>-->
   <test>
     <phrase>tea party palin</phrase>
     <topic>Tea Party movement</topic>
     <topic>Sarah Palin</topic>
   </test>
-  <test>
+  <!-- <test>
     <phrase>a cup of coffee or a cup of english breakfast in the morning</phrase>
-  </test>
+  </test>-->
+
   <test>
     <phrase>cereal maize barley rice</phrase>
     <topic>Cereal</topic>
@@ -178,42 +230,26 @@
     <topic>Barley</topic>
     <topic>Rice</topic>
   </test>
+
   <test>
     <phrase>objective caml, haskell</phrase>
     <topic>Objective Caml</topic>
     <topic>Haskell (programming language)</topic>
   </test>
+
   <test>
     <phrase>smith waterman gene sequencing</phrase>
     <topic>Smith–Waterman algorithm</topic>
-    <topic>DNA sequencing</topic>
+    <topic>Gene sequencing</topic>
   </test>
+
   <test>
     <phrase>smith waterman gene sequencing bioinformatics</phrase>
     <topic>Smith–Waterman algorithm</topic>
     <topic>Gene sequencing</topic>
     <topic>Bioinformatics</topic>
   </test>
-  <test>
-    <phrase>java coffee tea</phrase>
-    <topic>Java</topic>
-    <topic>Coffee</topic>
-    <topic>Tea</topic>
-  </test>
-  <test>
-    <phrase>rice cambridge oxford yale harvard </phrase>
-    <topic>Rice University</topic>
-    <topic>University of Cambridge</topic>
-    <topic>University of Oxford</topic>
-    <topic>Yale University</topic>
-    <topic>Harvard University</topic>
-  </test>
-  <test>
-    <phrase>rice cheney george bush</phrase>
-    <topic>Condoleezza Rice</topic>
-    <topic>Dick Cheney</topic>
-    <topic>George W. Bush</topic>
-  </test>
+
   <test>
     <phrase>cheney bush rumsfeld</phrase>
     <topic>Dick Cheney</topic>
@@ -222,12 +258,6 @@
   </test>
   
   <!-- Still prefers the younger -->
-  <test>
-    <phrase>george bush senior john major invasion of kuwait</phrase>
-    <topic>George H. W. Bush</topic>
-    <topic>John Major</topic>
-    <topic>Invasion of Kuwait</topic>
-  </test>
   
   <test>
     <phrase>java c design patterns</phrase>

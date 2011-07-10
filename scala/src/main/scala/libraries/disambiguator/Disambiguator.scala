@@ -3,7 +3,7 @@ package org.seacourt.disambiguator
 import scala.collection.mutable.MultiMap
 import scala.collection.immutable.{TreeSet, TreeMap, HashSet, HashMap}
 import java.util.{TreeMap => JTreeMap}
-import math.{max, log, pow}
+import math.{max, log, pow, sqrt}
 import java.io.{File, DataInputStream, FileInputStream}
 import java.util.regex.Pattern
 
@@ -51,7 +51,7 @@ object AmbiguityForest
     class SurfaceFormDetails( val start : Int, val end : Int, val phraseId : PhraseId, val weight : Weight, val topicDetails : TopicWeightDetails )
         
     val minPhraseWeight         = 0.005
-    val minContextEdgeWeight    = 1.0e-9
+    val minContextEdgeWeight    = 1.0e-10
     val numAllowedContexts      = 100
     
     // Smith-waterman (and other sparse articles) require this
@@ -59,15 +59,16 @@ object AmbiguityForest
     
     // Fewer than this number of first order contexts, go wider
     
-    // Quite sensitive. Drop to 20 but beware Cambridge Ontario
-    val secondOrderKickin               = 20
+    // Quite sensitive. Drop to 10 but beware Cambridge Ontario
+    val secondOrderKickin               = 100
     val secondOrderContextDownWeight    = 0.1
+    val secondOrderExcludeCategories    = true
     
     // Reversed contexts run slowly and seem to perform badly
-    val reversedContexts                = false
+    //val reversedContexts                = false
     
     
-    // Not clear that this has any particular power
+    // Not clear that this has any particular power (if set to true). May even screw things up (if sets to 1.0)
     val upweightCategories              = true
 
     // Works for some things, but screws up 'cambridge united kingdom'
@@ -82,6 +83,10 @@ object AmbiguityForest
     
     // Links in the top % of weight are included
     val linkPercentileFilter            = 0.95
+    
+    // Prune alternatives down before topics. Seems to be better set to true
+    val pruneAlternativesBeforeTopics   = true
+    
 }
 
 
@@ -598,7 +603,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             for ( td <- allTds ) q.add( td.algoWeight, td )
             
             // Prune alternatives before topics
-            if ( true )
+            if ( AmbiguityForest.pruneAlternativesBeforeTopics )
             {
                 println( "Pruning down to one alternative per site." )
                 var done = false
@@ -1238,7 +1243,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             var categorySet = HashSet[Int]()
                                             
                                             // Love closures
-                                            def addCategory( cid : Int, _weight : Double, name : String )
+                                            def addContext( cid : Int, _weight : Double, name : String )
                                             {
                                                 var weight = _weight
                                                 if ( allowedContext(name) )
@@ -1248,7 +1253,8 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                                     if ( AmbiguityForest.upweightCategories && isCategory )
                                                     {
                                                         
-                                                        weight = 1.0
+                                                        //weight = 1.0
+                                                        weight = sqrt( weight )
                                                     }
                                                     
                                                     if ( cid != topicId )
@@ -1260,16 +1266,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                             
                                             for ( row <- topicCategoryQuery )
                                             {
-                                                addCategory( _1(row).get, _2(row).get, _3(row).get )
-                                            }
-                                            
-                                            if ( AmbiguityForest.reversedContexts )
-                                            {
-                                                topicCategoryQueryReverse.bind( topicId )
-                                                for ( row <- topicCategoryQueryReverse )
-                                                {
-                                                    addCategory( _1(row).get, _2(row).get, _3(row).get )
-                                                }
+                                                addContext( _1(row).get, _2(row).get, _3(row).get )
                                             }
                                             
                                             // Second order contexts
@@ -1279,7 +1276,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                                 for ( (contextId, contextWeight) <- contextWeights.toList )
                                                 {
                                                     // Don't follow categories for second order contexts. They generalise too quickly.
-                                                    if ( !categorySet.contains( contextId ) )
+                                                    if ( !AmbiguityForest.secondOrderExcludeCategories || !categorySet.contains( contextId ) )
                                                     {
                                                         topicCategoryQuery.bind( contextId )
                                                         
@@ -1292,7 +1289,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
                                                             if ( !contextWeights.contains(cid) )
                                                             {
                                                                 val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
-                                                                addCategory( cid, weight, name )
+                                                                addContext( cid, weight, name )
                                                             }
                                                         }
                                                     }
