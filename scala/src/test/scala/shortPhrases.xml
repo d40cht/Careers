@@ -1,6 +1,18 @@
 <tests>
 
   <!-- ********* Problem resolutions first ********* -->
+  
+  <test>
+    <phrase>
+    A rupture in the planned Keystone XL pipeline could release up to 6.9m US gallons into the famed Yellowstone river, a nightmare scenario far outstripping the present spill, a new report warns.
+
+The report, produced by an environmental engineer at the University of Nebraska, sets out four worst-case scenarios for a spill on the Keystone XL project, which is designed to carry oil from the tar sands of Alberta to the refineries of Texas. It appears just 10 days after a break in an ExxonMobil pipeline released at least 42,000 US gallons of crude oil into the Yellowstone river.
+
+But an accident on the Keystone XL would carry an vastly greater risk, environmental groups argue. The ExxonMobil pipeline carried about 40,000 barrels a day. The planned Keystone XL would carry more than 700,000 barrels of a thicker and more corrosive type of crude 1,600 miles across the American heartland, crossing the Missouri, Yellowstone, and Platte rivers, as well as important groundwater reserves. The Obama administration is in the final stages of an environmental review of the project.
+
+Monday's study by the environmental engineer, John Stansbury, argues the pipeline operators TransCanada Corp, have significantly underestimated the chances of a spill and painted an overly optimistic picture of how long it would take to shut down the pipeline.
+    </phrase>
+  </test>
     
   <!-- For some reason 'invasion of kuwait' resolves down to 'kuwait'. Sad. -->
   <test>

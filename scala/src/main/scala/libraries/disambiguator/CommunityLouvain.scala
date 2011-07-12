@@ -8,36 +8,41 @@ import scala.io.Source._
 
 import org.seacourt.utility._
 
-abstract class CommunityTreeBase
+
+abstract class Boing[ T <: { def close() } ]
+{
+}
+
+abstract class CommunityTreeBase[T]
 {
     def size : Int
 }
 
-case class InternalNode( var children : ArrayBuffer[CommunityTreeBase] ) extends CommunityTreeBase
+case class InternalNode[T]( var children : ArrayBuffer[CommunityTreeBase[T]] ) extends CommunityTreeBase[T]
 {
-    def this() = this( ArrayBuffer[CommunityTreeBase]() )
+    def this() = this( ArrayBuffer[CommunityTreeBase[T]]() )
     def size = children.size
 }
 
-case class LeafNode( val children : ArrayBuffer[Int] ) extends CommunityTreeBase
+case class LeafNode[T]( val children : ArrayBuffer[T] ) extends CommunityTreeBase[T]
 {
-    def this() = this( ArrayBuffer[Int]() )
+    def this() = this( ArrayBuffer[T]() )
     def size = children.size
 }
 
-class Louvain
+class Louvain[T]
 {
     private var convertPath     = "/home/alex/AW/optimal/community/convert"
     private var communityPath   = "/home/alex/AW/optimal/community/community"
     
-    private var idMap = HashMap[Int, Int]()
+    private var idMap = HashMap[T, Int]()
     private var nextId = 0
     
     class Edge( val from : Int, val to : Int, val weight : Double )
     
     private var edgeList = List[Edge]()
     
-    private def getNodeId( node : Int ) =
+    private def getNodeId( node : T ) =
     {
         val id = idMap.getOrElse( node, nextId )
         if ( id == nextId )
@@ -49,7 +54,7 @@ class Louvain
         id
     }
     
-    def addEdge( from : Int, to : Int, weight : Double )
+    def addEdge( from : T, to : T, weight : Double )
     {
         val fromId = getNodeId( from )
         val toId = getNodeId( to )
@@ -61,78 +66,85 @@ class Louvain
     
     def run() =
     {
-        var strip = ArrayBuffer[CommunityTreeBase]()
-        
-        Utils.withTemporaryDirectory
-        { dir =>
-            val edgeFile = new PrintWriter( new File( "%s/edges.txt".format( dir ) ) )
-            edgeList.map( x => edgeFile.println( "%d %d %f".format( x.from, x.to, x.weight ) ) )
-            edgeFile.close()
+        if ( edgeList == Nil )
+        {
+            new InternalNode[T]()
+        }
+        else
+        {
+            var strip = ArrayBuffer[CommunityTreeBase[T]]()
             
-            // Convert the data to appropriate binary format
-            val convertCmd = "%s -i %s/edges.txt -o %s/edges.bin -w %s/weights.bin".format( convertPath, dir, dir, dir )
-            convertCmd !
-            
-            // And run the community algo  
-            val communityCmd = "%s %s/edges.bin -w %s/weights.bin -l -1".format( communityPath, dir, dir, dir )
-            val res : String = communityCmd !!
-            
-            // Parse the output and build the tree
-            val assignments = res.split("\n").map( l =>
-            {
-                val els = l.split(" ")
-                assert( els.size == 2 )
-                (els.head.toInt, els.tail.head.toInt)
-            } )
-            
-            val sizes = ArrayBuffer[Int]()
-            
-            {
+            Utils.withTemporaryDirectory
+            { dir =>
+                val edgeFile = new PrintWriter( new File( "%s/edges.txt".format( dir ) ) )
+                edgeList.map( x => edgeFile.println( "%d %d %f".format( x.from, x.to, x.weight ) ) )
+                edgeFile.close()
+                
+                // Convert the data to appropriate binary format
+                val convertCmd = "%s -i %s/edges.txt -o %s/edges.bin -w %s/weights.bin".format( convertPath, dir, dir, dir )
+                convertCmd !
+                
+                // And run the community algo  
+                val communityCmd = "%s %s/edges.bin -w %s/weights.bin -l -1".format( communityPath, dir, dir, dir )
+                val res : String = communityCmd !!
+                
+                // Parse the output and build the tree
+                val assignments = res.split("\n").map( l =>
+                {
+                    val els = l.split(" ")
+                    assert( els.size == 2 )
+                    (els.head.toInt, els.tail.head.toInt)
+                } )
+                
+                val sizes = ArrayBuffer[Int]()
+                
+                {
+                    var lastId = -1
+                    var maxGroupId = 0
+                    for ( (id, groupId) <- assignments )
+                    {
+                        if ( id <= lastId )
+                        {
+                            sizes.append( maxGroupId+1 )
+                            maxGroupId = 0
+                        }
+                        maxGroupId = maxGroupId max groupId
+                        lastId = id
+                    }
+                    sizes.append( maxGroupId+1 )
+                }
+                
+                val reverseLookup = idMap.foldLeft( HashMap[Int, T]() )( (hm, v) => hm.updated( v._2, v._1 ) )
+
+                var lastStrip : ArrayBuffer[CommunityTreeBase[T]] = null
+                
+                for ( i <- 0 until sizes(0) ) strip.append( new LeafNode[T]() )
+                var index = 1
                 var lastId = -1
-                var maxGroupId = 0
                 for ( (id, groupId) <- assignments )
                 {
                     if ( id <= lastId )
                     {
-                        sizes.append( maxGroupId+1 )
-                        maxGroupId = 0
+                        lastStrip = strip
+                        strip = ArrayBuffer[CommunityTreeBase[T]]()
+                        for ( i <- 0 until sizes(index) ) strip.append( new InternalNode[T]() )
+                        index += 1
                     }
-                    maxGroupId = maxGroupId max groupId
+                    
+                    (index, strip(groupId)) match
+                    {
+                        case (1, v : LeafNode[T]) => v.children.append( reverseLookup(id) )
+                        case (_, v : InternalNode[T]) => v.children.append( lastStrip(id) )
+                        
+                        case _ => throw new MatchError( "Mismatch" )
+                    }
+                    
                     lastId = id
                 }
-                sizes.append( maxGroupId+1 )
             }
             
-            val reverseLookup = idMap.foldLeft( HashMap[Int, Int]() )( (hm, v) => hm.updated( v._2, v._1 ) )
-
-            var lastStrip : ArrayBuffer[CommunityTreeBase] = null
-            
-            for ( i <- 0 until sizes(0) ) strip.append( new LeafNode() )
-            var index = 1
-            var lastId = -1
-            for ( (id, groupId) <- assignments )
-            {
-                if ( id <= lastId )
-                {
-                    lastStrip = strip
-                    strip = ArrayBuffer[CommunityTreeBase]()
-                    for ( i <- 0 until sizes(index) ) strip.append( new InternalNode() )
-                    index += 1
-                }
-                
-                (index, strip(groupId)) match
-                {
-                    case (1, v : LeafNode) => v.children.append( reverseLookup(id) )
-                    case (_, v : InternalNode) => v.children.append( lastStrip(id) )
-                    
-                    case _ => throw new MatchError( "Mismatch" )
-                }
-                
-                lastId = id
-            }
+            new InternalNode[T]( strip )
         }
-        
-        new InternalNode( strip )
     }
 }
 

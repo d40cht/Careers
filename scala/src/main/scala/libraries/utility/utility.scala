@@ -472,11 +472,11 @@ object Utils
         }
         finally
         {
-            for ( child <- dir.list )
+            /*for ( child <- dir.list )
             {
                 new File(dir, child).delete()
             }
-            dir.delete()
+            dir.delete()*/
         }
     }
 }

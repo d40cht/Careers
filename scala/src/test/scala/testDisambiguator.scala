@@ -28,7 +28,7 @@ class CommunityTests extends FunSuite
 {
     test( "Louvain" )
     {
-        val v = new Louvain()
+        val v = new Louvain[Int]()
         v.addEdge( 1, 2, 1.0 )
         v.addEdge( 1, 3, 1.0 )
         v.addEdge( 1, 4, 1.0 )
@@ -50,9 +50,9 @@ class CommunityTests extends FunSuite
         
         println( res )
         
-        val expected = new InternalNode( ArrayBuffer(
-            new InternalNode( ArrayBuffer( new LeafNode( ArrayBuffer( 1, 2, 3, 4 ) ) ) ),
-            new InternalNode( ArrayBuffer( new LeafNode( ArrayBuffer( 5, 6, 7, 8 ) ) ) ) ) )
+        val expected = new InternalNode[Int]( ArrayBuffer(
+            new InternalNode[Int]( ArrayBuffer( new LeafNode[Int]( ArrayBuffer( 1, 2, 3, 4 ) ) ) ),
+            new InternalNode[Int]( ArrayBuffer( new LeafNode[Int]( ArrayBuffer( 5, 6, 7, 8 ) ) ) ) ) )
             
         assert( res === expected )
             

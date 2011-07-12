@@ -50,6 +50,8 @@ object AmbiguityForest
     
     
     // Not clear that this has any particular power (if set to true). May even screw things up (if sets to 1.0)
+    
+    // Now defined as taking the sqrt of the category weight
     val upweightCategories              = true
 
     // Works for some things, but screws up 'cambridge united kingdom'
@@ -236,14 +238,32 @@ class AmbiguitySite( val start : Int, val end : Int )
 }
 
 
+
 class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper )
 {
     class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
     
+    class TopicGraphNode( val topicId : Int )
+    {
+        var weight = 0.0
+        var peers = List[(TopicGraphNode, Double)]()
+        
+        def addLink( peer : TopicGraphNode, _weight : Double )
+        {
+            weight += _weight
+            peers = (peer, _weight) :: peers
+        }
+        
+        def numPeers = peers.length
+        
+        def name = topicNameMap(topicId)
+    }
+
+    
     var sites = List[AmbiguitySite]()
     var contextWeights = TreeMap[Int, Double]()
     var disambiguated = List[SureSite]()
-    var communities : CommunityTreeBase = null
+    var communities : CommunityTreeBase[TopicGraphNode] = null
     
     var debug = List[scala.xml.Elem]()
     
@@ -370,11 +390,12 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
         }
         
-        /*println( "Top N contexts" )
+        
+        println( "Top N contexts" )
         for ( (id, weight) <- contextWeightMap.toList.sortWith( (x, y) => x._2 > y._2 ).slice(0, 100) )
         {
-            println( "  " + topicNameMap(id) + ": " + weight )
-        }*/
+            //println( "  " + topicNameMap(id) + ": " + weight )
+        }
         
         // Shouldn't allow links from one alternative in an
         // SF to another alternative in the same SF. Also, within an alternative SHOULD allow
@@ -522,57 +543,115 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
             }
             
-            val v = new Louvain()
-            for ( site <- sites )
+            
+            if ( true )
             {
-                assert( site.combs.size == 1 )
+                // De-novo topic and context weight calculation
+                var idToTopicMap = TreeMap[Int, TopicGraphNode]()
                 
-                val alternative = site.combs.head
+                val allTopicIds = (for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics ) yield topic.topicId).foldLeft(HashSet[Int]())( _ + _ )
                 
-                // No weights should be less than zero (modulo double precision rounding issues).
-                
-                //println( words.slice(site.start, site.end+1) + ": " + alternative.altAlgoWeight )
-                for ( alt <- alternative.sites )
+                for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics )
                 {
-                    assert( alt.sf.topics.size <= 1 )
-                    //println( "  " + alt.sf.topics.head.algoWeight + " " + topicNameMap(alt.sf.topics.head.topicId) )
+                    val fromId = topic.topicId
+                    val contexts = topicCategoryMap(fromId)
                     
-                    val fromTopic = alt.sf.topics.head
-                    
-                    // Re-weight the topic peer links and trim down to the percentile
-                    var totalWeight = 0.0
-                    val reweighted = fromTopic.peers.filter( _._1.active ).map
-                    { x =>
-                        val toTopic = x._1
-                        val weight = x._2 / ( fromTopic.topicWeight * toTopic.topicWeight * fromTopic.sf.phraseWeight * toTopic.sf.phraseWeight )
-                        totalWeight += weight
-                        (toTopic, weight )
-                    }
+                    val weightOrderedContexts = contexts.toList.sortWith( _._2 > _._2 )
+                    val totalWeight = weightOrderedContexts.foldLeft(0.0)( _ + _._2 )
                     
                     var runningWeight = 0.0
-                    fromTopic.peers = fromTopic.peers.empty
-                    for ( (toTopic, weight) <- reweighted.toList.sortWith( _._2 > _._2 ) )
+                    for ( (toId, weight) <- contexts.toList.sortWith( _._2 > _._2 ) )
                     {
-                        if ( runningWeight < (totalWeight * AmbiguityForest.linkPercentileFilter) )
+                        if ( runningWeight < totalWeight * 0.80 )
                         {
-                            fromTopic.peers = fromTopic.peers.updated( toTopic, weight )
+                            val fromNode = idToTopicMap.getOrElse( fromId, new TopicGraphNode( fromId ) )
+                            val toNode = idToTopicMap.getOrElse( toId, new TopicGraphNode( toId ) )
+                            idToTopicMap = idToTopicMap.updated( fromId, fromNode )
+                            idToTopicMap = idToTopicMap.updated( toId, toNode )
+                            
+                            fromNode.addLink(toNode, weight)
+                            
+                            val destIsContext = !allTopicIds.contains( toNode.topicId )
+                            toNode.addLink(fromNode, weight * (if ( destIsContext ) 0.1 else 1.0) )
+                            
                             runningWeight += weight
                         }
                     }
-                    
-                    
-                    for ( (toTopic, weight) <- fromTopic.peers.toList.sortWith( _._2 > _._2 ) )
-                    {
-                        //v.addEdge( fromTopic.topicId, toTopic.topicId, 1.0 )
-                        //v.addEdge( fromTopic.topicId, toTopic.topicId, log( weight / AmbiguityForest.minContextEdgeWeight ) )
-                        v.addEdge( fromTopic.topicId, toTopic.topicId, weight )
-                    }
                 }
                 
-                assert( alternative.altAlgoWeight > -1e-10 )
+                var count = 0
+                val v = new Louvain[TopicGraphNode]()
+                for ( (id, fromNode) <- idToTopicMap )
+                {
+                    for ( (toNode, weight) <- fromNode.peers )
+                    {
+                        if ( fromNode.numPeers > 3 && toNode.numPeers > 3 )
+                        {
+                            assert( allTopicIds.contains(fromNode.topicId) || allTopicIds.contains(toNode.topicId) )
+                            v.addEdge( fromNode, toNode, weight )
+                            count += 1
+                        }
+                    }
+                }
+                println( "NUM EDGES: " + count )
+                communities = v.run()
             }
             
-            communities = v.run()
+            if ( true )
+            {
+                // Direct topic-topic community graph
+                //val v = new Louvain()
+                for ( site <- sites )
+                {
+                    assert( site.combs.size == 1 )
+                    
+                    val alternative = site.combs.head
+                    
+                    // No weights should be less than zero (modulo double precision rounding issues).
+                    
+                    //println( words.slice(site.start, site.end+1) + ": " + alternative.altAlgoWeight )
+                    for ( alt <- alternative.sites )
+                    {
+                        assert( alt.sf.topics.size <= 1 )
+                        //println( "  " + alt.sf.topics.head.algoWeight + " " + topicNameMap(alt.sf.topics.head.topicId) )
+                        
+                        val fromTopic = alt.sf.topics.head
+                        
+                        // Re-weight the topic peer links and trim down to the percentile
+                        var totalWeight = 0.0
+                        val reweighted = fromTopic.peers.filter( _._1.active ).map
+                        { x =>
+                            val toTopic = x._1
+                            val weight = x._2 / ( fromTopic.topicWeight * toTopic.topicWeight * fromTopic.sf.phraseWeight * toTopic.sf.phraseWeight )
+                            totalWeight += weight
+                            (toTopic, weight )
+                        }
+                        
+                        var runningWeight = 0.0
+                        fromTopic.peers = fromTopic.peers.empty
+                        for ( (toTopic, weight) <- reweighted.toList.sortWith( _._2 > _._2 ) )
+                        {
+                            if ( runningWeight < (totalWeight * AmbiguityForest.linkPercentileFilter) )
+                            {
+                                fromTopic.peers = fromTopic.peers.updated( toTopic, weight )
+                                runningWeight += weight
+                            }
+                        }
+                        
+                        
+                        for ( (toTopic, weight) <- fromTopic.peers.toList.sortWith( _._2 > _._2 ) )
+                        {
+                            //v.addEdge( fromTopic.topicId, toTopic.topicId, 1.0 )
+                            //v.addEdge( fromTopic.topicId, toTopic.topicId, log( weight / AmbiguityForest.minContextEdgeWeight ) )
+                            //v.addEdge( fromTopic.topicId, toTopic.topicId, weight )
+                        }
+                    }
+                    
+                    assert( alternative.altAlgoWeight > -1e-10 )
+                }
+                
+                //communities = v.run()
+            }
         }
         
         println( "Dumping resolutions." )
@@ -863,27 +942,27 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             </head>
         }
         
-        def communityToHtml( structure : CommunityTreeBase ) : scala.xml.Elem =
+        def communityToHtml( structure : CommunityTreeBase[TopicGraphNode] ) : scala.xml.Elem =
+        {
+            structure match
             {
-                structure match
+                case InternalNode( children )   =>
+                <ul><li/>
                 {
-                    case InternalNode( children )   =>
-                    <ul><li/>
-                    {
-                        for ( c <- children.sortWith( _.size > _.size ) ) yield communityToHtml(c)
-                    }
-                    <li/></ul>
-                    case LeafNode( children )       =>
-                    <ul><li/>
-                    {
-                        for ( c <- children.sortWith( (x,y) => topicFromId(x).weight > topicFromId(y).weight ) ) yield
-                        <li>
-                            <a href={wikiLink(topicNameMap(c))}> {topicNameMap(c) + " " + topicFromId(c).weight} </a> 
-                        </li>
-                    }
-                    <li/></ul>
+                    for ( c <- children.sortWith( _.size > _.size ) ) yield communityToHtml(c)
                 }
+                <li/></ul>
+                case LeafNode( children )       =>
+                <ul><li/>
+                {
+                    for ( c <- children.sortWith( (x,y) => x.weight > y.weight ) ) yield
+                    <li>
+                        <a href={wikiLink(c.name)}> { (if (topicFromId.contains(c.topicId)) "* " else "") + c.name + " " + c.weight} </a> 
+                    </li>
+                }
+                <li/></ul>
             }
+        }
         
         
         val output =
