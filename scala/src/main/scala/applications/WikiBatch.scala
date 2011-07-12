@@ -65,6 +65,7 @@ object WikiBatch
         }
         println( "Found " + countFound + ", total: " + count )
     }
+   
 
     def main(args:Array[String]) : Unit =
     {

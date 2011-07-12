@@ -1,6 +1,6 @@
 package org.seacourt.disambiguator
 
-import scala.collection.mutable.MultiMap
+import scala.collection.mutable.{MultiMap, Stack, ArrayBuffer}
 import scala.collection.immutable.{TreeSet, TreeMap, HashSet, HashMap}
 import java.util.{TreeMap => JTreeMap}
 import math.{max, log, pow, sqrt}
@@ -146,7 +146,7 @@ class AmbiguitySiteBuilder( var start : Int, var end : Int )
 }
 
 
-class Disambiguator( phraseMapFileName : String, topicFileName : String )
+class Disambiguator( phraseMapFileName : String, topicFileName : String/*, categoryHierarchyFileName : String*/ )
 {
     val lookup = new PhraseMapLookup()
     lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
@@ -154,6 +154,39 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String )
     val topicDb = new SQLiteWrapper( new File(topicFileName) )
     topicDb.exec( "PRAGMA cache_size=2000000" )
 
+    class CategoryHierarchy( fileName : String )
+    {
+        val hierarchy = new EfficientArray[EfficientIntPair](0)
+        hierarchy.load( new DataInputStream( new FileInputStream( new File(fileName) ) ) )
+        
+        def toTop( categoryIds : List[Int] ) =
+        {
+            val q = Stack[Int]()
+            for ( id <- categoryIds ) q :+ id
+            var seen = HashSet[Int]()
+            
+            var edgeList = ArrayBuffer[(Int, Int)]()
+            while ( !q.isEmpty )
+            {
+                val first = q.pop()
+
+                val it = Utils.lowerBound( new EfficientIntPair( first, 0 ), hierarchy, (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )                
+                while ( it < hierarchy.size && hierarchy(it).first == first )
+                {
+                    val parentId = hierarchy(it).second
+                    
+                    edgeList.append( (first, parentId) )
+                    if ( !seen.contains( parentId ) )
+                    {
+                        q :+ parentId
+                        seen = seen + parentId
+                    }
+                }
+            }
+        }
+    }
+    
+    //val categoryHierarchy = new CategoryHierarchy( categoryHierarchyFileName )
     
     def phraseQuery( phrase : String ) =
     {
