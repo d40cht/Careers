@@ -18,7 +18,8 @@ import org.seacourt.utility.StopWords.stopWordSet
 import org.seacourt.utility._
 import org.seacourt.disambiguator.Community._
 
-import org.seacourt.utility.{Graph}
+
+import org.seacourt.utility.{Graph, PriorityQ}
 
 
 object AmbiguityForest
@@ -72,38 +73,6 @@ object AmbiguityForest
     
 }
 
-
-class RunQ[V]()
-{    
-    type K = Double
-    private var container = TreeMap[K, HashSet[V]]()
-    
-    def add( k : K, v : V )
-    {
-        val el = container.getOrElse( k, HashSet[V]() )
-        container = container.updated( k, el + v )
-    }
-    
-    def remove( k : K, v : V )
-    {
-        val el = container(k)
-        if ( el.size == 1 )
-        {
-            container = container - k
-        }
-        else
-        {
-            container = container.updated( k, el - v )
-        }   
-    }
-    def first() : (K, V) =
-    {
-        val h = container.head
-        
-        (h._1, h._2.head)
-    }
-    def isEmpty : Boolean = container.isEmpty
-}
 
 class AmbiguitySite( val start : Int, val end : Int )
 {
@@ -164,7 +133,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                         }
                     }
                     
-                    def downWeightPeers( q : RunQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
+                    def downWeightPeers( q : PriorityQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
                     {
                         for ( (peer, linkWeight) <- peers )
                         {
@@ -193,7 +162,7 @@ class AmbiguitySite( val start : Int, val end : Int )
             }
         }
         
-        def remove( q : RunQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
+        def remove( q : PriorityQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
         {
             for ( site <- sites )
             {
@@ -211,7 +180,7 @@ class AmbiguitySite( val start : Int, val end : Int )
             combs = combs - this
         }
         
-        def cullUpwards( q : RunQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
+        def cullUpwards( q : PriorityQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
         {
             activeSiteCount -= 1
          
@@ -489,7 +458,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             println( "Running new algo framework" )
             
             // Add all interesting elements to the queue.
-            val q = new RunQ[TopicDetailLink]()
+            val q = new PriorityQ[TopicDetailLink]()
             for ( td <- allTds ) q.add( td.algoWeight, td )
             
             // Prune alternatives before topics
@@ -654,33 +623,57 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         }
         
         {
-            val allTopicIds = (for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics ) yield topic.topicId).foldLeft(HashSet[Int]())( _ + _ )
+            val allTopicIds = (for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 ) yield topic.topicId).foldLeft(HashSet[Int]())( _ + _ )
             
             val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
+            
+            println( "Getting category DAG" )
+            var topicEdges = List[(Int, Int)]()
+            var categories = HashSet[Int]()
             for ( id <- allTopicIds )
             {
-                var categories = List[Int]()
                 for ( (contextId, weight) <- topicCategoryMap( id ) )
                 {
                     val name = topicNameMap(contextId)
                     if ( name.startsWith( "Category:" ) )
                     {
-                        println( "Cat: " + name )
-                        categories = contextId :: categories
+                        //println( "Cat: " + name )
+                        categories += contextId
+                        
+                        topicEdges = (id, contextId) :: topicEdges
                     }
                 }
+            }
                 
-                println( "Topic: " + topicNameMap( id ) )
+            val catEdges = categoryHierarchy.toTop( categories.toList )
+            
+            /*for ( (fromId, toId) <- catEdges )
+            {
+                topicNameQuery.bind( fromId )
+                val fromName = _1(topicNameQuery.toList(0)).get
+                topicNameQuery.bind( toId )
+                val toName = _1(topicNameQuery.toList(0)).get
+                //println( "  " + fromName + " --> " + toName )
+            }*/
+            
+            val totalEdges = topicEdges ++ catEdges
+            
+            println( "Inserting " + totalEdges.length + " edges into hierarchy builder with " + allTopicIds.size + " topic ids" )
+            
+            val hb = new CategoryHierarchy.HierarchyBuilder( allTopicIds.toList, totalEdges )
+            val merges = hb.run()
+            
+            for ( (intoId, (fromIds) ) <- merges )
+            {
+                topicNameQuery.bind( intoId )
+                val intoName = _1(topicNameQuery.toList(0)).get
                 
-                val catEdges = categoryHierarchy.toTop( categories )
-                
-                for ( (fromId, toId) <- catEdges )
+                println( "Merging into: " + intoName )
+                for ( fromId <- fromIds )
                 {
                     topicNameQuery.bind( fromId )
                     val fromName = _1(topicNameQuery.toList(0)).get
-                    topicNameQuery.bind( toId )
-                    val toName = _1(topicNameQuery.toList(0)).get
-                    println( "  " + fromName + " --> " + toName )
+                    println( "  " + fromName )
                 }
             }
         }

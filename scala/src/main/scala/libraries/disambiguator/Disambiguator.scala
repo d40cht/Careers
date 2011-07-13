@@ -165,7 +165,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             for ( id <- categoryIds ) q.push( id )
             var seen = HashSet[Int]()
             
-            println( "::::::::::::: " + categoryIds.length + " " + q.length )
+            //println( "::::::::::::: " + categoryIds.length + " " + q.length )
             
             var edgeList = ArrayBuffer[(Int, Int)]()
             while ( !q.isEmpty )

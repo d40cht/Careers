@@ -1,6 +1,6 @@
 import org.scalatest.FunSuite
-import scala.collection.mutable.Stack
-import scala.collection.immutable.HashSet
+import scala.collection.mutable.{Stack, ArrayBuffer}
+import scala.collection.immutable.{HashSet, HashMap}
 import scala.util.Random
 import compat.Platform.currentTime
 
@@ -12,7 +12,7 @@ import java.lang.System
 import scala.io.Source._
 
 import org.seacourt.sql.SqliteWrapper._
-import org.seacourt.utility._
+import org.seacourt.utility.{PriorityQ, _}
 import org.seacourt.berkeleydb
 
 import scala.util.matching.Regex
@@ -21,6 +21,7 @@ import scala.util.Sorting._
 import resource._
 
 import java.io.{DataInput, DataOutput, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
+
 
 
 

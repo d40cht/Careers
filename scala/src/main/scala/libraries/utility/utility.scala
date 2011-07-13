@@ -5,6 +5,8 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.SequenceFile.{Reader => HadoopReader}
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
+import scala.collection.immutable.{TreeMap, HashSet}
+
 
 import org.apache.lucene.util.Version.LUCENE_30
 import org.apache.lucene.analysis.Token
@@ -615,5 +617,55 @@ class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable, ConvKeyType, 
         current
     }
 }
+
+class PriorityQ[V]()
+{    
+    type K = Double
+    private var container = TreeMap[K, HashSet[V]]()
+    var numElements = 0
+    
+    def add( k : K, v : V )
+    {
+        val el = container.getOrElse( k, HashSet[V]() )
+        container = container.updated( k, el + v )
+        numElements += 1
+    }
+    
+    def size = numElements
+    
+    def remove( k : K, v : V )
+    {
+        assert( container.contains(k) )
+        val el = container(k)
+        if ( el.size == 1 )
+        {
+            container = container - k
+        }
+        else
+        {
+            assert( container(k).contains(v) )
+            container = container.updated( k, el - v )
+        }   
+        numElements -= 1
+    }
+    def first() : (K, V) =
+    {
+        val h = container.head
+        
+        (h._1, h._2.head)
+    }
+    
+    def popFirst() : (K, V) =
+    {
+        val h = container.head
+        val res = (h._1, h._2.head)
+        remove( res._1, res._2 )
+        
+        res
+    }
+    
+    def isEmpty : Boolean = container.isEmpty
+}
+
 
 
