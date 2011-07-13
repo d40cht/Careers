@@ -164,7 +164,9 @@ object CategoryHierarchy
                 g.dijkstraVisit( mergeNode :: Nil, (node, height) =>
                 {
                     node.topicMembership.append( (mergeNode, height) )
+                    
                 } )
+                
                 liveTopics += mergeNode
             }
             
