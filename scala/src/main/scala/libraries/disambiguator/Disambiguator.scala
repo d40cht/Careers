@@ -146,7 +146,7 @@ class AmbiguitySiteBuilder( var start : Int, var end : Int )
 }
 
 
-class Disambiguator( phraseMapFileName : String, topicFileName : String/*, categoryHierarchyFileName : String*/ )
+class Disambiguator( phraseMapFileName : String, topicFileName : String, categoryHierarchyFileName : String )
 {
     val lookup = new PhraseMapLookup()
     lookup.load( new DataInputStream( new FileInputStream( new File( phraseMapFileName ) ) ) )
@@ -162,15 +162,17 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String/*, categ
         def toTop( categoryIds : List[Int] ) =
         {
             val q = Stack[Int]()
-            for ( id <- categoryIds ) q :+ id
+            for ( id <- categoryIds ) q.push( id )
             var seen = HashSet[Int]()
+            
+            println( "::::::::::::: " + categoryIds.length + " " + q.length )
             
             var edgeList = ArrayBuffer[(Int, Int)]()
             while ( !q.isEmpty )
             {
                 val first = q.pop()
 
-                val it = Utils.lowerBound( new EfficientIntPair( first, 0 ), hierarchy, (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )                
+                var it = Utils.lowerBound( new EfficientIntPair( first, 0 ), hierarchy, (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )                
                 while ( it < hierarchy.size && hierarchy(it).first == first )
                 {
                     val parentId = hierarchy(it).second
@@ -178,15 +180,18 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String/*, categ
                     edgeList.append( (first, parentId) )
                     if ( !seen.contains( parentId ) )
                     {
-                        q :+ parentId
+                        q.push( parentId )
                         seen = seen + parentId
                     }
+                    it += 1
                 }
             }
+            
+            edgeList
         }
     }
     
-    //val categoryHierarchy = new CategoryHierarchy( categoryHierarchyFileName )
+    val categoryHierarchy = new CategoryHierarchy( categoryHierarchyFileName )
     
     def phraseQuery( phrase : String ) =
     {
@@ -443,7 +448,8 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String/*, categ
                                                             val rawWeight = _2(row).get
                                                             val name = _3(row).get
                                                             
-                                                            if ( !contextWeights.contains(cid) )
+                                                            // Second order contexts cannot be categories
+                                                            if ( !contextWeights.contains(cid) && !name.startsWith("Category:") )
                                                             {
                                                                 val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
                                                                 addContext( cid, weight, name )
@@ -511,7 +517,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String/*, categ
             
             println( "Building new ambiguity forest" )
 
-            val f = new AmbiguityForest( wordList, topicNameMap, topicCategoryMap, topicDb )
+            val f = new AmbiguityForest( wordList, topicNameMap, topicCategoryMap, topicDb, categoryHierarchy )
             f.addTopics( possiblePhrasesSorted )
             //f.buildContextWeights()
             //f.applyContexts( topicDb )

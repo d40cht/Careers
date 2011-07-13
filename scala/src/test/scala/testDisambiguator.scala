@@ -138,7 +138,7 @@ class DisambiguatorTest extends FunSuite
     {
         if ( false )
         {
-            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             
             //val fileText = fromFile("./src/test/scala/data/georgecv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
@@ -171,7 +171,7 @@ class DisambiguatorTest extends FunSuite
     {
         if ( true )
         {
-            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+            val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             var fail = false
             
             val testData = XML.loadFile("./src/test/scala/shortPhrases.xml")

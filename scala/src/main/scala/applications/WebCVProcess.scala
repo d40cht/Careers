@@ -40,7 +40,7 @@ object WebCVProcess
         val res = p.fetch( "http://cvnlp.com:9000/application/listcvs" )
         val cvs = XML.loadString(res)
         
-        val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite" )
+        val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
         for ( id <- cvs \\ "id" )
         {
             val trimmedId = id.text.trim

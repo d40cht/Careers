@@ -238,8 +238,7 @@ class AmbiguitySite( val start : Int, val end : Int )
 }
 
 
-
-class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper )
+class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper, val categoryHierarchy : Disambiguator#CategoryHierarchy )
 {
     class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
     
@@ -651,6 +650,38 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
                 
                 //communities = v.run()
+            }
+        }
+        
+        {
+            val allTopicIds = (for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics ) yield topic.topicId).foldLeft(HashSet[Int]())( _ + _ )
+            
+            val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
+            for ( id <- allTopicIds )
+            {
+                var categories = List[Int]()
+                for ( (contextId, weight) <- topicCategoryMap( id ) )
+                {
+                    val name = topicNameMap(contextId)
+                    if ( name.startsWith( "Category:" ) )
+                    {
+                        println( "Cat: " + name )
+                        categories = contextId :: categories
+                    }
+                }
+                
+                println( "Topic: " + topicNameMap( id ) )
+                
+                val catEdges = categoryHierarchy.toTop( categories )
+                
+                for ( (fromId, toId) <- catEdges )
+                {
+                    topicNameQuery.bind( fromId )
+                    val fromName = _1(topicNameQuery.toList(0)).get
+                    topicNameQuery.bind( toId )
+                    val toName = _1(topicNameQuery.toList(0)).get
+                    println( "  " + fromName + " --> " + toName )
+                }
             }
         }
         
