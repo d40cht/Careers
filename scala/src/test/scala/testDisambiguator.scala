@@ -135,17 +135,40 @@ class DisambiguatorTest extends FunSuite
     
     // NOTE: Sad to have 'test suite' and not 'test suites'. Consider stemming.
     
-    test( "Category hierarchy" )
+    /*test( "Category hierarchy" )
     {
         val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
         
         val ch = d.categoryHierarchy
         
         ch.debugDumpCounts()
-    }
+    }*/
     
     test( "New disambiguator test" )
     {
+        /*val v = new PriorityQ[Int]()
+        v.add( 12.0, 4 )
+        v.add( 12.0, 5 )
+        v.add( 13.0, 6 )
+        v.add( 13.0, 7 )
+        v.add( 13.0, 8 )
+        
+        assert( v.size === 5 )
+        assert( v.popFirst() == (12.0, 4) )
+        assert( v.popFirst() == (12.0, 5) )
+        assert( v.size == 3 )
+        v.add( 12.0, 6 )
+        assert( v.size == 4 )
+        assert( v.popFirst() == (12.0, 6) )
+        assert( v.size == 3 )
+        assert( v.popFirst() == (13.0, 6) )
+        assert( v.size == 2 )
+        assert( v.popFirst() == (13.0, 7) )
+        assert( v.size == 1 )
+        assert( v.popFirst() == (13.0, 8) )
+        assert( v.size == 0 )
+        assert( v.isEmpty )*/
+        
         if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )

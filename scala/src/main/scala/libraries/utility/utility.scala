@@ -25,6 +25,8 @@ import java.io.{DataInput, DataOutput, FileInputStream, FileOutputStream, File}
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, ByteArrayInputStream}
 import java.util.{ArrayList, Arrays}
 
+import java.util.{TreeMap => JTreeMap, LinkedHashSet => JLinkedHashSet}
+
 import scala.collection.mutable.{IndexedSeqOptimized, Builder, ArrayLike, LinkedList}
 
 
@@ -644,6 +646,65 @@ class SeqFilesIterator[KeyType <: Writable, ValueType <: Writable, ConvKeyType, 
         
         current
     }
+}
+
+class NPriorityQ[V]()
+{
+    type K = Double
+    private val container = new JTreeMap[K, JLinkedHashSet[V]]()
+    private var numElements = 0
+    
+    def add( k : K, v : V )
+    {
+        if ( container.containsKey(k) )
+        {
+            val old = container.get(k)
+            old.add(v)
+        }
+        else
+        {
+            val next = new JLinkedHashSet[V]()
+            next.add(v)
+            container.put( k, next )
+        }
+        numElements += 1
+    }
+    def remove( k : K, v : V )
+    {
+        assert( container.containsKey(k) )
+        
+        val el = container.get(k)
+        el.remove(v)
+        
+        if ( el.isEmpty() )
+        {
+            container.remove(k)
+        }
+        numElements -= 1
+    }
+    
+    def first() =
+    {
+        //println( numElements + " " + container.isEmpty() )
+        //assert( numElements > 0 )
+        assert( !container.isEmpty() )
+        val firstKey = container.firstKey()
+        val firstVal = container.get(firstKey)
+        val el = firstVal.iterator().next()
+        (firstKey, el)
+    }
+
+    def size = numElements
+    
+    def popFirst() : (K, V) =
+    {
+        val res = first()
+        remove( res._1, res._2 )
+        
+        res
+    }
+    
+    def isEmpty = (numElements == 0)
 }
 
 class PriorityQ[V]()
