@@ -154,6 +154,8 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
     val topicDb = new SQLiteWrapper( new File(topicFileName) )
     topicDb.exec( "PRAGMA cache_size=2000000" )
 
+    // CREATE TABLE topicInboundLinks( topicId INTEGER, count INTEGER );
+    // INSERT INTO topicInboundLinks SELECT contextTopicId, sum(1) FROM linkWeights2 GROUP BY contextTopicId;
     class CategoryHierarchy( fileName : String )
     {
         val hierarchy = new EfficientArray[EfficientIntPair](0)
@@ -161,7 +163,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         
         def debugDumpCounts()
         {
-            val pairCounts = TreeMap[Int, Int]()
+            var pairCounts = TreeMap[Int, Int]()
             for ( pair <- hierarchy )
             {
                 val fromTopic = pair.first
