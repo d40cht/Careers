@@ -36,6 +36,70 @@ import org.seacourt.utility.{Graph}
 // NOTE, SCC may not be as appropriate as other 'Community structure' algorithms: http://en.wikipedia.org/wiki/Community_structure
 // NOTE: Might be able to merge topics that are very similar to each other to decrease context space (Fast unfolding of communities in large networks, or Modularity maximisation).
 
+object Disambiguator
+{
+    val disallowedCategories = HashSet[String](
+        "Category:Main topic classifications",
+        "Category:Main topic classifications",
+        "Category:Fundamental categories",
+        "Category:Categories",
+        "Category:Greek loanwords",
+        "Category:Philosophy redirects",
+        "Category:Protected redirects",
+        "Category:American websites",
+        "Category:1995 introductions",
+        "Category:Articles including recorded pronunciations (UK English)",
+        "Category:American inventions",
+        "Category:Article Feedback Pilot",
+        "Category:Swedish-speaking Finns",
+        "Category:Acronyms",
+        "Category:Articles with example code",
+        "Category:Articles with example pseudocode",
+        "Category:Living people",
+        "Category:Discovery and invention controversies",
+        "Category:Categories named after universities and colleges",
+        "Category:Computing acronyms",
+        "Category:Articles with inconsistent citation formats",
+        "Category:Organizations established in 1993",
+        "Category:Lists by country",
+        "Category:Redirects from Japanese-language terms",
+        "Category:Non-transitive categories",
+        "Category: Disambiguation pages",
+        "Category:Arabic words and phrases",
+        "Category:All articles lacking sources",
+        "Categories: Letter-number combination disambiguation pages" )
+        
+    val dateMatcher = Pattern.compile( "[0-9]{4,4}" )
+    
+    // All of these should be pre-processed into the db.
+    def allowedPhrase( words : List[String] ) =
+    {
+        val allNumbers = words.foldLeft( true )( _ && _.matches( "[0-9]+" ) )
+        !allNumbers
+    }
+    
+    def allowedTopic( topicName : String ) =
+    {
+        val listOf = topicName.startsWith( "Main:List of" ) || topicName.startsWith( "Main:Table of" )
+        val isCategory = topicName.startsWith( "Category:" )
+        val postcodeArea = topicName.endsWith( "postcode area" )
+        val isNovel = topicName.contains("(novel)")
+        val isSong = topicName.contains("(song)")
+        val isBand = topicName.contains("(band)")
+        val isTVSeries = topicName.contains("TV series")
+        val isAlbum = topicName.contains("(album)")
+        
+        !listOf && !isCategory && !postcodeArea && !isNovel && !isSong && !isBand && !isTVSeries && !isAlbum
+    }
+    
+    def allowedContext( contextName : String ) =
+    {
+        val allowed = !disallowedCategories.contains( contextName ) && !dateMatcher.matcher(contextName).find() && !contextName.contains("redirect")
+
+        allowed
+    }
+}
+
 class AmbiguitySiteBuilder( var start : Int, var end : Int )
 {
     var els = List[AmbiguityForest.SurfaceFormDetails]()
@@ -158,7 +222,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
     // INSERT INTO topicInboundLinks SELECT contextTopicId, sum(1) FROM linkWeights2 GROUP BY contextTopicId;
     class CategoryHierarchy( fileName : String )
     {
-        val hierarchy = new EfficientArray[EfficientIntPair](0)
+        val hierarchy = new EfficientArray[EfficientIntIntDouble](0)
         hierarchy.load( new DataInputStream( new FileInputStream( new File(fileName) ) ) )
         
         def debugDumpCounts()
@@ -168,9 +232,19 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             {
                 val fromTopic = pair.first
                 val toTopic = pair.second
+                val weight = pair.third
                 
-                val oldCount = pairCounts.getOrElse(toTopic, 0.0)
+                val oldCount = pairCounts.getOrElse(toTopic, 1)
                 pairCounts = pairCounts.updated( toTopic, oldCount + 1 )
+            }
+            
+            val byCount = pairCounts.toList.sortWith( _._2 > _._2 ).slice(0, 100)
+            val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
+            for ( (id, count) <- byCount )
+            {
+                topicNameQuery.bind(id)
+                val name = _1(topicNameQuery.toList(0)).get
+                println( "   ::: " + name + ", " + count )
             }
         }
         
@@ -182,21 +256,31 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             
             //println( "::::::::::::: " + categoryIds.length + " " + q.length )
             
-            var edgeList = ArrayBuffer[(Int, Int)]()
+            val bannedCategories = HashSet(
+                6400291, // Category:Society
+                6760142  // Category:Interdisciplinary fields
+            )
+            
+            var edgeList = ArrayBuffer[(Int, Int, Double)]()
             while ( !q.isEmpty )
             {
                 val first = q.pop()
 
-                var it = Utils.lowerBound( new EfficientIntPair( first, 0 ), hierarchy, (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )                
+                var it = Utils.lowerBound( new EfficientIntIntDouble( first, 0, 0.0 ), hierarchy, (x:EfficientIntIntDouble, y:EfficientIntIntDouble) => x.less(y) )                
                 while ( it < hierarchy.size && hierarchy(it).first == first )
                 {
-                    val parentId = hierarchy(it).second
+                    val row = hierarchy(it)
+                    val parentId = row.second
+                    val weight = row.third
                     
-                    edgeList.append( (first, parentId) )
-                    if ( !seen.contains( parentId ) )
+                    if ( !bannedCategories.contains(parentId) )
                     {
-                        q.push( parentId )
-                        seen = seen + parentId
+                        edgeList.append( (first, parentId, weight) )
+                        if ( !seen.contains( parentId ) )
+                        {
+                            q.push( parentId )
+                            seen = seen + parentId
+                        }
                     }
                     it += 1
                 }
@@ -272,38 +356,6 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         }
     }
 
-    object Builder
-    {
-        val disallowedCategories = HashSet[String](
-            "Category:Main topic classifications",
-            "Category:Greek loanwords",
-            "Category:Philosophy redirects",
-            "Category:Protected redirects",
-            "Category:American websites",
-            "Category:1995 introductions",
-            "Category:Articles including recorded pronunciations (UK English)",
-            "Category:American inventions",
-            "Category:Article Feedback Pilot",
-            "Category:Swedish-speaking Finns",
-            "Category:Acronyms",
-            "Category:Articles with example code",
-            "Category:Articles with example pseudocode",
-            "Category:Living people",
-            "Category:Discovery and invention controversies",
-            "Category:Categories named after universities and colleges",
-            "Category:Computing acronyms",
-            "Category:Articles with inconsistent citation formats",
-            "Category:Organizations established in 1993",
-            "Category:Lists by country",
-            "Category:Redirects from Japanese-language terms",
-            "Category:Non-transitive categories",
-            "Category: Disambiguation pages",
-            "Category:Arabic words and phrases",
-            "Category:All articles lacking sources",
-            "Categories: Letter-number combination disambiguation pages" )
-            
-        val dateMatcher = Pattern.compile( "[0-9]{4,4}" )
-    }
         
     class Builder( val text : String )
     {
@@ -315,33 +367,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         var topicNameMap = TreeMap[Int, String]()
         var contextWeightMap = TreeMap[Int, Double]()
         
-        // All of these should be pre-processed into the db.
-        def allowedPhrase( words : List[String] ) =
-        {
-            val allNumbers = words.foldLeft( true )( _ && _.matches( "[0-9]+" ) )
-            !allNumbers
-        }
         
-        def allowedTopic( topicName : String ) =
-        {
-            val listOf = topicName.startsWith( "Main:List of" ) || topicName.startsWith( "Main:Table of" )
-            val isCategory = topicName.startsWith( "Category:" )
-            val postcodeArea = topicName.endsWith( "postcode area" )
-            val isNovel = topicName.contains("(novel)")
-            val isSong = topicName.contains("(song)")
-            val isBand = topicName.contains("(band)")
-            val isTVSeries = topicName.contains("TV series")
-            val isAlbum = topicName.contains("(album)")
-            
-            !listOf && !isCategory && !postcodeArea && !isNovel && !isSong && !isBand && !isTVSeries && !isAlbum
-        }
-        
-        def allowedContext( contextName : String ) =
-        {
-            val allowed = !Builder.disallowedCategories.contains( contextName ) && !Builder.dateMatcher.matcher(contextName).find() && !contextName.contains("redirect")
-
-            allowed
-        }
         
         
         def build() : AmbiguityForest =
@@ -378,11 +404,11 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                             if ( phraseId != -1 )
                             {
                                 topicQuery.bind(phraseId)
-                                val sfTopics = topicQuery.toList.filter( x => allowedTopic(_3(x).get) )
+                                val sfTopics = topicQuery.toList.filter( x => Disambiguator.allowedTopic(_3(x).get) )
                                 val toIndex = wordIndex
                                 
                                 //println( ":: " + phraseId)
-                                if ( sfTopics != Nil && allowedPhrase(wordList.slice(fromIndex, toIndex+1)) ) 
+                                if ( sfTopics != Nil && Disambiguator.allowedPhrase(wordList.slice(fromIndex, toIndex+1)) ) 
                                 {
                                     // This surface form has topics. Query phrase relevance and push back details
                                     phraseCountQuery.bind(phraseId)
@@ -424,7 +450,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                             def addContext( cid : Int, _weight : Double, name : String )
                                             {
                                                 var weight = _weight
-                                                if ( allowedContext(name) )
+                                                if ( Disambiguator.allowedContext(name) )
                                                 {
                                                     val isCategory = name.startsWith( "Category:")
                                                     if ( isCategory ) categorySet += cid
@@ -465,7 +491,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                                             val name = _3(row).get
                                                             
                                                             // Second order contexts cannot be categories
-                                                            if ( !contextWeights.contains(cid) && !name.startsWith("Category:") )
+                                                            if ( !contextWeights.contains(cid) )//&& !name.startsWith("Category:") )
                                                             {
                                                                 val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
                                                                 addContext( cid, weight, name )

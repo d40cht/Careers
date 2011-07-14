@@ -4,21 +4,26 @@ import org.seacourt.utility.{PriorityQ}
 import scala.collection.immutable.{TreeMap, HashSet, HashMap}
 import scala.collection.mutable.{ArrayBuffer}
 
-import math.{log, pow}
+import math.{log, pow, abs}
 
+// TODO: Use -log(category-category weight as distance instead of 1.0) ?
 object CategoryHierarchy
 {
     type Height = Double
     
     class Node[Data]( val data : Data )
     {
-        var sinks = HashSet[Node[Data]]()
+        var sinks = HashMap[Node[Data], Double]()
         var height = Double.MaxValue
         var enqueued = false
         
         var topicMembership = HashMap[Node[Data], Height]()
         
-        def addSink( sink : Node[Data] ) = (sinks += sink)
+        def addSink( sink : Node[Data], weight : Double )
+        {
+            assert( weight >= 0.0 )
+            sinks = sinks.updated(sink, weight)
+        }
     }
     
     class Graph[Data]()
@@ -57,7 +62,7 @@ object CategoryHierarchy
                 
                 visitFn( node, height )
              
-                for ( s <- node.sinks )
+                for ( (s, weight) <- node.sinks )
                 {
                     if ( s.enqueued || s.height == Double.MaxValue )
                     {
@@ -66,7 +71,7 @@ object CategoryHierarchy
                             q.remove( s.height, s )
                         }
                        
-                        s.height = s.height min (height+1)
+                        s.height = s.height min (height + weight)
                         
                         q.add( s.height, s )
                         s.enqueued = true
@@ -89,7 +94,7 @@ object CategoryHierarchy
     
     type TopicId = Int
     
-    class HierarchyBuilder( val topicIds : List[TopicId], graphEdges : List[(TopicId, TopicId)] )
+    class HierarchyBuilder( val topicIds : List[TopicId], graphEdges : List[(TopicId, TopicId, Double)] )
     {
         type NodeType = Node[TopicId]
         val g = new Graph[TopicId]()
@@ -97,14 +102,14 @@ object CategoryHierarchy
         
         init( graphEdges )
         
-        private def init( graphEdges : List[(TopicId, TopicId)] )
+        private def init( graphEdges : List[(TopicId, TopicId, Double)] )
         {
-            for ( (fromId, toId) <- graphEdges )
+            for ( (fromId, toId, weight) <- graphEdges )
             {
                 val fromNode = getNode( fromId )
                 val toNode = getNode( toId )
                 
-                fromNode.addSink( toNode )
+                fromNode.addSink( toNode, -log(weight) )
             }
         }
         
@@ -142,10 +147,16 @@ object CategoryHierarchy
                 
                 class MergeChoice( val theNode : NodeType, val height : Double, val mergeSize : Int )
                 {
+                    def weight =
+                    {
+                        val optimumSize = 10.0
+                        val sizeDesirability = if ( mergeSize < optimumSize ) mergeSize else optimumSize*(optimumSize / mergeSize)
+                        sizeDesirability / pow(height, 1.0)
+                    }
+                    
                     def comp( other : MergeChoice ) =
                     {
-                        //(log(mergeSize)/(height) > (log(other.mergeSize)/other.height)
-                        (mergeSize/pow(height, 2.0)) > (other.mergeSize/pow(other.height, 2.0))
+                        weight > other.weight
                     }
                 }
                 
@@ -153,13 +164,15 @@ object CategoryHierarchy
                 g.dijkstraVisit( liveTopics.toList, (node, height) =>
                 {
                     val members = node.topicMembership
-                    val maxHeight = members.foldLeft(0.0)( _ max _._2 )
+                    //val maxHeight = members.foldLeft(0.0)( _ max _._2 )
                     val numMembers = members.size
+                    val maxHeight = members.foldLeft(0.0)( _ + _._2 ) / numMembers.toDouble
+                    
                     
                     //println( node.data, members )
                     
                     
-                    if ( (numMembers > 1) )
+                    if ( numMembers > 1 )
                     {
                         val thisChoice = new MergeChoice( node, maxHeight, numMembers )
                         if ( (bestChoice == null || thisChoice.comp( bestChoice )) )
@@ -178,7 +191,7 @@ object CategoryHierarchy
                 {
                     val mergeNode = bestChoice.theNode
                     val mergingNodes = mergeNode.topicMembership.toList.map( _._1 )
-                    println( mergeNode + ", " + mergingNodes.map(_.data) + ": " + bestChoice.height + ", " + bestChoice.mergeSize )
+                    println( mergeNode.data + ", " + mergingNodes.map(_.data) + ": " + bestChoice.height + ", " + bestChoice.mergeSize + ", " + bestChoice.weight )
                     merges.append( (mergeNode.data, mergingNodes.toList.map(_.data)) )
                     
                     // Remove all labelling for the merged nodes
