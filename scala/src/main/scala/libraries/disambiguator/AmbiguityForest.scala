@@ -628,7 +628,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
             
             println( "Getting category DAG" )
-            var topicEdges = List[(Int, Int)]()
+            var topicEdges = List[(Int, Int, Double)]()
             var categories = HashSet[Int]()
             for ( id <- allTopicIds )
             {
@@ -640,7 +640,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         //println( "Cat: " + name )
                         categories += contextId
                         
-                        topicEdges = (id, contextId) :: topicEdges
+                        topicEdges = (id, contextId, weight) :: topicEdges
                     }
                 }
             }

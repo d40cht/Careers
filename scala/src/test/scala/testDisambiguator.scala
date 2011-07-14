@@ -33,21 +33,22 @@ import org.apache.hadoop.io.{Writable, Text, IntWritable}
         println( "Starting category dump" )
         val db = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
 
-        val allLinks = db.prepare( "SELECT t1.topicId, t1.contextTopicId, t2.name, t3.name FROM linkWeights2 AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN topics AS t3 ON t1.contextTopicId=t3.id ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::Col[String]::Col[String]::HNil )
+        val allLinks = db.prepare( "SELECT t1.topicId, t1.contextTopicId, t1.weight, t2.name, t3.name FROM linkWeights2 AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN topics AS t3 ON t1.contextTopicId=t3.id ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::Col[Double]::Col[String]::Col[String]::HNil )
         
         
-        val linkData = new EfficientArray[EfficientIntPair](0)
+        val linkData = new EfficientArray[EfficientIntIntDouble](0)
         val b = linkData.newBuilder
         for ( row <- allLinks )
         {
-            val topicName = _3(row).get
-            val contextName = _4(row).get
-            if ( topicName.startsWith("Category:") && contextName.startsWith("Category:") )
+            val topicName = _4(row).get
+            val contextName = _5(row).get
+            if ( topicName.startsWith("Category:") && contextName.startsWith("Category:") && Disambiguator.allowedContext(contextName) )
             {
                 val categoryId = _1(row).get
                 val parentCategoryId = _2(row).get
+                val weight = _3(row).get
                 
-                b += new EfficientIntPair( categoryId, parentCategoryId )
+                b += new EfficientIntIntDouble( categoryId, parentCategoryId, weight )
             }
         }
         
@@ -133,6 +134,15 @@ class DisambiguatorTest extends FunSuite
     // NOTE: All categories seem to have a link weight of zero which isn't ideal.
     
     // NOTE: Sad to have 'test suite' and not 'test suites'. Consider stemming.
+    
+    test( "Category hierarchy" )
+    {
+        val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
+        
+        val ch = d.categoryHierarchy
+        
+        ch.debugDumpCounts()
+    }
     
     test( "New disambiguator test" )
     {

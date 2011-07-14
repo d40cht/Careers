@@ -96,6 +96,34 @@ final class EfficientIntPair( var first : Int, var second : Int ) extends FixedL
     }
 }
 
+final class EfficientIntIntDouble( var first : Int, var second : Int, var third : Double ) extends FixedLengthSerializable
+{
+    def size = 16
+    
+    def this() = this(0, 0, 0.0)
+    
+    override def saveImpl( out : DataOutput )
+    {
+        out.writeInt( first )
+        out.writeInt( second )
+        out.writeDouble( third )
+    }
+    
+    override def loadImpl( in : DataInput )
+    {
+        first = in.readInt()
+        second = in.readInt()
+        third = in.readDouble()
+    }
+    
+    def less( other : EfficientIntIntDouble ) : Boolean =
+    {
+        if ( first != other.first ) first < other.first
+        else if ( second != other.second ) second < other.second
+        else third < other.third
+    }
+}
+
 
 object FixedLengthString
 {
