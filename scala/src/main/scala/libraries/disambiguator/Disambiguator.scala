@@ -159,6 +159,19 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         val hierarchy = new EfficientArray[EfficientIntPair](0)
         hierarchy.load( new DataInputStream( new FileInputStream( new File(fileName) ) ) )
         
+        def debugDumpCounts()
+        {
+            val pairCounts = TreeMap[Int, Int]()
+            for ( pair <- hierarchy )
+            {
+                val fromTopic = pair.first
+                val toTopic = pair.second
+                
+                val oldCount = pairCounts.getOrElse(toTopic, 0.0)
+                pairCounts = pairCounts.updated( toTopic, oldCount + 1 )
+            }
+        }
+        
         def toTop( categoryIds : List[Int] ) =
         {
             val q = Stack[Int]()
