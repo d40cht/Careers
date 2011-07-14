@@ -4,6 +4,8 @@ import org.seacourt.utility.{PriorityQ}
 import scala.collection.immutable.{TreeMap, HashSet, HashMap}
 import scala.collection.mutable.{ArrayBuffer}
 
+import math.{log, pow}
+
 object CategoryHierarchy
 {
     type Height = Double
@@ -14,7 +16,7 @@ object CategoryHierarchy
         var height = Double.MaxValue
         var enqueued = false
         
-        val topicMembership = ArrayBuffer[(Node[Data], Height)]()
+        var topicMembership = HashMap[Node[Data], Height]()
         
         def addSink( sink : Node[Data] ) = (sinks += sink)
     }
@@ -130,44 +132,75 @@ object CategoryHierarchy
             for ( topicNode <- liveTopics )
             {
                 println( "  labelling: " + topicNode.data )
-                g.dijkstraVisit( topicNode :: Nil, (node, height) => node.topicMembership.append( (topicNode, height) ) )
+                g.dijkstraVisit( topicNode :: Nil, (node, height) => node.topicMembership = node.topicMembership.updated(topicNode, height) )
             }
             
             // Find the best merge point according to min topic height, num topics, topic importance (incident edge count?)
             while ( liveTopics.size > 1 )
             {
                 println( "Find the best merge point: " + liveTopics.size )
-                var bestChoice : (NodeType, Double) = null
+                
+                class MergeChoice( val theNode : NodeType, val height : Double, val mergeSize : Int )
+                {
+                    def comp( other : MergeChoice ) =
+                    {
+                        //(log(mergeSize)/(height) > (log(other.mergeSize)/other.height)
+                        (mergeSize/pow(height, 2.0)) > (other.mergeSize/pow(other.height, 2.0))
+                    }
+                }
+                
+                var bestChoice : MergeChoice = null
                 g.dijkstraVisit( liveTopics.toList, (node, height) =>
                 {
                     val members = node.topicMembership
-                    val minHeight = height//members.foldLeft(Double.MaxValue)( _ min _._2 )
+                    val maxHeight = members.foldLeft(0.0)( _ max _._2 )
                     val numMembers = members.size
-                    val mergeWeight = if (minHeight==0.0) 0.0 else numMembers / (minHeight * minHeight)
-                    // Information here: node.topicMembership [(topicId, Height)]
                     
                     //println( node.data, members )
                     
-                    if ( bestChoice == null || (mergeWeight > bestChoice._2 && numMembers > 1 ) )
+                    
+                    if ( (numMembers > 1) )
                     {
-                        bestChoice = (node, mergeWeight)
+                        val thisChoice = new MergeChoice( node, maxHeight, numMembers )
+                        if ( (bestChoice == null || thisChoice.comp( bestChoice )) )
+                        {
+                            bestChoice = thisChoice
+                        }
                     }
                 } )
                 
-                println( bestChoice._1 + ", " + bestChoice._2 )
-                val mergeNode = bestChoice._1
-                val mergingNodes = mergeNode.topicMembership.map( _._1 )
-                merges.append( (mergeNode.data, mergingNodes.toList.map(_.data)) )
-                for ( n <- mergingNodes ) liveTopics -= n
-                
-                // Label the graph up with the new merged node
-                g.dijkstraVisit( mergeNode :: Nil, (node, height) =>
+                //assert( bestChoice != null )
+                if ( bestChoice == null )
                 {
-                    node.topicMembership.append( (mergeNode, height) )
+                    liveTopics = HashSet[NodeType]()
+                }
+                else
+                {
+                    val mergeNode = bestChoice.theNode
+                    val mergingNodes = mergeNode.topicMembership.toList.map( _._1 )
+                    println( mergeNode + ", " + mergingNodes.map(_.data) + ": " + bestChoice.height + ", " + bestChoice.mergeSize )
+                    merges.append( (mergeNode.data, mergingNodes.toList.map(_.data)) )
                     
-                } )
-                
-                liveTopics += mergeNode
+                    // Remove all labelling for the merged nodes
+                    g.dijkstraVisit( liveTopics.toList, (node, height) =>
+                    {
+                        for ( n <- mergingNodes ) if ( node.topicMembership.contains(n) ) node.topicMembership -= n
+                    } )
+                    
+                    for ( removed <- mergingNodes; n <-g.allNodes ) assert( !n.topicMembership.contains(removed) )
+                    
+                    // Label the graph up with the new merged node
+                    g.dijkstraVisit( mergeNode :: Nil, (node, height) =>
+                    {
+                        node.topicMembership = node.topicMembership.updated(mergeNode, height)
+                    } )
+                       
+                    for ( n <- mergingNodes )
+                    {
+                        liveTopics -= n
+                    }
+                    liveTopics += mergeNode
+                }
             }
             
             merges

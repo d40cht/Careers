@@ -260,6 +260,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
     object Builder
     {
         val disallowedCategories = HashSet[String](
+            "Category:Main topic classifications",
             "Category:Greek loanwords",
             "Category:Philosophy redirects",
             "Category:Protected redirects",
@@ -322,7 +323,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         
         def allowedContext( contextName : String ) =
         {
-            val allowed = !Builder.disallowedCategories.contains( contextName ) && !Builder.dateMatcher.matcher(contextName).find()
+            val allowed = !Builder.disallowedCategories.contains( contextName ) && !Builder.dateMatcher.matcher(contextName).find() && !contextName.contains("redirect")
 
             allowed
         }
