@@ -52,7 +52,7 @@ object WebCVProcess
             val b = new d.Builder(text)
             val forest = b.build()
             forest.dumpDebug( "ambiguitydebug" + trimmedId + ".xml" )
-            forest.htmlOutput( "ambiguity" + trimmedId + ".html" )
+            forest.output( "ambiguity" + trimmedId + ".html", "ambiguityresolution" + trimmedId + ".xml" )
             
             Thread.sleep( 10000 )
         }

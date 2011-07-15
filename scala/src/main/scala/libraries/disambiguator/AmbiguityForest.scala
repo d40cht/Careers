@@ -17,6 +17,7 @@ import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility.StopWords.stopWordSet
 import org.seacourt.utility._
 import org.seacourt.disambiguator.Community._
+import org.seacourt.disambiguator.CategoryHierarchy._
 
 
 import org.seacourt.utility.{Graph, PriorityQ}
@@ -207,7 +208,7 @@ class AmbiguitySite( val start : Int, val end : Int )
 }
 
 
-class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper, val categoryHierarchy : Disambiguator#CategoryHierarchy )
+class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper, val categoryHierarchy : CategoryHierarchy )
 {
     class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
     
@@ -645,7 +646,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
             }
                 
-            val (catEdges, catWeights) = categoryHierarchy.toTop( categories.toList )
+            val catEdges = categoryHierarchy.toTop( categories.toList )
             
             /*for ( (fromId, toId) <- catEdges )
             {
@@ -660,8 +661,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             
             println( "Inserting " + totalEdges.length + " edges into hierarchy builder with " + allTopicIds.size + " topic ids" )
             
-            val hb = new CategoryHierarchy.HierarchyBuilder( allTopicIds.toList, totalEdges, catWeights )
-            val merges = hb.run()
+            val hb = new CategoryHierarchy.HierarchyBuilder( allTopicIds.toList, totalEdges )
+            val merges = hb.run( _ => "" )
             
             for ( (intoId, (fromIds) ) <- merges )
             {
@@ -895,7 +896,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         XML.save( fileName, fullDebug, "utf8" )
     }
     
-    def htmlOutput( fileName : String )
+    def output( htmlFileName : String, resolutionFileName : String )
     {
         val wordArr = words.toArray
         var i = 0
@@ -988,6 +989,19 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
         }
         
+        val allTopicIds = (for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 ) yield topic.topicId).foldLeft(HashSet[Int]())( _ + _ )
+        val resolutions =
+            <topics>
+            {
+                for ( topicId <- allTopicIds ) yield
+                <topic>
+                    <id>{topicId}</id>
+                    <name>{topicNameMap(topicId)}</name>
+                </topic>
+            }
+            </topics>
+        XML.save( resolutionFileName, resolutions, "utf8" )
+        
         
         val output =
             <html>
@@ -998,7 +1012,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 </body>
             </html>
             
-        XML.save( fileName, output, "utf8" )
+            
+        XML.save( htmlFileName, output, "utf8" )
     }
 
 }

@@ -18,6 +18,7 @@ import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility.StopWords.stopWordSet
 import org.seacourt.utility._
 import org.seacourt.disambiguator.Community._
+import org.seacourt.disambiguator.CategoryHierarchy._
 
 import org.seacourt.utility.{Graph}
 
@@ -218,88 +219,9 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
     val topicDb = new SQLiteWrapper( new File(topicFileName) )
     topicDb.exec( "PRAGMA cache_size=2000000" )
 
-    // CREATE TABLE topicInboundLinks( topicId INTEGER, count INTEGER );
-    // INSERT INTO topicInboundLinks SELECT contextTopicId, sum(1) FROM linkWeights2 GROUP BY contextTopicId;
-    class CategoryHierarchy( fileName : String )
-    {
-        val hierarchy = new EfficientArray[EfficientIntIntDouble](0)
-        hierarchy.load( new DataInputStream( new FileInputStream( new File(fileName) ) ) )
-        
-        def debugDumpCounts()
-        {
-            var pairCounts = TreeMap[Int, Int]()
-            for ( pair <- hierarchy )
-            {
-                val fromTopic = pair.first
-                val toTopic = pair.second
-                val weight = pair.third
-                
-                val oldCount = pairCounts.getOrElse(toTopic, 1)
-                pairCounts = pairCounts.updated( toTopic, oldCount + 1 )
-            }
-            
-            val byCount = pairCounts.toList.sortWith( _._2 > _._2 ).slice(0, 100)
-            val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
-            for ( (id, count) <- byCount )
-            {
-                topicNameQuery.bind(id)
-                val name = _1(topicNameQuery.toList(0)).get
-                println( "   ::: " + name + ", " + count )
-            }
-        }
-        
-        def toTop( categoryIds : List[Int] ) =
-        {
-            val q = Stack[Int]()
-            for ( id <- categoryIds ) q.push( id )
-            var seen = HashSet[Int]()
-            
-            //println( "::::::::::::: " + categoryIds.length + " " + q.length )
-            
-            val bannedCategories = HashSet(
-                6400291, // Category:Society
-                6760142  // Category:Interdisciplinary fields
-            )
-            
-            var edgeList = ArrayBuffer[(Int, Int, Double)]()
-            while ( !q.isEmpty )
-            {
-                val first = q.pop()
-
-                var it = Utils.lowerBound( new EfficientIntIntDouble( first, 0, 0.0 ), hierarchy, (x:EfficientIntIntDouble, y:EfficientIntIntDouble) => x.less(y) )                
-                while ( it < hierarchy.size && hierarchy(it).first == first )
-                {
-                    val row = hierarchy(it)
-                    val parentId = row.second
-                    val weight = row.third
-                    
-                    if ( !bannedCategories.contains(parentId) )
-                    {
-                        edgeList.append( (first, parentId, weight) )
-                        if ( !seen.contains( parentId ) )
-                        {
-                            q.push( parentId )
-                            seen = seen + parentId
-                        }
-                    }
-                    it += 1
-                }
-            }
-            
-            println( "Looking up category weights" )
-            val weightQuery = topicDb.prepare( "SELECT count FROM topicInboundLinks WHERE topicId=?", Col[Int]::HNil )
-            val categoryWeights = seen.toList.foldLeft( TreeMap[Int, Double]() )( (map, id) =>
-            {
-                weightQuery.bind( id )
-                val count = _1(weightQuery.toList(0)).get
-                map.updated(id, log( count.toDouble ))
-            } )
-            
-            (edgeList, categoryWeights)
-        }
-    }
     
-    val categoryHierarchy = new CategoryHierarchy( categoryHierarchyFileName )
+    
+    val categoryHierarchy = new CategoryHierarchy( categoryHierarchyFileName, topicDb )
     
     def phraseQuery( phrase : String ) =
     {
@@ -500,7 +422,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                                             val name = _3(row).get
                                                             
                                                             // Second order contexts cannot be categories
-                                                            if ( !contextWeights.contains(cid) && !name.startsWith("Category:") )
+                                                            if ( !contextWeights.contains(cid) )//&& !name.startsWith("Category:") )
                                                             {
                                                                 val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
                                                                 addContext( cid, weight, name )
@@ -585,12 +507,12 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         }*/
     }
     
-    def execute( inputText : String, debugOutFile : String, htmlOutFile : String )
+    def execute( inputText : String, debugOutFile : String, htmlOutFile : String, resOutFile : String )
     {
         val b = new Builder(inputText)
         val forest = b.build()
         forest.dumpDebug( debugOutFile )
-        forest.htmlOutput( htmlOutFile )
+        forest.output( htmlOutFile, resOutFile )
     }
 }
 
