@@ -93,7 +93,7 @@ object CategoryHierarchy
     
     type TopicId = Int
     
-    class HierarchyBuilder( val topicIds : List[TopicId], graphEdges : List[(TopicId, TopicId, Double)] )
+    class HierarchyBuilder( val topicIds : List[TopicId], graphEdges : List[(TopicId, TopicId, Double)], val categoryWeights : TreeMap[Int, Double] )
     {
         type NodeType = Node[TopicId]
         val g = new Graph[TopicId]()
@@ -150,7 +150,8 @@ object CategoryHierarchy
                     {
                         val optimumSize = 10.0
                         val sizeDesirability = if ( mergeSize < optimumSize ) mergeSize else optimumSize*(optimumSize / mergeSize)
-                        sizeDesirability / pow(height, 1.0)
+                        val categoryDesirability = 1.0//categoryWeights.getOrElse(theNode.data, 1.0)
+                        (categoryDesirability * sizeDesirability) / pow(height, 0.7)
                     }
                     
                     def comp( other : MergeChoice ) =
@@ -166,7 +167,7 @@ object CategoryHierarchy
                     val numMembers = members.size
                     val maxHeight = members.foldLeft(0.0)( _ + _._2 ) / numMembers.toDouble
                     
-                    if ( numMembers > 1 )
+                    if ( numMembers > 3 )
                     {
                         options.append( new MergeChoice( node, maxHeight, numMembers ) )
                     }

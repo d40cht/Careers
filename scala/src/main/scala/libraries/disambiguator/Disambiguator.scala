@@ -286,7 +286,16 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                 }
             }
             
-            edgeList
+            println( "Looking up category weights" )
+            val weightQuery = topicDb.prepare( "SELECT count FROM topicInboundLinks WHERE topicId=?", Col[Int]::HNil )
+            val categoryWeights = seen.toList.foldLeft( TreeMap[Int, Double]() )( (map, id) =>
+            {
+                weightQuery.bind( id )
+                val count = _1(weightQuery.toList(0)).get
+                map.updated(id, log( count.toDouble ))
+            } )
+            
+            (edgeList, categoryWeights)
         }
     }
     
@@ -491,7 +500,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                                             val name = _3(row).get
                                                             
                                                             // Second order contexts cannot be categories
-                                                            if ( !contextWeights.contains(cid) )//&& !name.startsWith("Category:") )
+                                                            if ( !contextWeights.contains(cid) && !name.startsWith("Category:") )
                                                             {
                                                                 val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
                                                                 addContext( cid, weight, name )

@@ -645,7 +645,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
             }
                 
-            val catEdges = categoryHierarchy.toTop( categories.toList )
+            val (catEdges, catWeights) = categoryHierarchy.toTop( categories.toList )
             
             /*for ( (fromId, toId) <- catEdges )
             {
@@ -660,7 +660,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             
             println( "Inserting " + totalEdges.length + " edges into hierarchy builder with " + allTopicIds.size + " topic ids" )
             
-            val hb = new CategoryHierarchy.HierarchyBuilder( allTopicIds.toList, totalEdges )
+            val hb = new CategoryHierarchy.HierarchyBuilder( allTopicIds.toList, totalEdges, catWeights )
             val merges = hb.run()
             
             for ( (intoId, (fromIds) ) <- merges )
