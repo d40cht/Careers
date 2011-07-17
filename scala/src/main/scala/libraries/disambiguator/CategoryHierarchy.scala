@@ -2,6 +2,8 @@ package org.seacourt.disambiguator
 
 import scala.collection.immutable.{TreeMap, HashSet, HashMap}
 import scala.collection.mutable.{ArrayBuffer, Stack}
+import scala.xml.XML
+
 import math.{log, pow, abs}
 import java.io.{File, DataInputStream, FileInputStream}
 
@@ -12,8 +14,8 @@ import org.seacourt.utility._
 
 object CategoryHierarchy
 {
-    type Height = Double
-    val overbroadCategoryCount = 10
+    type Weight = Double
+    val overbroadCategoryCount = 20
     
     // CREATE TABLE topicInboundLinks( topicId INTEGER, count INTEGER );
     // INSERT INTO topicInboundLinks SELECT contextTopicId, sum(1) FROM linkWeights2 GROUP BY contextTopicId;
@@ -70,6 +72,20 @@ object CategoryHierarchy
             //println( "::::::::::::: " + categoryIds.length + " " + q.length )
             
             val bannedCategories = HashSet(
+                6393409, // Category:Categories by association,
+                366521, // Category:Articles
+                8591947, // Category:Standards by organization
+                8771811, // Category:Organizations by type
+                5850429, // Category:People by occupation
+                2750118, // Category:Writers by format
+                4027554, // Category:Subfields by academic discipline
+                6761185, // Category:Metaphysics
+                4572804, // Category:Philosophy by field
+                5302049, // Category:Personal life
+                1655098, // Category:Works by medium
+                5667343, // Category:Organizations
+                6940720, // Category:Concepts
+                6575338, // Category:Concepts in epistemology
                 368106, // Category:Critical thinking
                 4571289, // Category:Mind
                 5297085, // Category:Concepts in metaphysics
@@ -79,10 +95,8 @@ object CategoryHierarchy
                 6760142  // Category:Interdisciplinary fields
             )
             
-            //var edgeList = ArrayBuffer[(Int, Int, Double)]()
-            
             // parent category => (child category, weight)
-            var edgeMap = TreeMap[Int, List[(Int, Double)]]()
+            val edgeList = ArrayBuffer[(Int, Int, Double)]()
             while ( !q.isEmpty )
             {
                 val first = q.pop()
@@ -94,11 +108,9 @@ object CategoryHierarchy
                     val parentId = row.second
                     val weight = row.third
                     
-                    if ( !bannedCategories.contains(parentId) )
+                    if ( !bannedCategories.contains(parentId) )//&& !tooFrequent.contains(parentId) )
                     {
-                        //edgeList.append( (first, parentId, weight) )
-                        val existingChildren = edgeMap.getOrElse( parentId, List[(Int, Double)]() )
-                        edgeMap = edgeMap.updated( parentId, (first, weight) :: existingChildren )
+                        edgeList.append( (first, parentId, weight) )
                         
                         if ( !seen.contains( parentId ) )
                         {
@@ -110,132 +122,189 @@ object CategoryHierarchy
                 }
             }
             
-            var edgeList = ArrayBuffer[(Int, Int, Double)]()
-            val topicIdSet = topicIds.foldLeft(HashSet[Int]())( _ + _ )
-            for ( (parentId, froms) <- edgeMap )
-            {
-                val topicFroms = froms.filter( x => topicIdSet.contains(x._1) )
-                val categoryFroms = froms.filter( x => !topicIdSet.contains(x._1) ).sortWith( (x,y) => x._2 > y._2 ).slice(0, 50)
-                
-                for ( (fromId, weight) <- (topicFroms++categoryFroms) ) edgeList.append( (fromId, parentId, weight) )
-            }
-            
-            /*println( "Looking up category weights" )
-            val weightQuery = topicDb.prepare( "SELECT count FROM topicInboundLinks WHERE topicId=?", Col[Int]::HNil )
-            val categoryWeights = seen.toList.foldLeft( TreeMap[Int, Double]() )( (map, id) =>
-            {
-                weightQuery.bind( id )
-                val count = _1(weightQuery.toList(0)).get
-                map.updated(id, log( count.toDouble ))
-            } )*/
-            
             edgeList
         }
     }
     
-    class Node[Data]( val data : Data )
+    class Edge( val source : Node, val sink : Node, val weight : Weight )
     {
-        var sinks = HashMap[Node[Data], Double]()
-        var height = Double.MaxValue
-        var minHeight = Double.MaxValue
+        assert( weight >= 0.0 )
+        assert( source != sink )
+        
+        var flow = 0
+        source.addEdge( this )
+        sink.addEdge( this )
+        
+        def remove()
+        {
+            source.edges -= this
+            sink.edges -= this
+        }
+    }
+    
+    class Node( val id : Int )
+    {
+        var edges = HashSet[Edge]()
+        var distance = Double.MaxValue
+        var prev : Edge = null
         var enqueued = false
         
-        var topicMembership = HashMap[Node[Data], Height]()
-        
-        def addSink( sink : Node[Data], weight : Double )
+        def addEdge( edge : Edge )
         {
-            assert( weight >= 0.0 )
-            sinks = sinks.updated(sink, weight)
+            edges += edge
         }
     }
     
     class Graph[Data]()
     {
-        var allNodes = HashSet[Node[Data]]()
-        
-        def newNode( data : Data ) =
+        var allNodes = HashSet[Node]()
+                
+        def addNode( node : Node ) =
         {
-            val nn = new Node( data )
-            allNodes += nn
-            
-            nn
+            allNodes += node
         }
         
-        def dumpLabellings( fn : Node[Data] => String )
-        {
-            for ( node <- allNodes.toList.sortWith( _.topicMembership.size < _.topicMembership.size ) )
-            {
-                if ( node.height != Double.MaxValue )
-                {
-                    println( fn( node ) + ": " + node.height + " " + node.enqueued + "<" + node.topicMembership.size + ">")
-                    for ( membership <- node.topicMembership )
-                    {
-                        println( "  " + fn(membership._1) + " - " + membership._2 )
-                    }
-                }
-            }
-        }
-
-        
-        def dijkstraVisit( starts : Seq[Node[Data]], visitFn : (Node[Data], Height) => Unit )
+        def dijkstraVisit( start : Node, visitFn : (Node, Weight) => Unit )
         {
             for ( n <- allNodes )
             {
-                n.height = Double.MaxValue
+                n.distance = Double.MaxValue
+                n.prev = null
                 n.enqueued = false
             }
             
-            val q = new NPriorityQ[Node[Data]]
-            for ( s <- starts )
-            {
-                s.height = 0.0
-                s.enqueued = true
-                q.add( s.height, s )
-            }
+            val q = new NPriorityQ[Node]
+            start.distance = 0.0
+            start.enqueued = true
+            q.add( start.distance, start )
             
             while ( !q.isEmpty )
             {
-                //println( "Q size: " + q.size )
-                val (height, node) = q.popFirst()
+                val (distance, node) = q.popFirst()
                 node.enqueued = false
                 
-                if ( node.minHeight > node.height )
-                {
-                    node.minHeight = node.height
-                }
-                visitFn( node, height )
-                
              
-                for ( (s, weight) <- node.sinks )
+                visitFn( node, distance )
+                for ( edge <- node.edges )
                 {
-                    if ( s.enqueued || s.height == Double.MaxValue )
+                    val s = if ( edge.source == node ) edge.sink else edge.source
+                    val edgeWeight = edge.weight
+                    if ( s.enqueued || s.distance == Double.MaxValue )
                     {
-                        if ( s.height != Double.MaxValue )
+                        if ( s.distance != Double.MaxValue )
                         {
-                            q.remove( s.height, s )
+                            q.remove( s.distance, s )
                         }
                        
-                        s.height = s.height min (height + weight)
+                        val thisDistance = distance + edgeWeight
+                        if ( thisDistance < s.distance )
+                        {
+                            s.distance = thisDistance
+                            s.prev = edge
+                        }
                         
-                        q.add( s.height, s )
+                        q.add( s.distance, s )
                         s.enqueued = true
                     }
                 }    
             }
         }
         
-        def filter( starts : Seq[Node[Data]], filterPredicate : Node[Data] => Boolean )
+        def connectedWithout( edge : Edge ) = true
+    }
+    
+    class Builder( topicIds : Seq[Int], edges : Seq[(Int, Int, Double)] )
+    {
+        val g = new Graph()
+        var topics : List[Node] = null
+        initialise( edges )
+        
+        def initialise( edges : Seq[(Int, Int, Double)] ) =
         {
-            dijkstraVisit( starts,
-            { (node, height) =>
-                if ( !filterPredicate( node ) )
+            var idToNode = HashMap[Int, Node]()
+            def getNode( id : Int ) =
+            {
+                if ( idToNode.contains(id) )
                 {
-                    allNodes = allNodes - node
+                    idToNode(id)
                 }
-            } )
+                else
+                {
+                    val n = new Node(id)
+                    g.addNode( n )
+                    idToNode = idToNode.updated(id, n)
+                    n
+                }
+            }
+            for ( (fromId, toId, weight) <- edges )
+            {
+                val from = getNode(fromId)
+                val to = getNode(toId)
+                val edge = new Edge( from, to, weight )
+            }
+            
+            topics = topicIds.toList.map( getNode(_) )
+        }
+        
+        def run()
+        {
+            // Reset all flows to zero
+            for ( node <- g.allNodes; e <- node.edges )
+            {
+                e.flow = 0
+            }
+            
+            // 1: Mark off all relevant edges by pushing a unit of flow down each. Relevant edges
+            //    are all those on a shortest path from one topic to another.
+            for ( topic <- topics )
+            {
+                g.dijkstraVisit( topic, (node, height) => {} )
+                
+                for ( innerTopic <- topics )
+                {
+                    var it = innerTopic
+                    
+                    while ( it != null )
+                    {
+                        it.prev.flow += 1
+                        it = if ( it.prev.source == it ) it.prev.sink else it.prev.source
+                    }
+                }
+            }
+            
+            // 2: Remove all edges with zero flow. And then all disconnected nodes
+            {
+                var liveNodes = HashSet[Node]()
+                for ( node <- g.allNodes )
+                {
+                    node.edges = node.edges.filter( _.flow > 0 )
+                    
+                    for ( e <- node.edges )
+                    {
+                        liveNodes += e.source
+                        liveNodes += e.sink
+                    }
+                }
+                
+                g.allNodes = g.allNodes.filter( x => liveNodes.contains(x) )
+            }
+            
+            // 3: Run reverse-delete MST builder on reduced graph. Longest edge first...
+            val edges = ( node <- g.allNodes; edge <- node.edges ).sortWith( (x, y) => x.weight > y.weight )
+            for ( edge <- edges )
+            {
+                if ( g.connectedWithout( edge ) )
+                {
+                    // Remove edge
+                    edge.remove()
+                }
+            }
+            
+            // Foreach edge (starting at longest) remove if after graph remains connected
         }
     }
     
+    /*
     type TopicId = Int
     
     class HierarchyBuilder( val topicIds : Seq[TopicId], graphEdges : Seq[(TopicId, TopicId, Double)] )
@@ -253,7 +322,7 @@ object CategoryHierarchy
                 val fromNode = getNode( fromId )
                 val toNode = getNode( toId )
                 
-                fromNode.addSink( toNode, -log(weight) )
+                fromNode.addSink( toNode, weight )
             }
         }
         
@@ -279,10 +348,11 @@ object CategoryHierarchy
             {
                 def weight =
                 {
-                    val optimumSize = 4.0
+                    val optimumSize = 6.0
                     val sizeDesirability = 1.0 / (pow(abs(optimumSize - mergeSize), 2.0) max 1.0)
                     
                     sizeDesirability / pow(height, 1.0)
+                    //mergeSize / pow(height, 0.8)
                 }
                 
                 def comp( other : MergeChoice ) =
@@ -297,16 +367,17 @@ object CategoryHierarchy
                 // All incomings must be of lower height than the merge point
                 val members = node.topicMembership
                 val numMembers = members.size
-                val aveHeight = members.foldLeft(0.0)( _ + _._2 ) / numMembers.toDouble
+                //val aveHeight = members.foldLeft(0.0)( _ + _._2 ) / numMembers.toDouble
+                val maxHeight = members.foldLeft(0.0)( _ max _._2 )
                 
                 
                 if ( numMembers > 1 )
                 {
-                    options.append( new MergeChoice( node, aveHeight, numMembers ) )
+                    options.append( new MergeChoice( node, maxHeight, numMembers ) )
                 }
             } )
             
-            //g.dumpLabellings( x => (x.data + "/" + getName( x.data )) )
+            g.dumpLabellings( x => (x.data + "/" + getName( x.data )) )
             
             if ( options.size > 0 )
             {
@@ -314,6 +385,7 @@ object CategoryHierarchy
                 
                 var mergedAlready = HashSet[TopicId]()
                 val beforeSize = merges.size
+                
                 for ( bestChoice <- mergeOptionsByWeight )
                 {
                     val mergeNode = bestChoice.theNode
@@ -348,7 +420,7 @@ object CategoryHierarchy
         {
             // You can't really be a member of a topic of your route in is hugely longer than
             // the min route to the topic
-            if ( height < node.minHeight * 1.3 )
+            if ( height < node.minHeight * 1.2 )
             {
                 node.topicMembership = node.topicMembership.updated( topicNode, height )
             }
@@ -360,7 +432,11 @@ object CategoryHierarchy
             var liveTopics = topicIds.foldLeft(HashSet[NodeType]())( _ + getNode(_) )
             
             println( "Set up the min distance field by doing an all-nodes visit." )
-            g.dijkstraVisit( liveTopics.toSeq, (x, y) => Unit )
+            g.dijkstraVisit( liveTopics.toSeq, (node, height) =>
+            {
+                println( "---> " + node.data + ", " + getName(node.data) + ": " + node.minHeight + ", " + height )
+            } )
+            
          
             // Label all nodes with their topic incidence and height
             println( "Label all nodes with their topic incidence and height" )
@@ -380,7 +456,10 @@ object CategoryHierarchy
                 var passComplete = false
                 
                 val thisPassMerges = ArrayBuffer[(NodeType, List[NodeType])]()
-                while ( !passComplete )
+                
+                // It would seem better not to force merges after doing a strip,
+                // in case things end up over-generalising too early
+                //while ( !passComplete )
                 {
                     val thisRunMerges = mergePass( liveTopics, getName )
                     
@@ -413,7 +492,38 @@ object CategoryHierarchy
                 }
             }
             
+            var elementMap = HashMap[NodeType, scala.xml.Elem]()
+            var hasParent = HashSet[NodeType]()
+            for ( (mergeInto, froms) <- merges )
+            {
+                val el =
+                    <element name={getName(mergeInto.data)} id={mergeInto.data.toString}>
+                    {
+                        for ( from <- froms ) yield
+                        {
+                            val element =
+                                if ( elementMap.contains( from ) ) elementMap(from)
+                                else <element name={getName(from.data)} id={from.data.toString}/>
+                                
+                            hasParent += from
+                            
+                            element
+                        }
+                    }
+                    </element>
+                
+                elementMap = elementMap.updated(mergeInto, el)
+            }
+
+            val output =
+                <structure>
+                {
+                    for ( (node, elem) <- elementMap.filter( x => !hasParent.contains(x._1) ) ) yield elem
+                }
+                </structure>
+                
+            XML.save( "structure.xml", output, "utf8" )
             merges.map( x => ( x._1.data, x._2.map( _.data ) ) )
         }
-    }
+    }*/
 }

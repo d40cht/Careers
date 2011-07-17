@@ -10,6 +10,13 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
     val automaticresourcemanagement = "com.github.jsuereth.scala-arm" % "scala-arm_2.8.0" % "0.2"
     val httpclient = "org.apache.httpcomponents" % "httpclient" % "4.1.1"
     val commonsCollections = "commons-collections" % "commons-collections" % "3.0"
+    //val jung2 = "net.sf.jung" % "jung2" % "2.0.1"
+    //val jgrapht = "jgrapht" % "jgrapht" % "0.7.3"
+    val jungApi = "net.sf.jung" % "jung-api" % "2.0.1"
+    val jungGraphImpl = "net.sf.jung" % "jung-graph-impl" % "2.0.1"
+    val jungAlgorithms = "net.sf.jung" % "jung-algorithms" % "2.0.1"
+
+
     
     //val entryClass = "Crunch"
     //val entryClass = "SurfaceForms"
