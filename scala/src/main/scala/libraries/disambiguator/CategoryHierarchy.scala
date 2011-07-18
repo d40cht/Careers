@@ -17,6 +17,20 @@ object CategoryHierarchy
     type Weight = Double
     val overbroadCategoryCount = 20
     
+    class CategoryTreeElement( val node : Node, val children : List[(Double, CategoryTreeElement)] )
+    {
+        def print( getName : Int => String )
+        {
+            def rec( getName : Int => String, cte : CategoryTreeElement, weight : Double, indent : Int )
+            {
+                println( ("  " * indent) + "> " + getName(cte.node.id) + " (" + weight + ", " + cte.node.distance + ")" )
+                cte.children.map( en => rec( getName, en._2, en._1, indent+1) )
+            }
+            
+            rec( getName, this, 0.0, 0 )
+        }
+    }
+    
     // CREATE TABLE topicInboundLinks( topicId INTEGER, count INTEGER );
     // INSERT INTO topicInboundLinks SELECT contextTopicId, sum(1) FROM linkWeights2 GROUP BY contextTopicId;
     // CREATE INDEX topicInboundLinksIndex ON topicInboundLinks(topicId);
@@ -110,12 +124,15 @@ object CategoryHierarchy
                     
                     if ( !bannedCategories.contains(parentId) )//&& !tooFrequent.contains(parentId) )
                     {
-                        edgeList.append( (first, parentId, weight) )
-                        
-                        if ( !seen.contains( parentId ) )
+                        if ( first != parentId )
                         {
-                            q.push( parentId )
-                            seen = seen + parentId
+                            edgeList.append( (first, parentId, weight) )
+                            
+                            if ( !seen.contains( parentId ) )
+                            {
+                                q.push( parentId )
+                                seen = seen + parentId
+                            }
                         }
                     }
                     it += 1
@@ -126,7 +143,7 @@ object CategoryHierarchy
         }
     }
     
-    class Edge( val source : Node, val sink : Node, val weight : Weight )
+    class Edge( val source : Node, val sink : Node, var weight : Weight )
     {
         assert( weight >= 0.0 )
         assert( source != sink )
@@ -140,6 +157,12 @@ object CategoryHierarchy
             source.edges -= this
             sink.edges -= this
         }
+        
+        def other( from : Node ) =
+        {
+            assert( from == source || from == sink )
+            if ( from == source ) sink else source
+        }
     }
     
     class Node( val id : Int )
@@ -148,6 +171,7 @@ object CategoryHierarchy
         var distance = Double.MaxValue
         var prev : Edge = null
         var enqueued = false
+        var flow = 0
         
         def addEdge( edge : Edge )
         {
@@ -164,7 +188,7 @@ object CategoryHierarchy
             allNodes += node
         }
         
-        def dijkstraVisit( start : Node, visitFn : (Node, Weight) => Unit )
+        def dijkstraVisit( starts : Seq[Node], visitFn : (Node, Weight) => Unit )
         {
             for ( n <- allNodes )
             {
@@ -174,9 +198,12 @@ object CategoryHierarchy
             }
             
             val q = new NPriorityQ[Node]
-            start.distance = 0.0
-            start.enqueued = true
-            q.add( start.distance, start )
+            for ( start <- starts )
+            {
+                start.distance = 0.0
+                start.enqueued = true
+                q.add( start.distance, start )
+            }
             
             while ( !q.isEmpty )
             {
@@ -187,7 +214,7 @@ object CategoryHierarchy
                 visitFn( node, distance )
                 for ( edge <- node.edges )
                 {
-                    val s = if ( edge.source == node ) edge.sink else edge.source
+                    val s = edge.other(node)
                     val edgeWeight = edge.weight
                     if ( s.enqueued || s.distance == Double.MaxValue )
                     {
@@ -210,13 +237,39 @@ object CategoryHierarchy
             }
         }
         
-        def connectedWithout( edge : Edge ) = true
+        def connectedWithout( rootNodes : Iterable[Node], excludedEdge : Edge ) =
+        {
+            assert( !rootNodes.isEmpty )
+            val q = Stack[Node]()
+            var seenNodes = HashSet[Node]()
+            
+            q.push( rootNodes.head )
+            
+            while ( !q.isEmpty )
+            {
+                val top = q.pop()
+                
+                for ( edge <- top.edges if edge != excludedEdge )
+                {
+                    val other = edge.other(top)
+                    if ( !seenNodes.contains(other) )
+                    {
+                        seenNodes += other
+                        q.push( other )
+                    }
+                }
+            }
+            
+            val connected = rootNodes.foldLeft(true)( (x, y) => x && seenNodes.contains(y) )
+
+            connected
+        }
     }
     
     class Builder( topicIds : Seq[Int], edges : Seq[(Int, Int, Double)] )
     {
         val g = new Graph()
-        var topics : List[Node] = null
+        var topics : HashSet[Node] = null
         initialise( edges )
         
         def initialise( edges : Seq[(Int, Int, Double)] ) =
@@ -241,36 +294,107 @@ object CategoryHierarchy
                 val from = getNode(fromId)
                 val to = getNode(toId)
                 val edge = new Edge( from, to, weight )
+                //val edge = new Edge( from, to, 1.0 )
             }
             
-            topics = topicIds.toList.map( getNode(_) )
+            topics = topicIds.foldLeft(HashSet[Node]())( _ + getNode(_) )
         }
         
-        def run()
+        def flowLabel()
         {
             // Reset all flows to zero
-            for ( node <- g.allNodes; e <- node.edges )
+            for ( node <- g.allNodes )
             {
-                e.flow = 0
+                node.flow = 0
+                for ( e <- node.edges )
+                {
+                    e.flow = 0
+                }
             }
             
-            // 1: Mark off all relevant edges by pushing a unit of flow down each. Relevant edges
-            //    are all those on a shortest path from one topic to another.
+            // Push a unit of flow down the shortest path from each topic node to each other topic node
             for ( topic <- topics )
             {
-                g.dijkstraVisit( topic, (node, height) => {} )
+                g.dijkstraVisit( topic :: Nil, (node, height) => {} )
                 
                 for ( innerTopic <- topics )
                 {
                     var it = innerTopic
-                    
                     while ( it != null )
                     {
-                        it.prev.flow += 1
-                        it = if ( it.prev.source == it ) it.prev.sink else it.prev.source
+                        it.flow += 1
+                        if ( it.prev != null )
+                        {
+                            it.prev.flow += 1
+                            it = it.prev.other(it)
+                        }
+                        else it = null
                     }
                 }
             }
+        }
+        
+        def runPathCompression()
+        {
+            println( "Running path compression" )
+            var modified = true
+            var removedCount = 0
+            while (modified)
+            {
+                modified = false
+                for ( node <- g.allNodes )
+                {
+                    if ( !topics.contains( node ) )
+                    {
+                        if ( node.edges.size == 2 )
+                        {
+                            val asList = node.edges.toList
+                            val firstEdge = asList(0)
+                            val secondEdge = asList(1)
+                            
+                            //assert( firstEdge != secondEdge )
+                            
+                            val firstNode = firstEdge.other(node)
+                            val secondNode = secondEdge.other(node)
+                            
+                            if ( !topics.contains( firstNode ) && !topics.contains( secondNode) )
+                            { 
+                                val conn = new Edge( firstNode, secondNode, firstEdge.weight + secondEdge.weight )
+                                firstEdge.remove()
+                                secondEdge.remove()
+                                
+                                firstNode.edges += conn
+                                secondNode.edges += conn
+                                
+                                removedCount += 1
+                                modified = true
+                            }
+                        }
+                    }
+                }
+            }
+            println( "  > removed " + removedCount + " edges" )
+        }
+        
+        def dumpGraph()
+        {
+            for ( node <- g.allNodes )
+            {
+                println( ">> " + node.id + ": " + node.flow )
+                for ( edge <- node.edges ) println( ":: " + edge.source.id + " <-> " + edge.sink.id + ": " + edge.flow + " (" + edge.weight + ")" )
+            }
+        }
+        
+        def run() =
+        {
+            // Run flow labelling to mark a subset of edges that are required to keep
+            // the topic graph connected
+            println( "Running flow labelling on graph" )
+            flowLabel()
+            
+            //dumpGraph()
+            
+            println( "Pruning zero flow edges" )
             
             // 2: Remove all edges with zero flow. And then all disconnected nodes
             {
@@ -285,22 +409,86 @@ object CategoryHierarchy
                         liveNodes += e.sink
                     }
                 }
-                
+                   
                 g.allNodes = g.allNodes.filter( x => liveNodes.contains(x) )
             }
             
-            // 3: Run reverse-delete MST builder on reduced graph. Longest edge first...
+            //dumpGraph()
+            
+            // 2.5: Path compression
+            runPathCompression()
+
+            
+            // 3: Run reverse-delete MST builder on reduced graph. Lowest weight first...
+            println( "Running reverse-delete to get an MST" )
             val edges = ( for ( node <- g.allNodes; edge <- node.edges ) yield edge ).toList.sortWith( (x, y) => x.weight > y.weight )
             for ( edge <- edges )
             {
-                if ( g.connectedWithout( edge ) )
+                if ( g.connectedWithout( topics, edge ) )
                 {
                     // Remove edge
                     edge.remove()
                 }
             }
             
-            // Foreach edge (starting at longest) remove if after graph remains connected
+            // 3.5: Chop overdistant edges
+            runPathCompression()
+            
+            // We've chosen which category each topic should belong to. Reweight to zero
+            for ( node <- topics )
+            {
+                //assert( node.edges.size == 1 )
+                if ( node.edges.size == 1 )
+                {
+                    node.edges.head.weight = 0.0
+                }
+            }
+            g.dijkstraVisit( topics.toList, (x, y) => {} )
+            for ( node <- g.allNodes )
+            {
+                if ( node.distance > 15.0 ) node.edges.toList.map( _.remove() ) 
+            }
+            /*for ( node <- g.allNodes; edge <- node.edges.toList if ( !topics.contains(edge.source) && !topics.contains(edge.sink) ) )
+            {
+                if (edge.weight > 25.0 ) edge.remove()
+            }*/
+            
+            
+            // 4: Prune disconnected nodes
+            println( "Pruning disconnected nodes" )
+            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
+            
+            
+            // Run distance labelling on the MST. The node with the greatest distance from all others
+            // is a good choice for root of the tree.
+            println( "Finding suitable tree roots and building MST" )
+            g.dijkstraVisit( topics.toList, (x, y) => {} )
+            
+            var maxFlowTrees = List[CategoryTreeElement]()
+            
+            var visited = HashSet[Node]()
+            for ( maxFlowNode <- g.allNodes.filter( x => !topics.contains(x) ).toList.sortWith( (x, y) => x.distance > y.distance ) )
+            {
+                def buildTree( node : Node ) : CategoryTreeElement = 
+                {
+                    visited += node
+                    def rec( node : Node ) : CategoryTreeElement =
+                    {
+                        val adjNodes = node.edges.map( e => (e.weight, e.other(node)) ).filter( en => !visited.contains(en._2) )
+                        for ( (weight, n) <- adjNodes ) visited += n
+                        new CategoryTreeElement( node, adjNodes.toList.map( en => (en._1, rec(en._2)) ) )
+                    }
+                    
+                    rec(node)
+                }
+             
+                if ( !visited.contains( maxFlowNode ) )
+                {   
+                    maxFlowTrees = buildTree(maxFlowNode) :: maxFlowTrees
+                }   
+            }
+            
+            maxFlowTrees
         }
     }
     

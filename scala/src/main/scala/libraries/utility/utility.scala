@@ -659,7 +659,11 @@ class NPriorityQ[V]()
         if ( container.containsKey(k) )
         {
             val old = container.get(k)
-            old.add(v)
+            
+            if ( !old.contains(v) )
+            {
+                old.add(v)
+            }
         }
         else
         {
