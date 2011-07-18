@@ -290,7 +290,7 @@ object CategoryHierarchy
             }
             
             // 3: Run reverse-delete MST builder on reduced graph. Longest edge first...
-            val edges = ( node <- g.allNodes; edge <- node.edges ).sortWith( (x, y) => x.weight > y.weight )
+            val edges = ( for ( node <- g.allNodes; edge <- node.edges ) yield edge ).toList.sortWith( (x, y) => x.weight > y.weight )
             for ( edge <- edges )
             {
                 if ( g.connectedWithout( edge ) )
