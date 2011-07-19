@@ -1,7 +1,7 @@
 package org.seacourt.disambiguator
 
 import scala.collection.immutable.{TreeMap, HashSet, HashMap}
-import scala.collection.mutable.{ArrayBuffer, Stack}
+import scala.collection.mutable.{ArrayBuffer, Stack, Queue}
 import scala.xml.XML
 
 import math.{log, pow, abs}
@@ -19,11 +19,13 @@ object CategoryHierarchy
     
     class CategoryTreeElement( val node : Node, val children : List[(Double, CategoryTreeElement)] )
     {
+        var coherence = 0.0
+        
         def print( getName : Int => String )
         {
             def rec( getName : Int => String, cte : CategoryTreeElement, weight : Double, indent : Int )
             {
-                println( ("  " * indent) + "> " + getName(cte.node.id) + " (" + weight + ", " + cte.node.distance + ")" )
+                println( ("  " * indent) + "> " + getName(cte.node.id) + " (" + cte.node.id + ", " + weight + ", " + cte.node.distance + ")" + " --> " + cte.coherence )
                 cte.children.map( en => rec( getName, en._2, en._1, indent+1) )
             }
             
@@ -188,7 +190,8 @@ object CategoryHierarchy
             allNodes += node
         }
         
-        def dijkstraVisit( starts : Seq[Node], visitFn : (Node, Weight) => Unit )
+        
+        def dijkstraVisit( starts : Seq[Node], weightFn : Edge => Weight, visitFn : (Node, Weight) => Unit )
         {
             for ( n <- allNodes )
             {
@@ -215,7 +218,7 @@ object CategoryHierarchy
                 for ( edge <- node.edges )
                 {
                     val s = edge.other(node)
-                    val edgeWeight = edge.weight
+                    val edgeWeight = weightFn(edge)
                     if ( s.enqueued || s.distance == Double.MaxValue )
                     {
                         if ( s.distance != Double.MaxValue )
@@ -300,7 +303,7 @@ object CategoryHierarchy
             topics = topicIds.foldLeft(HashSet[Node]())( _ + getNode(_) )
         }
         
-        def flowLabel()
+        def flowLabel( weightFn : Edge => Double )
         {
             // Reset all flows to zero
             for ( node <- g.allNodes )
@@ -315,7 +318,7 @@ object CategoryHierarchy
             // Push a unit of flow down the shortest path from each topic node to each other topic node
             for ( topic <- topics )
             {
-                g.dijkstraVisit( topic :: Nil, (node, height) => {} )
+                g.dijkstraVisit( topic :: Nil, weightFn, (node, height) => {} )
                 
                 for ( innerTopic <- topics )
                 {
@@ -385,12 +388,12 @@ object CategoryHierarchy
             }
         }
         
-        def run() =
+        def run( topicDistance : (Int, Int) => Double ) =
         {
             // Run flow labelling to mark a subset of edges that are required to keep
             // the topic graph connected
             println( "Running flow labelling on graph" )
-            flowLabel()
+            flowLabel( e => e.weight )
             
             //dumpGraph()
             
@@ -443,26 +446,21 @@ object CategoryHierarchy
                     node.edges.head.weight = 0.0
                 }
             }
-            g.dijkstraVisit( topics.toList, (x, y) => {} )
+            /*g.dijkstraVisit( topics.toList, x => x.weight, (x, y) => {} )
             for ( node <- g.allNodes )
             {
                 if ( node.distance > 15.0 ) node.edges.toList.map( _.remove() ) 
-            }
-            /*for ( node <- g.allNodes; edge <- node.edges.toList if ( !topics.contains(edge.source) && !topics.contains(edge.sink) ) )
-            {
-                if (edge.weight > 25.0 ) edge.remove()
             }*/
-            
-            
+
             // 4: Prune disconnected nodes
             println( "Pruning disconnected nodes" )
             g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
             
-            
+           
             // Run distance labelling on the MST. The node with the greatest distance from all others
             // is a good choice for root of the tree.
             println( "Finding suitable tree roots and building MST" )
-            g.dijkstraVisit( topics.toList, (x, y) => {} )
+            g.dijkstraVisit( topics.toList, x => 1.0, (x, y) => {} )
             
             var maxFlowTrees = List[CategoryTreeElement]()
             
@@ -486,6 +484,34 @@ object CategoryHierarchy
                 {   
                     maxFlowTrees = buildTree(maxFlowNode) :: maxFlowTrees
                 }   
+            }
+            
+            for ( maxFlowTree <- maxFlowTrees )
+            {
+                def labelRec( cte : CategoryTreeElement ) : List[Node] =
+                {
+                    var allTopics = List[Node]()
+                    if ( topics.contains( cte.node ) ) allTopics = cte.node :: allTopics
+                    for ( (dist, c) <- cte.children )
+                    {
+                        allTopics = allTopics ++ labelRec(c)
+                    }
+                    
+                    var aveDist = 0.0
+                    var count = 0
+                    for ( node1 <- allTopics; node2 <- allTopics if (node1.id < node2.id) )
+                    {
+                        val dist = topicDistance( node1.id, node2.id )
+                        aveDist += dist
+                        count += 1
+                    }
+                    
+                    cte.coherence = if ( count == 0 ) 0.0 else aveDist / count.toDouble
+                    
+                    allTopics
+                }
+                
+                labelRec( maxFlowTree )
             }
             
             maxFlowTrees
