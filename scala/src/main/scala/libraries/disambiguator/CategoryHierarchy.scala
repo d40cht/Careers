@@ -17,16 +17,17 @@ object CategoryHierarchy
     type Weight = Double
     val overbroadCategoryCount = 20
     
-    class CategoryTreeElement( val node : Node, val children : List[(Double, CategoryTreeElement)] )
+    class CategoryTreeElement( val node : Node, var children : HashMap[CategoryTreeElement, Double] )
     {
         var coherence = 0.0
+        var topicCount = 0
         
         def print( getName : Int => String )
         {
             def rec( getName : Int => String, cte : CategoryTreeElement, weight : Double, indent : Int )
             {
                 println( ("  " * indent) + "> " + getName(cte.node.id) + " (" + cte.node.id + ", " + weight + ", " + cte.node.distance + ")" + " --> " + cte.coherence )
-                cte.children.map( en => rec( getName, en._2, en._1, indent+1) )
+                cte.children.map( en => rec( getName, en._1, en._2, indent+1) )
             }
             
             rec( getName, this, 0.0, 0 )
@@ -446,11 +447,12 @@ object CategoryHierarchy
                     node.edges.head.weight = 0.0
                 }
             }
-            /*g.dijkstraVisit( topics.toList, x => x.weight, (x, y) => {} )
+            g.dijkstraVisit( topics.toList, x => x.weight, (x, y) => {} )
+            
             for ( node <- g.allNodes )
             {
                 if ( node.distance > 15.0 ) node.edges.toList.map( _.remove() ) 
-            }*/
+            }
 
             // 4: Prune disconnected nodes
             println( "Pruning disconnected nodes" )
@@ -474,7 +476,7 @@ object CategoryHierarchy
                     {
                         val adjNodes = node.edges.map( e => (e.weight, e.other(node)) ).filter( en => !visited.contains(en._2) )
                         for ( (weight, n) <- adjNodes ) visited += n
-                        new CategoryTreeElement( node, adjNodes.toList.map( en => (en._1, rec(en._2)) ) )
+                        new CategoryTreeElement( node, adjNodes.foldLeft(HashMap[CategoryTreeElement, Double]())( (m, v) => m.updated(rec(v._2), v._1) ) )
                     }
                     
                     rec(node)
@@ -486,13 +488,15 @@ object CategoryHierarchy
                 }   
             }
             
+            /*var trimmedTrees = List[CategoryTreeElement]()
+            
             for ( maxFlowTree <- maxFlowTrees )
             {
                 def labelRec( cte : CategoryTreeElement ) : List[Node] =
                 {
                     var allTopics = List[Node]()
                     if ( topics.contains( cte.node ) ) allTopics = cte.node :: allTopics
-                    for ( (dist, c) <- cte.children )
+                    for ( (c, dist) <- cte.children )
                     {
                         allTopics = allTopics ++ labelRec(c)
                     }
@@ -507,13 +511,24 @@ object CategoryHierarchy
                     }
                     
                     cte.coherence = if ( count == 0 ) 0.0 else aveDist / count.toDouble
+                    cte.topicCount = count
+                    
+                    for ( (c, dist) <- cte.children.toList )
+                    {
+                        if ( c.topicCount > 10 && c.coherence < 0.01 )
+                        {
+                            cte.children -= c
+                            trimmedTrees = c :: trimmedTrees
+                        }
+                    }
                     
                     allTopics
                 }
                 
                 labelRec( maxFlowTree )
-            }
+            }*/
             
+            //trimmedTrees
             maxFlowTrees
         }
     }
