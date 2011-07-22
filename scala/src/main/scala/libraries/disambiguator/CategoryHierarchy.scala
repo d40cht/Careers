@@ -129,8 +129,9 @@ object CategoryHierarchy
                     {
                         val row = hierarchy(it)
                         val parentId = row.second
-                        //val weight = row.third
-                        val weight = 2.0
+                        val weight = -log(row.third)
+                        //val weight = 2.0
+                        //val weight = 1.0
                         
                         if ( !bannedCategories.contains(parentId) )//&& !tooFrequent.contains(parentId) )
                         {
@@ -153,11 +154,11 @@ object CategoryHierarchy
                 val first = q.pop()
                 val firstOrder = getCategoryParents( first )
                 edgeList.appendAll( firstOrder )
-                for ( (childId, parentId, weight) <- firstOrder )
+                /*for ( (childId, parentId, weight) <- firstOrder )
                 {
                     val secondOrder = getCategoryParents( parentId )
-                    edgeList.appendAll( secondOrder.filter( x => first != x._2 ).map( x => (first, x._2, x._3*weight*2.0) ) )
-                }
+                    edgeList.appendAll( secondOrder.filter( x => first != x._2 ).map( x => (first, x._2, 2.0) ) )//x._3*weight*2.0) ) )
+                }*/
             }
             
             edgeList
@@ -218,7 +219,9 @@ object CategoryHierarchy
             f.write( "Graph G {\n" )
             for ( n <- allNodes )
             {
-                f.write( n.id + " [label=\"" + getName(n.id) + ": " + n.id + ", " + n.coherence + ", " + n.topicCount + "\"];\n" )
+                //f.write( n.id + " [label=\"" + getName(n.id) + ": " + n.id + ", " + n.coherence + ", " + n.topicCount + "\"];\n" )
+                
+                f.write( "%d [label=\"%s: %d\"];\n".format( n.id, getName(n.id), n.id ) )
             }
             
             var seenEdges = HashSet[Edge]()
@@ -228,7 +231,7 @@ object CategoryHierarchy
                 {
                     if ( !seenEdges.contains(e) )
                     {
-                        f.write( e.source.id + " -- " + e.sink.id + ";\n" )
+                        f.write( "%d -- %d [label=\"%f\"];\n".format( e.source.id, e.sink.id, e.weight ) )
                         seenEdges += e
                     }
                 }
@@ -437,7 +440,8 @@ object CategoryHierarchy
                             val firstNode = firstEdge.other(node)
                             val secondNode = secondEdge.other(node)
                             
-                            if ( !topics.contains( firstNode ) && !topics.contains( secondNode) )
+                            //if ( !topics.contains( firstNode ) && !topics.contains( secondNode ) )
+                            if ( firstNode != secondNode )
                             { 
                                 val conn = new Edge( firstNode, secondNode, firstEdge.weight + secondEdge.weight )
                                 firstEdge.remove()
@@ -454,6 +458,8 @@ object CategoryHierarchy
                 }
             }
             println( "  > removed " + removedCount + " edges" )
+            
+            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
         }
         
         def dumpGraph()
@@ -552,18 +558,34 @@ object CategoryHierarchy
             
             pruneZeroFlowEdges()
             
+            def pruneOverDistant( threshold : Double )
+            {
+                var complete = false
+                while ( !complete )
+                {
+                    complete = true
+                    for ( n <- g.allNodes; e <- n.edges ) if (e.weight > threshold)
+                    {
+                        e.remove()
+                        complete = false
+                    }
+                    runPathCompression()
+                    g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
+                }
+            }
+            
             //runPathCompression()
             
             g.dump( "0.dot", getName )
             
             println( "Running clustering" )
-            val subgraphFlowEdges = runClustering( allToAllDistances, 10.0 )
+            val subgraphFlowEdges = runClustering( allToAllDistances, 20.0 )
             flowLabel( subgraphFlowEdges, e => e.weight )
             
             //g.dump( "0.5.dot", getName )
             
             // 2.4 Find most distant point (in each subgraph) and push flow from there
-            var complete = false
+            /*var complete = false
             var seen = HashSet[Node]()
             var noPrune = HashSet[Edge]()
             while ( !complete )
@@ -591,19 +613,23 @@ object CategoryHierarchy
             }
             
             for ( n <- g.allNodes; e <- n.edges if !noPrune.contains(e) ) e.remove()
-            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
+            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )*/
             
             
             // 2.5: Path compression
             //runPathCompression()
             
+            pruneOverDistant( 4.0 )
+            runPathCompression()
             
+            // Zero the topic edge flows so they are unlikely to be inner nodes in MST
+            for ( t <- topics; e <- t.edges ) e.flow = 0
             
             g.dump( "1.dot", getName )
             
             // 3: Run reverse-delete MST builder on reduced graph. Lowest weight first...
             println( "Running reverse-delete to get an MST" )
-            val edges = ( for ( node <- g.allNodes; edge <- node.edges ) yield edge ).toList.sortWith( (x, y) => x.weight > y.weight )
+            val edges = ( for ( node <- g.allNodes; edge <- node.edges ) yield edge ).toList.sortWith( (x, y) => x.flow < y.flow )
             for ( edge <- edges )
             {
                 if ( g.connectedWithout( topics, edge ) )
@@ -612,13 +638,19 @@ object CategoryHierarchy
                     edge.remove()
                 }
             }
+            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
             
+            runPathCompression()
             g.dump( "2.dot", getName )
             
             
             
             // 3.5: Chop overdistant edges
-            runPathCompression()
+            pruneOverDistant( 7.0 )
+                        
+            
+            
+            g.dump( "3.dot", getName )
             
             // We've chosen which category each topic should belong to. Reweight to zero
             /*for ( node <- topics )
@@ -628,8 +660,8 @@ object CategoryHierarchy
                 {
                     node.edges.head.weight = 0.0
                 }
-            }*/
-            g.dijkstraVisit( topics.toList, x => x.weight, (x, y) => {} )
+            }
+            g.dijkstraVisit( topics.toList, x => x.weight, (x, y) => {} )*/
 
 
             // 4: Prune disconnected nodes
@@ -683,9 +715,9 @@ object CategoryHierarchy
                 n.topicCount = topicMembers.size
             }
             
-            //runPathCompression()
+            runPathCompression()
             
-            g.dump( "3.dot", getName )
+            g.dump( "4.dot", getName )
             
             var maxFlowTrees = List[CategoryTreeElement]()
             

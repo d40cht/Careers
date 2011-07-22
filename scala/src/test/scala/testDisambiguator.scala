@@ -268,13 +268,25 @@ class DisambiguatorTest extends FunSuite
                     topicDistances = topicDistances.updated( (id1, id2), dist )
                 }
             }
-            
-            //val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, -log(x._3)) ) )
-            val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, 1.0/x._3) ), getName )
-            val trees = b.run( (x,y) => topicDistances( (x, y) ) )
-            for ( tree <- trees ) tree.print( getName )
-            
-            /*for ( (fromId, toId, weight) <- fullGraph )
+        
+        //val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, -log(x._3)) ) )
+        val b = new Builder( topicIds, fullGraph, getName )
+        val trees = b.run( (x,y) => topicDistances( (x, y) ) )
+        for ( tree <- trees ) tree.print( getName )
+        
+        /*for ( (fromId, toId, weight) <- fullGraph )
+        {
+            //println( ":: " + getName(fromId) + " -> " + getName(toId) + ": " + weight )
+        }
+
+        val hb = new HierarchyBuilder( topicIds, fullGraph )
+        val merges = hb.run( getName )
+        
+        
+        for ( (category, members) <- merges )
+        {
+            println( "Category: " + getName(category) )
+            for ( m <- members )
             {
                 //println( ":: " + getName(fromId) + " -> " + getName(toId) + ": " + weight )
             }
