@@ -268,7 +268,7 @@ class DisambiguatorTest extends FunSuite
         }
         
         //val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, -log(x._3)) ) )
-        val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, 1.0/x._3) ), getName )
+        val b = new Builder( topicIds, fullGraph, getName )
         val trees = b.run( (x,y) => topicDistances( (x, y) ) )
         for ( tree <- trees ) tree.print( getName )
         
