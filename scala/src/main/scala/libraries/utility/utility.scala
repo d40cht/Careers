@@ -761,4 +761,49 @@ class PriorityQ[V]()
 }
 
 
+class DisjointSet[T]( val value : T )
+{
+    type Self = DisjointSet[T]
+    
+    var parent = this
+    var rank = 0
+    var setsize = 1
+    var children = List[Self]()
+    
+    private def getChildren() : List[Self] =
+    {
+        children.foldLeft( List(this) )( (l, c) => l ++ c.getChildren() )
+    }
+    
+    def setParent( p : Self )
+    {
+        parent = p
+        parent.setsize += setsize
+        //parent.details.join( details )
+        parent.children = this :: parent.children
+    }
+    
+    def join( rhs : Self )
+    {
+        assert( this != rhs )
+        val xroot = find()
+        val yroot = rhs.find()
+        
+        assert( xroot != yroot )
+        if ( xroot.rank > yroot.rank ) yroot.setParent( xroot )
+        else if ( xroot.rank < yroot.rank ) xroot.setParent( yroot )
+        else if ( xroot != yroot )
+        {
+            yroot.setParent( xroot )
+            xroot.rank += 1
+        }
+    }
+    
+    def equals( rhs : Self ) = find() == rhs.find()
+    def find() : Self = if ( parent != this ) parent.find() else this
+    def get() = find().value
+    def size() = find().setsize
+    def members() = find().getChildren()
+}
+
 

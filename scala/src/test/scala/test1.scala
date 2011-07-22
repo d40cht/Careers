@@ -23,7 +23,76 @@ import resource._
 import java.io.{DataInput, DataOutput, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
 
 
+class DisjointSetTest extends FunSuite
+{
+    test( "Disjoint set" )
+    {
+        val d1 = new DisjointSet[Int](1)
+        val d2 = new DisjointSet[Int](2)
+        val d3 = new DisjointSet[Int](4)
+        val d4 = new DisjointSet[Int](8)
+        
+        assert( d1.size() === 1 )
+        assert( d2.size() === 1 )
+        assert( d3.size() === 1 )
+        assert( d4.size() === 1 )
+        
+        assert( d1.members() === List(d1) )
+        assert( d2.members() === List(d2) )
+        assert( d3.members() === List(d3) )
+        assert( d4.members() === List(d4) )
+        
+        assert( !(d1 equals d2) )
+        assert( !(d3 equals d4) )
+        
+        d1 join d2
+        
+        assert( d1.size() === 2 )
+        assert( d2.size() === 2 )
+        assert( d3.size() === 1 )
+        assert( d4.size() === 1 )
+        
+        assert( d1.members() === List(d1, d2) )
+        assert( d2.members() === List(d1, d2) )
+        assert( d3.members() === List(d3) )
+        assert( d4.members() === List(d4) )
+	
+	    d3 join d4
+	    
+	    assert( d1.size() === 2 )
+        assert( d2.size() === 2 )
+        assert( d3.size() === 2 )
+        assert( d4.size() === 2 )
+        
+        assert( d1.members() === List(d1, d2) )
+        assert( d2.members() === List(d1, d2) )
+        assert( d3.members() === List(d3, d4) )
+        assert( d4.members() === List(d3, d4) )
+	    
+	    assert( d1 equals d2 )
+	    assert( d3 equals d4 )
+	
+	    d1 join d3
+	
+	    assert( d1 equals d2 )
+	    assert( d2 equals d3 )
+	    assert( d3 equals d4 )
 
+        assert( d1.size() === 4 )	
+        assert( d2.size() === 4 )
+        assert( d3.size() === 4 )
+        assert( d4.size() === 4 )
+        
+        println( d1.members().map( _.value ) )
+        println( d2.members().map( _.value ) )
+        println( d3.members().map( _.value ) )
+        println( d4.members().map( _.value ) )
+        assert( d1.members() === List(d1, d3, d4, d2) )
+        assert( d2.members() === List(d1, d3, d4, d2) )
+        assert( d3.members() === List(d1, d3, d4, d2) )
+        assert( d4.members() === List(d1, d3, d4, d2) )
+    }
+}
 
 
 class SizeTests extends FunSuite

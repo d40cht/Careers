@@ -372,8 +372,9 @@ object CategoryHierarchy
         
         
         
-        def flowLabel( fromToPairs : Iterable[(Node, Iterable[Node])], weightFn : Edge => Double )
+        def flowLabel( fromToPairs : Iterable[(Node, Iterable[Node])], weightFn : Edge => Double ) =
         {
+            var distances = HashMap[(Node, Node), Double]()
             // Reset all flows to zero
             for ( node <- g.allNodes )
             {
@@ -388,6 +389,8 @@ object CategoryHierarchy
             for ( (from, topics) <- fromToPairs )
             {
                 g.dijkstraVisit( from :: Nil, weightFn, (node, height) => {} )
+                
+                for ( topic <- topics ) distances = distances.updated( (from, topic), topic.distance )
                 
                 for ( innerTopic <- topics )
                 {
@@ -407,6 +410,8 @@ object CategoryHierarchy
                     }
                 }
             }
+            
+            distances
         }
         
         def runPathCompression()
@@ -460,14 +465,70 @@ object CategoryHierarchy
             }
         }
         
+        def runClustering( distances : HashMap[(Node, Node), Double], maxDist : Double ) =
+        {
+            // Cluster based on minimum distances first
+            type DJSetType = DisjointSet[Node]
+            
+            var djsetLookup = HashMap[Node, DJSetType]()
+            def getDJ( n : Node ) =
+            {
+                if ( djsetLookup.contains(n) ) djsetLookup(n)
+                else
+                {
+                    val ndj = new DJSetType( n )
+                    djsetLookup = djsetLookup.updated( n, ndj )
+                    ndj
+                }
+            }
+            
+            val sorted = distances.toList.sortWith( _._2 < _._2 ).map( x => (x._2, getDJ(x._1._1), getDJ(x._1._2) ) )
+            
+            for ( (dist, dj1, dj2) <- sorted )
+            {
+                if ( !(dj1 equals dj2) )
+                {
+                    val dj1els = dj1.members().map( _.value )
+                    val dj2els = dj2.members().map( _.value )
+                    
+                    val allDists = for ( el1 <- dj1els; el2 <- dj2els if distances.contains( (el1, el2) ) ) yield distances( (el1, el2) )
+                 
+                    val maxDist = allDists.foldLeft(0.0)( _ max _ )
+                    
+                    if ( maxDist < maxDist ) dj1 join dj2
+                }
+            }
+            
+            
+            var flowEdges = List[(Node, List[Node])]()
+            var seenSets = HashSet[DJSetType]()
+            for ( (node, djset) <- djsetLookup )
+            {
+                val djTop = djset.find()
+                if ( !seenSets.contains( djTop ) )
+                {
+                    val members = djTop.members()
+                    
+                    for ( source <- members )
+                    {
+                        val sinks = members.filter( x => source.value.id < x.value.id ).map( _.value )
+                        flowEdges = (source.value, sinks) :: flowEdges
+                    }
+                    
+                    seenSets += djTop
+                }
+            }
+            
+            flowEdges
+        }
+        
         def run( topicDistance : (Int, Int) => Double ) =
         {
             // Run flow labelling to mark a subset of edges that are required to keep
             // the topic graph connected
             println( "Running flow labelling on graph" )
             val allToAll = for ( topic <- topics ) yield (topic, for ( innerTopic <- topics if topic.id < innerTopic.id && topicDistance(topic.id, innerTopic.id) != 0.0 ) yield innerTopic )
-            flowLabel( allToAll, e => e.weight )
-            
+            var allToAllDistances = flowLabel( allToAll, e => e.weight )
             
             println( "Pruning zero flow edges" )
             
@@ -494,6 +555,12 @@ object CategoryHierarchy
             //runPathCompression()
             
             g.dump( "0.dot", getName )
+            
+            println( "Running clustering" )
+            val subgraphFlowEdges = runClustering( allToAllDistances, 10.0 )
+            flowLabel( subgraphFlowEdges, e => e.weight )
+            
+            //g.dump( "0.5.dot", getName )
             
             // 2.4 Find most distant point (in each subgraph) and push flow from there
             var complete = false

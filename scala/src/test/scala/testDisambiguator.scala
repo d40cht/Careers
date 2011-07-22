@@ -189,106 +189,109 @@ class DisambiguatorTest extends FunSuite
     
     test( "Category hierarchy" )
     {
-        val topicDb = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
-        topicDb.exec( "PRAGMA cache_size=2000000" )
-        
-        val ch = new CategoryHierarchy( "./DisambigData/categoryHierarchy.bin", topicDb )
-        
-        
-        //ch.debugDumpCounts(topicDb)
-     
-        val testData = XML.loadFile("./src/test/scala/data/categoryHierarchyTest.xml")   
-        val topicIds = for ( idNode <- testData \\ "id" ) yield idNode.text.toInt
-        //val topicIds = List(6275968, 1333154, 2616932, 3903171, 4913632, 3448688, 4519789, 3313539, 5546110, 2090906, 4612339, 3617472, 58782, 415998, 2501803, 8870904, 9060275, 8359607, 4066240, 7323730, 4082275, 4003924, 6625562, 7937128, 4088938, 5786061, 7800535, 693745, 5256577, 779155, 2350518, 6883514, 3801373, 8460715, 2662485, 60809, 4222740, 660650, 5891285, 6887386, 9025757, 2239769, 1788538, 8509935, 7610006, 7261246, 4727354, 3916949, 2029791, 3705473, 1430456, 4954565, 7909026, 2110649, 8737407, 3906966, 1918658, 1575844, 8115928, 5708257, 6650884, 7281642, 6633824, 6657113, 3411260, 6378227, 7546140, 859630, 8324619, 7539795, 4870171, 482041, 7611036, 2170757, 522927, 7096991, 1579286, 3266446, 7979557, 1062303, 7753474, 2141202, 3981414, 4647221, 7835692, 1410124, 4615670, 7274269, 7181129, 8812691, 7077765, 4595217, 7899042, 5079046, 3259924, 5988437, 5203002, 5975225, 5072818, 3517025, 3987297, 8162670, 2479821, 2503972, 812016, 8670431, 3678284, 6796338, 5693770, 3433254, 8331509, 4893651, 7357173, 1704034, 4796230, 1502546, 8252237, 5209846, 4099028, 8375025, 2167575, 313694, 1017108, 7461150, 5422331, 6879102, 6647649, 985574, 5582600, 4796267, 1669050, 5342763, 2330729, 1410304, 941381, 203736, 5720638, 5920159, 8686265, 5329085, 4335580, 5270809, 9045963, 67982, 5621437, 1518228, 998547, 1543774, 1677972, 4474778, 4886195, 7432676, 1385241, 3942479, 1630850, 221884, 5621995, 7900052, 2037264, 5939926, 5152725, 5156857, 7999667, 440732, 3065940, 1903661, 1525727, 2083659, 5324132, 5362097, 8883105)
-        //val topicIds = List(6275968, 1333154, 2616932, 3903171, 4913632, 3448688, 4519789, 3313539, 5546110, 2090906, 4612339, 3617472, 58782, 415998, 2501803, 8870904, 9060275, 8359607, 4066240, 7323730, 4082275, 4003924, 6625562, 7937128, 4088938, 5786061, 7800535, 693745, 5256577, 779155, 2350518, 6883514, 3801373, 8460715, 2662485, 60809, 4222740, 660650, 5891285, 6887386, 9025757, 2239769, 1788538)
-        //val topicIds = List(6275968, 1333154, 2616932, 3903171, 4913632, 3448688, 4519789, 3313539, 5546110, 2090906, 4612339, 3617472, 58782, 415998, 2501803, 8870904, 9060275)
-        //val topicIds = List(3617472, 3906966, 9045963, 4066240, 6657113)
-        //val topicIds = List(3906966, 9045963, 4066240, 6657113)
-        //val topicIds = List(4066240, 6657113)
-       
-        val nameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
-        def getName( id : Int ) =
+        if ( true )
         {
-            nameQuery.bind(id)
-            _1(nameQuery.toList(0)).get
-        }
-    
-        for ( id <- topicIds ) println( id + " : " + getName(id) )
-        val fullGraph = ch.toTop( topicIds )
-        
-        println( "Fetching topic linkage weights" )
-        var topicDistances = HashMap[(Int, Int), Double]()
-        
-        {
-            var distQuery = topicDb.prepare( "SELECT contextTopicId, weight FROM linkWeights2 WHERE topicId=?", Col[Int]::Col[Double]::HNil )
-            for ( id1 <- topicIds; id2 <- topicIds )
+            val topicDb = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
+            topicDb.exec( "PRAGMA cache_size=2000000" )
+            
+            val ch = new CategoryHierarchy( "./DisambigData/categoryHierarchy.bin", topicDb )
+            
+            
+            //ch.debugDumpCounts(topicDb)
+         
+            val testData = XML.loadFile("./src/test/scala/data/categoryHierarchyTest.xml")   
+            val topicIds = for ( idNode <- testData \\ "id" ) yield idNode.text.toInt
+            //val topicIds = List(6275968, 1333154, 2616932, 3903171, 4913632, 3448688, 4519789, 3313539, 5546110, 2090906, 4612339, 3617472, 58782, 415998, 2501803, 8870904, 9060275, 8359607, 4066240, 7323730, 4082275, 4003924, 6625562, 7937128, 4088938, 5786061, 7800535, 693745, 5256577, 779155, 2350518, 6883514, 3801373, 8460715, 2662485, 60809, 4222740, 660650, 5891285, 6887386, 9025757, 2239769, 1788538, 8509935, 7610006, 7261246, 4727354, 3916949, 2029791, 3705473, 1430456, 4954565, 7909026, 2110649, 8737407, 3906966, 1918658, 1575844, 8115928, 5708257, 6650884, 7281642, 6633824, 6657113, 3411260, 6378227, 7546140, 859630, 8324619, 7539795, 4870171, 482041, 7611036, 2170757, 522927, 7096991, 1579286, 3266446, 7979557, 1062303, 7753474, 2141202, 3981414, 4647221, 7835692, 1410124, 4615670, 7274269, 7181129, 8812691, 7077765, 4595217, 7899042, 5079046, 3259924, 5988437, 5203002, 5975225, 5072818, 3517025, 3987297, 8162670, 2479821, 2503972, 812016, 8670431, 3678284, 6796338, 5693770, 3433254, 8331509, 4893651, 7357173, 1704034, 4796230, 1502546, 8252237, 5209846, 4099028, 8375025, 2167575, 313694, 1017108, 7461150, 5422331, 6879102, 6647649, 985574, 5582600, 4796267, 1669050, 5342763, 2330729, 1410304, 941381, 203736, 5720638, 5920159, 8686265, 5329085, 4335580, 5270809, 9045963, 67982, 5621437, 1518228, 998547, 1543774, 1677972, 4474778, 4886195, 7432676, 1385241, 3942479, 1630850, 221884, 5621995, 7900052, 2037264, 5939926, 5152725, 5156857, 7999667, 440732, 3065940, 1903661, 1525727, 2083659, 5324132, 5362097, 8883105)
+            //val topicIds = List(6275968, 1333154, 2616932, 3903171, 4913632, 3448688, 4519789, 3313539, 5546110, 2090906, 4612339, 3617472, 58782, 415998, 2501803, 8870904, 9060275, 8359607, 4066240, 7323730, 4082275, 4003924, 6625562, 7937128, 4088938, 5786061, 7800535, 693745, 5256577, 779155, 2350518, 6883514, 3801373, 8460715, 2662485, 60809, 4222740, 660650, 5891285, 6887386, 9025757, 2239769, 1788538)
+            //val topicIds = List(6275968, 1333154, 2616932, 3903171, 4913632, 3448688, 4519789, 3313539, 5546110, 2090906, 4612339, 3617472, 58782, 415998, 2501803, 8870904, 9060275)
+            //val topicIds = List(3617472, 3906966, 9045963, 4066240, 6657113)
+            //val topicIds = List(3906966, 9045963, 4066240, 6657113)
+            //val topicIds = List(4066240, 6657113)
+           
+            val nameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
+            def getName( id : Int ) =
             {
-                def contexts( id : Int ) =
+                nameQuery.bind(id)
+                _1(nameQuery.toList(0)).get
+            }
+        
+            for ( id <- topicIds ) println( id + " : " + getName(id) )
+            val fullGraph = ch.toTop( topicIds )
+            
+            println( "Fetching topic linkage weights" )
+            var topicDistances = HashMap[(Int, Int), Double]()
+            
+            {
+                var distQuery = topicDb.prepare( "SELECT contextTopicId, weight FROM linkWeights2 WHERE topicId=?", Col[Int]::Col[Double]::HNil )
+                for ( id1 <- topicIds; id2 <- topicIds )
                 {
-                    distQuery.bind( id )
-                    var res = distQuery.foldLeft( TreeMap[Int, Double]() )( (m, v) => m.updated( _1(v).get, _2(v).get ) )
-                    
-                    /*for ( (id1, weight1) <- res.toList )
+                    def contexts( id : Int ) =
                     {
-                        distQuery.bind( id1 )
+                        distQuery.bind( id )
+                        var res = distQuery.foldLeft( TreeMap[Int, Double]() )( (m, v) => m.updated( _1(v).get, _2(v).get ) )
                         
-                        for ( row <- distQuery )
+                        /*for ( (id1, weight1) <- res.toList )
                         {
-                            val id2 = _1(row).get
-                            val weight2 = _2(row).get
+                            distQuery.bind( id1 )
                             
-                            val prev = res.getOrElse(id2, 0.0)
-                            res = res.updated( id2, prev max (weight1*weight2) )
-                        }
-                    }*/
+                            for ( row <- distQuery )
+                            {
+                                val id2 = _1(row).get
+                                val weight2 = _2(row).get
+                                
+                                val prev = res.getOrElse(id2, 0.0)
+                                res = res.updated( id2, prev max (weight1*weight2) )
+                            }
+                        }*/
+                        
+                        res
+                    }
+
+                    val id1Context = contexts(id1)
+                    val id2Context = contexts(id2)
                     
-                    res
+                    val dist = id1Context.foldLeft( 0.0 )( (acc, value) =>
+                    {
+                        val contextId = value._1
+                        val weight = value._2
+                        if ( id2Context.contains( contextId ) )
+                        {
+                            acc + weight * id2Context(contextId)
+                        }
+                        else
+                        {
+                            acc
+                        }
+                    } )
+                    
+                    //println( getName( id1 ) + " - " + getName( id2 ) + ": " + dist )
+                    topicDistances = topicDistances.updated( (id1, id2), dist )
                 }
-
-                val id1Context = contexts(id1)
-                val id2Context = contexts(id2)
-                
-                val dist = id1Context.foldLeft( 0.0 )( (acc, value) =>
-                {
-                    val contextId = value._1
-                    val weight = value._2
-                    if ( id2Context.contains( contextId ) )
-                    {
-                        acc + weight * id2Context(contextId)
-                    }
-                    else
-                    {
-                        acc
-                    }
-                } )
-                
-                //println( getName( id1 ) + " - " + getName( id2 ) + ": " + dist )
-                topicDistances = topicDistances.updated( (id1, id2), dist )
             }
-        }
-        
-        //val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, -log(x._3)) ) )
-        val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, 1.0/x._3) ), getName )
-        val trees = b.run( (x,y) => topicDistances( (x, y) ) )
-        for ( tree <- trees ) tree.print( getName )
-        
-        /*for ( (fromId, toId, weight) <- fullGraph )
-        {
-            //println( ":: " + getName(fromId) + " -> " + getName(toId) + ": " + weight )
-        }
-
-        val hb = new HierarchyBuilder( topicIds, fullGraph )
-        val merges = hb.run( getName )
-        
-        
-        for ( (category, members) <- merges )
-        {
-            println( "Category: " + getName(category) )
-            for ( m <- members )
+            
+            //val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, -log(x._3)) ) )
+            val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, 1.0/x._3) ), getName )
+            val trees = b.run( (x,y) => topicDistances( (x, y) ) )
+            for ( tree <- trees ) tree.print( getName )
+            
+            /*for ( (fromId, toId, weight) <- fullGraph )
             {
-                println( "  " + getName(m) )
+                //println( ":: " + getName(fromId) + " -> " + getName(toId) + ": " + weight )
             }
-        }*/
+
+            val hb = new HierarchyBuilder( topicIds, fullGraph )
+            val merges = hb.run( getName )
+            
+            
+            for ( (category, members) <- merges )
+            {
+                println( "Category: " + getName(category) )
+                for ( m <- members )
+                {
+                    println( "  " + getName(m) )
+                }
+            }*/
+        }
     }
     
     test( "New disambiguator test" )
