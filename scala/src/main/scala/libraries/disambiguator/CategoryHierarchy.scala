@@ -231,7 +231,7 @@ object CategoryHierarchy
                 {
                     if ( !seenEdges.contains(e) )
                     {
-                        f.write( "%d -- %d [label=\"%f\"];\n".format( e.source.id, e.sink.id, e.weight ) )
+                        f.write( "%d -- %d [label=\"%.2f, %.2f\"];\n".format( e.source.id, e.sink.id, e.flow.toDouble, e.weight.toDouble ) )
                         seenEdges += e
                     }
                 }
@@ -417,6 +417,11 @@ object CategoryHierarchy
             distances
         }
         
+        def pruneNodes()
+        {
+            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty || topics.contains(x) )
+        }
+        
         def runPathCompression()
         {
             println( "Running path compression" )
@@ -459,7 +464,7 @@ object CategoryHierarchy
             }
             println( "  > removed " + removedCount + " edges" )
             
-            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
+            pruneNodes()
         }
         
         def dumpGraph()
@@ -471,7 +476,7 @@ object CategoryHierarchy
             }
         }
         
-        def runClustering( distances : HashMap[(Node, Node), Double], maxDist : Double ) =
+        def runClustering( distances : HashMap[(Node, Node), Double], cropDist : Double ) =
         {
             // Cluster based on minimum distances first
             type DJSetType = DisjointSet[Node]
@@ -497,11 +502,11 @@ object CategoryHierarchy
                     val dj1els = dj1.members().map( _.value )
                     val dj2els = dj2.members().map( _.value )
                     
-                    val allDists = for ( el1 <- dj1els; el2 <- dj2els if distances.contains( (el1, el2) ) ) yield distances( (el1, el2) )
+                    val allDists = for ( el1 <- dj1els; el2 <- dj2els ) yield if (distances.contains( (el1, el2) )) distances( (el1, el2) ) else Double.MaxValue
                  
                     val maxDist = allDists.foldLeft(0.0)( _ max _ )
                     
-                    if ( maxDist < maxDist ) dj1 join dj2
+                    if ( maxDist < cropDist ) dj1 join dj2
                 }
             }
             
@@ -525,6 +530,13 @@ object CategoryHierarchy
                 }
             }
             
+            println( "Number of seen sets: " + seenSets.size )
+            for ( set <- seenSets )
+            {
+                println( "  " + set.size() )
+                for ( v <- set.members() ) println( "     -> " + getName(v.value.id) )
+            }
+            
             flowEdges
         }
         
@@ -533,7 +545,7 @@ object CategoryHierarchy
             // Run flow labelling to mark a subset of edges that are required to keep
             // the topic graph connected
             println( "Running flow labelling on graph" )
-            val allToAll = for ( topic <- topics ) yield (topic, for ( innerTopic <- topics if topic.id < innerTopic.id && topicDistance(topic.id, innerTopic.id) != 0.0 ) yield innerTopic )
+            val allToAll = for ( topic <- topics ) yield (topic, for ( innerTopic <- topics if topic.id < innerTopic.id /*&& topicDistance(topic.id, innerTopic.id) != 0.0*/ ) yield innerTopic )
             var allToAllDistances = flowLabel( allToAll, e => e.weight )
             
             println( "Pruning zero flow edges" )
@@ -570,7 +582,7 @@ object CategoryHierarchy
                         complete = false
                     }
                     runPathCompression()
-                    g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
+                    pruneNodes()
                 }
             }
             
@@ -581,8 +593,10 @@ object CategoryHierarchy
             println( "Running clustering" )
             val subgraphFlowEdges = runClustering( allToAllDistances, 20.0 )
             flowLabel( subgraphFlowEdges, e => e.weight )
+            pruneZeroFlowEdges()
             
-            //g.dump( "0.5.dot", getName )
+            g.dump( "0.5.dot", getName )
+            
             
             // 2.4 Find most distant point (in each subgraph) and push flow from there
             /*var complete = false
@@ -619,11 +633,11 @@ object CategoryHierarchy
             // 2.5: Path compression
             //runPathCompression()
             
-            pruneOverDistant( 4.0 )
+            //pruneOverDistant( 4.0 )
             runPathCompression()
             
             // Zero the topic edge flows so they are unlikely to be inner nodes in MST
-            for ( t <- topics; e <- t.edges ) e.flow = 0
+            //for ( t <- topics; e <- t.edges ) e.flow = 0
             
             g.dump( "1.dot", getName )
             
@@ -638,7 +652,7 @@ object CategoryHierarchy
                     edge.remove()
                 }
             }
-            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
+            pruneNodes()
             
             runPathCompression()
             g.dump( "2.dot", getName )
@@ -646,7 +660,12 @@ object CategoryHierarchy
             
             
             // 3.5: Chop overdistant edges
-            pruneOverDistant( 7.0 )
+            //pruneOverDistant( 12.0 )
+            
+            /*var treeAllToAllDistances = flowLabel( allToAll, e => e.weight )
+            val treeFlowEdges = runClustering( treeAllToAllDistances, 20.0 )
+            flowLabel( treeFlowEdges, e => e.weight )
+            pruneZeroFlowEdges()*/
                         
             
             
@@ -666,8 +685,7 @@ object CategoryHierarchy
 
             // 4: Prune disconnected nodes
             println( "Pruning disconnected nodes" )
-            g.allNodes = g.allNodes.filter( x => !x.edges.isEmpty )
-            
+            pruneNodes()
            
             // Run distance labelling on the MST. The node with the greatest distance from all others
             // is a good choice for root of the tree.
@@ -676,7 +694,7 @@ object CategoryHierarchy
             
             
             
-            var topicLabellings = HashMap[Node, HashSet[Node]]()
+            /*var topicLabellings = HashMap[Node, HashSet[Node]]()
             for ( start <- topics )
             {
                 val q = Stack[Node]()
@@ -713,7 +731,7 @@ object CategoryHierarchy
                 
                 n.coherence = minWeight
                 n.topicCount = topicMembers.size
-            }
+            }*/
             
             runPathCompression()
             
@@ -741,7 +759,9 @@ object CategoryHierarchy
                 {   
                     maxFlowTrees = buildTree(maxFlowNode) :: maxFlowTrees
                 }   
-            }            
+            }
+            
+            for ( topic <- topics.filter( x => !visited.contains(x) ) ) maxFlowTrees = new CategoryTreeElement( topic, HashMap() ) :: maxFlowTrees
            
             maxFlowTrees
         }
