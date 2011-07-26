@@ -189,7 +189,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Category hierarchy" )
     {
-        if ( true )
+        if ( false )
         {
             val topicDb = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
             topicDb.exec( "PRAGMA cache_size=2000000" )
@@ -271,7 +271,7 @@ class DisambiguatorTest extends FunSuite
         
         //val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, -log(x._3)) ) )
         val b = new Builder( topicIds, fullGraph, getName )
-        val trees = b.run( (x,y) => topicDistances( (x, y) ) )
+        val trees = b.run( (x,y) => topicDistances( (x, y) ), 20.0 )
         for ( tree <- trees ) tree.print( getName )
         
         /*for ( (fromId, toId, weight) <- fullGraph )
@@ -364,7 +364,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             var fail = false

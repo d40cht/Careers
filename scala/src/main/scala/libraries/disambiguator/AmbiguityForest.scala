@@ -35,7 +35,7 @@ object AmbiguityForest
         
     val minPhraseWeight         = 0.005
     val minContextEdgeWeight    = 1.0e-10
-    val numAllowedContexts      = 100
+    val numAllowedContexts      = 20
     
     // Smith-waterman (and other sparse articles) require this
     val secondOrderContexts             = true
@@ -43,9 +43,9 @@ object AmbiguityForest
     // Fewer than this number of first order contexts, go wider
     
     // Quite sensitive. Drop to 10 but beware Cambridge Ontario
-    val secondOrderKickin               = 100
+    val secondOrderKickin               = 10
     val secondOrderContextDownWeight    = 0.1
-    val secondOrderExcludeCategories    = true
+    val secondOrderExcludeCategories    = false
     
     // Reversed contexts run slowly and seem to perform badly
     //val reversedContexts                = false

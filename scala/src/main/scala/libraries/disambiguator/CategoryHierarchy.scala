@@ -77,7 +77,7 @@ object CategoryHierarchy
         
         //val tooFrequent = inboundCounts.filter( _._2 > overbroadCategoryCount ).foldLeft(HashSet[Int]())( _ + _._1 )
                 
-        def toTop( topicIds : Seq[Int] ) =
+        def toTop( topicIds : Iterable[Int] ) =
         {
             val q = Stack[Int]()
             for ( id <- topicIds ) q.push( id )
@@ -241,7 +241,7 @@ object CategoryHierarchy
             f.close()
         }
         
-        def dijkstraVisit( starts : Seq[Node], weightFn : Edge => Weight, visitFn : (Node, Weight) => Unit )
+        def dijkstraVisit( starts : Seq[Node], weightFn : Edge => Weight, visitFn : (Node, Weight) => Boolean )
         {
             for ( n <- allNodes )
             {
@@ -264,29 +264,33 @@ object CategoryHierarchy
                 node.enqueued = false
                 
              
-                visitFn( node, distance )
-                for ( edge <- node.edges )
+                val visitChildren = visitFn( node, distance )
+                
+                if ( visitChildren )
                 {
-                    val s = edge.other(node)
-                    val edgeWeight = weightFn(edge)
-                    if ( s.enqueued || s.distance == Double.MaxValue )
+                    for ( edge <- node.edges )
                     {
-                        if ( s.distance != Double.MaxValue )
+                        val s = edge.other(node)
+                        val edgeWeight = weightFn(edge)
+                        if ( s.enqueued || s.distance == Double.MaxValue )
                         {
-                            q.remove( s.distance, s )
+                            if ( s.distance != Double.MaxValue )
+                            {
+                                q.remove( s.distance, s )
+                            }
+                           
+                            val thisDistance = distance + edgeWeight
+                            if ( thisDistance < s.distance )
+                            {
+                                s.distance = thisDistance
+                                s.prev = edge
+                            }
+                            
+                            q.add( s.distance, s )
+                            s.enqueued = true
                         }
-                       
-                        val thisDistance = distance + edgeWeight
-                        if ( thisDistance < s.distance )
-                        {
-                            s.distance = thisDistance
-                            s.prev = edge
-                        }
-                        
-                        q.add( s.distance, s )
-                        s.enqueued = true
                     }
-                }    
+                }   
             }
         }
         
@@ -340,13 +344,13 @@ object CategoryHierarchy
         }
     }
     
-    class Builder( topicIds : Seq[Int], edges : Seq[(Int, Int, Double)], getName : Int => String )
+    class Builder( topicIds : Iterable[Int], edges : Iterable[(Int, Int, Double)], getName : Int => String )
     {
         val g = new Graph()
         var topics : HashSet[Node] = null
         initialise( edges )
         
-        def initialise( edges : Seq[(Int, Int, Double)] ) =
+        def initialise( edges : Iterable[(Int, Int, Double)] ) =
         {
             var idToNode = HashMap[Int, Node]()
             def getNode( id : Int ) =
@@ -375,7 +379,7 @@ object CategoryHierarchy
         
         
         
-        def flowLabel( fromToPairs : Iterable[(Node, Iterable[Node])], weightFn : Edge => Double ) =
+        def flowLabel( fromToPairs : Iterable[(Node, Iterable[Node])], weightFn : Edge => Double, maxTopicDistance : Double ) =
         {
             var distances = HashMap[(Node, Node), Double]()
             // Reset all flows to zero
@@ -389,29 +393,35 @@ object CategoryHierarchy
             }
             
             // Push a unit of flow down the shortest path from each topic node to each other topic node
+            var count = 0
             for ( (from, topics) <- fromToPairs )
             {
-                g.dijkstraVisit( from :: Nil, weightFn, (node, height) => {} )
+                if ( (count % 100) == 0 ) println( "... " + count )
+                g.dijkstraVisit( from :: Nil, weightFn, (node, height) => true )
                 
-                for ( topic <- topics ) distances = distances.updated( (from, topic), topic.distance )
-                
-                for ( innerTopic <- topics )
+                for ( topic <- topics )
                 {
-                    var it = innerTopic
-                    if ( it.prev != null )
+                    if ( topic.distance < maxTopicDistance )
                     {
-                        it.flow += 1
-                        while ( it != null )
+                        distances = distances.updated( (from, topic), topic.distance )
+
+                        var it = topic
+                        if ( it.prev != null )
                         {
-                            if ( it.prev != null )
+                            it.flow += 1
+                            while ( it != null )
                             {
-                                it.prev.flow += 1
-                                it = it.prev.other(it)
+                                if ( it.prev != null )
+                                {
+                                    it.prev.flow += 1
+                                    it = it.prev.other(it)
+                                }
+                                else it = null
                             }
-                            else it = null
                         }
                     }
                 }
+                count += 1
             }
             
             distances
@@ -540,13 +550,15 @@ object CategoryHierarchy
             flowEdges
         }
         
-        def run( topicDistance : (Int, Int) => Double ) =
+        def run( topicDistance : (Int, Int) => Double, maxTopicDistance : Double ) =
         {
             // Run flow labelling to mark a subset of edges that are required to keep
             // the topic graph connected
+            println( "Building all to all links." )
+            val allToAll = for ( topic <- topics.toStream ) yield (topic, for ( innerTopic <- topics.toStream if topic.id < innerTopic.id /*&& topicDistance(topic.id, innerTopic.id) != 0.0*/ ) yield innerTopic )
+            
             println( "Running flow labelling on graph" )
-            val allToAll = for ( topic <- topics ) yield (topic, for ( innerTopic <- topics if topic.id < innerTopic.id /*&& topicDistance(topic.id, innerTopic.id) != 0.0*/ ) yield innerTopic )
-            var allToAllDistances = flowLabel( allToAll, e => e.weight )
+            var allToAllDistances = flowLabel( allToAll, e => e.weight, maxTopicDistance )
             
             println( "Pruning zero flow edges" )
             
@@ -592,7 +604,7 @@ object CategoryHierarchy
             
             println( "Running clustering" )
             val subgraphFlowEdges = runClustering( allToAllDistances, 20.0 )
-            flowLabel( subgraphFlowEdges, e => e.weight )
+            flowLabel( subgraphFlowEdges, e => e.weight, maxTopicDistance )
             pruneZeroFlowEdges()
             
             g.dump( "0.5.dot", getName )
@@ -612,7 +624,7 @@ object CategoryHierarchy
                 for ( tp <- unseenTopics ) println( "   " + getName(tp.id) )
                 if ( unseenTopics.size != 0 )
                 {
-                    g.dijkstraVisit( unseenTopics.toList, x => x.weight, (x, y) => {} )
+                    g.dijkstraVisit( unseenTopics.toList, x => x.weight, (x, y) => true )
                     val mostDistant = unseen.reduceLeft( (n1, n2) => if (n1.distance > n2.distance) n1 else n2 )
                     flowLabel( List( (mostDistant, unseenTopics) ), e => e.weight )
                     
@@ -680,7 +692,7 @@ object CategoryHierarchy
                     node.edges.head.weight = 0.0
                 }
             }
-            g.dijkstraVisit( topics.toList, x => x.weight, (x, y) => {} )*/
+            g.dijkstraVisit( topics.toList, x => x.weight, (x, y) => true )*/
 
 
             // 4: Prune disconnected nodes
@@ -690,7 +702,7 @@ object CategoryHierarchy
             // Run distance labelling on the MST. The node with the greatest distance from all others
             // is a good choice for root of the tree.
             println( "Finding suitable tree roots and building MST" )
-            g.dijkstraVisit( topics.toList, e => 1.0/*e.weight*/, (x, y) => {} )
+            g.dijkstraVisit( topics.toList, e => 1.0/*e.weight*/, (x, y) => true )
             
             
             
@@ -838,6 +850,8 @@ object CategoryHierarchy
                 {
                     options.append( new MergeChoice( node, maxHeight, numMembers ) )
                 }
+                
+                true
             } )
             
             g.dumpLabellings( x => (x.data + "/" + getName( x.data )) )
@@ -870,6 +884,7 @@ object CategoryHierarchy
                     g.dijkstraVisit( liveTopics.toSeq, (node, height) =>
                     {
                         for ( n <- mergingNodes ) if ( node.topicMembership.contains(n) ) node.topicMembership -= n
+                        true
                     } )
                     
                     for ( removed <- mergingNodes; n <-g.allNodes ) assert( !n.topicMembership.contains(removed) )
@@ -898,6 +913,7 @@ object CategoryHierarchy
             g.dijkstraVisit( liveTopics.toSeq, (node, height) =>
             {
                 println( "---> " + node.data + ", " + getName(node.data) + ": " + node.minHeight + ", " + height )
+                true
             } )
             
          
@@ -906,7 +922,7 @@ object CategoryHierarchy
             for ( topicNode <- liveTopics )
             {
                 println( "  labelling: " + topicNode.data )
-                g.dijkstraVisit( topicNode :: Nil, (node, height) => updateTopicMembership( node, topicNode, height ) )
+                g.dijkstraVisit( topicNode :: Nil, (node, height) => { updateTopicMembership( node, topicNode, height ); true } )
             }
             
             // Find the best merge point according to min topic height, num topics, topic importance (incident edge count?)
@@ -949,7 +965,7 @@ object CategoryHierarchy
                         liveTopics += into
                         
                         // Label the graph up with the new merged node
-                        g.dijkstraVisit( into :: Nil, (node, height) => updateTopicMembership( node, into, height ) )
+                        g.dijkstraVisit( into :: Nil, (node, height) => { updateTopicMembership( node, into, height ); true } )
                     }
                     merges.appendAll( thisPassMerges )
                 }

@@ -18,7 +18,7 @@ import org.seacourt.sql.SqliteWrapper._
 import org.seacourt.utility.StopWords.stopWordSet
 import org.seacourt.utility._
 import org.seacourt.disambiguator.Community._
-import org.seacourt.disambiguator.CategoryHierarchy._
+import org.seacourt.disambiguator.CategoryHierarchy.{CategoryHierarchy, Builder => CHBuilder}
 
 import org.seacourt.utility.{Graph}
 
@@ -290,8 +290,6 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         
     class Builder( val text : String )
     {
-        
-    
         val wordList = Utils.luceneTextTokenizer( Utils.normalize( text ) )
         
         var topicCategoryMap = TreeMap[Int, TreeMap[Int, Double]]()
@@ -438,7 +436,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                             topicCategoryMap = topicCategoryMap.updated(topicId, reducedContextWeightMap)
                                             
                                             //println( topicId + ": " + topicCategoryIds )
-                                            for ( (topicCategoryId, weight) <- contextWeights )
+                                            for ( (topicCategoryId, weight) <- topContextsByWeight )
                                             {
                                                 assert( topicCategoryId != 0 )
                                                 topicSet = topicSet + topicCategoryId
@@ -460,9 +458,20 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                 wordIndex += 1
             }
             
-            println( "Looking up topic names." )
+            println( "Looking up topic names for " + topicSet.size + " topics." )
             //val topicNameQuery = topicDb.prepare( "SELECT t1.name, t2.count FROM topics AS t1 LEFT JOIN numTopicsForWhichThisIsAContext AS t2 on t1.id=t2.topicId WHERE id=?", Col[String]::Col[Int]::HNil )
             val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
+            
+            println( "Build category graph." )
+            val fullGraph = categoryHierarchy.toTop( topicSet )
+            println( "  complete..." )
+            
+            println( "Build and run category hierarchy" )
+            val b = new CHBuilder( topicSet, fullGraph, id => id.toString )
+            println( "  run..." )
+            val maxTopicDistance = 20.0
+            b.run( (x,y) => 1, maxTopicDistance )
+            println( "  complete..." )
             
             for ( topicId <- topicSet )
             {
