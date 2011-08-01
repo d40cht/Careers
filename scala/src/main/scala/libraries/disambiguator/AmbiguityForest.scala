@@ -80,6 +80,9 @@ class AmbiguitySite( val start : Int, val end : Int )
     type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
     var combs = HashSet[AmbiguityAlternative]()
     
+    // Ordered shortest distance first
+    def orderedLinks = (for ( as <- combs.toList; site <- as.sites; td <- site.sf.topics; link <- td.peers ) yield link).sortWith( _._2 < _._2 )
+    
     class AmbiguityAlternative( siteDetails : List[AmbiguityForest.SurfaceFormDetails] )
     {
         val sites = siteDetails.map( x => new AltSite( x ) )

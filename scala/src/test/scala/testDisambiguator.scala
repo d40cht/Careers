@@ -61,6 +61,34 @@ import math.{log}
     }
 }*/
 
+class CategoryDistanceTests extends FunSuite
+{
+    test( "Category distance builder" )
+    {
+        val topicDb = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
+        topicDb.exec( "PRAGMA cache_size=2000000" )
+        
+        val ch = new CategoryHierarchy( "./DisambigData/categoryHierarchy.bin", topicDb )
+        
+        println( "Reading all topic ids" )
+        val allTopicQuery = topicDb.prepare("SELECT id FROM topics", Col[Int]::HNil )
+        val allIds = allTopicQuery.map( x => _1(x).get ).toList
+        println( "    complete..." + allIds.size )        
+        
+        println( "Reading all edges" )
+        val allEdges = ch.toTop( allIds )
+        println( "    complete..." + allEdges.size )
+        
+        println( "Building graph" )
+        val b = new Builder( allIds, allEdges, x => x.toString )
+        println( "    complete..." )
+        /*for ( id <- allIds )
+        {
+            ch.
+        }*/
+    }
+}
+
 class CategoryHierarchyTest extends FunSuite
 {
     test("Category hierarchy MST")
@@ -364,7 +392,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( true )
+        if ( false )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             var fail = false
