@@ -397,7 +397,7 @@ object CategoryHierarchy
             for ( (from, topics) <- fromToPairs )
             {
                 if ( (count % 100) == 0 ) println( "... " + count )
-                g.dijkstraVisit( from :: Nil, weightFn, (node, height) => true )
+                g.dijkstraVisit( from :: Nil, weightFn, (node, height) => (height < maxTopicDistance) )
                 
                 for ( topic <- topics )
                 {

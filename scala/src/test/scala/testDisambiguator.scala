@@ -63,6 +63,7 @@ import math.{log}
 
 class CategoryDistanceTests extends FunSuite
 {
+    /*
     test( "Category distance builder" )
     {
         val topicDb = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
@@ -82,11 +83,11 @@ class CategoryDistanceTests extends FunSuite
         println( "Building graph" )
         val b = new Builder( allIds, allEdges, x => x.toString )
         println( "    complete..." )
-        /*for ( id <- allIds )
+        for ( id <- allIds )
         {
             ch.
-        }*/
-    }
+        }
+    }*/
 }
 
 class CategoryHierarchyTest extends FunSuite
@@ -297,24 +298,12 @@ class DisambiguatorTest extends FunSuite
                 }
             }
         
-        //val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, -log(x._3)) ) )
-        val b = new Builder( topicIds, fullGraph, getName )
-        val trees = b.run( (x,y) => topicDistances( (x, y) ), 20.0 )
-        for ( tree <- trees ) tree.print( getName )
-        
-        /*for ( (fromId, toId, weight) <- fullGraph )
-        {
-            //println( ":: " + getName(fromId) + " -> " + getName(toId) + ": " + weight )
-        }
-
-        val hb = new HierarchyBuilder( topicIds, fullGraph )
-        val merges = hb.run( getName )
-        
-        
-        for ( (category, members) <- merges )
-        {
-            println( "Category: " + getName(category) )
-            for ( m <- members )
+            //val b = new Builder( topicIds, fullGraph.map( x => (x._1, x._2, -log(x._3)) ) )
+            val b = new Builder( topicIds, fullGraph, getName )
+            val trees = b.run( (x,y) => topicDistances( (x, y) ), 20.0 )
+            for ( tree <- trees ) tree.print( getName )
+            
+            /*for ( (fromId, toId, weight) <- fullGraph )
             {
                 //println( ":: " + getName(fromId) + " -> " + getName(toId) + ": " + weight )
             }
@@ -328,7 +317,20 @@ class DisambiguatorTest extends FunSuite
                 println( "Category: " + getName(category) )
                 for ( m <- members )
                 {
-                    println( "  " + getName(m) )
+                    //println( ":: " + getName(fromId) + " -> " + getName(toId) + ": " + weight )
+                }
+
+                val hb = new HierarchyBuilder( topicIds, fullGraph )
+                val merges = hb.run( getName )
+                
+                
+                for ( (category, members) <- merges )
+                {
+                    println( "Category: " + getName(category) )
+                    for ( m <- members )
+                    {
+                        println( "  " + getName(m) )
+                    }
                 }
             }*/
         }
@@ -359,7 +361,7 @@ class DisambiguatorTest extends FunSuite
         assert( v.size == 0 )
         assert( v.isEmpty )*/
         
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             
@@ -367,12 +369,14 @@ class DisambiguatorTest extends FunSuite
             //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
-            val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
             
+            //val fileText = "smith waterman gene sequencing bioinformatics"
             //val fileText = "gerry adams troubles bloody sunday"
-            //val fileText = "rice cambridge oxford yale harvard"
-            //val fileText = "the leaf, a new electric car from nissan. Blah blah blah blah blah blah blah. One autumn morning, the leaf dropped from the tree."
+            //val fileText = "rice university cambridge university oxford university yale university harvard university"
+            //val fileText = "rice cambridge oxford yale harvard mba"
+            val fileText = "the leaf, a new electric car from nissan. Blah blah blah blah blah blah blah. One autumn morning, the leaf dropped from the tree."
             
             // At present no shared context between 'smith waterman' and 'gene sequencing'.
             // A case for broadening the context to an additional step away?

@@ -268,13 +268,15 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         var contextWeights = TreeMap[String, Double]()
         for ( t <- topics )
         {
-            val categoryQuery = topicDb.prepare( "SELECT t3.name, t2.weight FROM topics AS t1 INNER JOIN linkWeights2 AS t2 ON t1.id=t2.topicId INNER JOIN topics AS t3 ON t3.id=t2.contextTopicId WHERE t1.name=? AND t1.id != t2.contextTopicId", Col[String]::Col[Double]::HNil )
+            val categoryQuery = topicDb.prepare( "SELECT t3.name, t2.weight1, t2.weight2 FROM topics AS t1 INNER JOIN linkWeights AS t2 ON t1.id=t2.topicId INNER JOIN topics AS t3 ON t3.id=t2.contextTopicId WHERE t1.name=? AND t1.id != t2.contextTopicId", Col[String]::Col[Double]::Col[Double]::HNil )
             categoryQuery.bind( t )
             
             for ( row <- categoryQuery )
             {
                 val contextName = _1(row).get
-                val contextWeight = _2(row).get
+                val contextWeight1 = _2(row).get
+                val contextWeight2 = _3(row).get
+                val contextWeight = if ( contextWeight1 < contextWeight2 ) contextWeight1 else contextWeight2
                 val oldWeight = contextWeights.getOrElse( contextName, 0.0 )
                 contextWeights = contextWeights.updated( contextName, oldWeight + contextWeight )
             }
@@ -304,7 +306,6 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
             val topicQuery = topicDb.prepare( "SELECT t1.topicId, t1.count, t2.name FROM phraseTopics AS t1 INNER JOIN topics AS t2 on t1.topicId=t2.id WHERE phraseTreeNodeId=? ORDER BY count DESC LIMIT 50", Col[Int]::Col[Int]::Col[String]::HNil )
             val topicCategoryQuery = topicDb.prepare( "SELECT t1.contextTopicId, t1.weight, t2.name FROM linkWeights2 AS t1 INNER JOIN topics AS t2 ON t1.contextTopicId=t2.id WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::Col[String]::HNil )
-            val topicCategoryQueryReverse = topicDb.prepare( "SELECT topicId, weight FROM linkWeights2 AS t1 INNER JOIN topics AS t2 ON t1.contextTopicId=t2.id WHERE contextTopicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::Col[String]::HNil )
             
             var possiblePhrases = List[AmbiguityForest.SurfaceFormDetails]()
             var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
@@ -461,17 +462,20 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             println( "Looking up topic names for " + topicSet.size + " topics." )
             //val topicNameQuery = topicDb.prepare( "SELECT t1.name, t2.count FROM topics AS t1 LEFT JOIN numTopicsForWhichThisIsAContext AS t2 on t1.id=t2.topicId WHERE id=?", Col[String]::Col[Int]::HNil )
             val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
-            
-            println( "Build category graph." )
-            val fullGraph = categoryHierarchy.toTop( topicSet )
-            println( "  complete..." )
-            
-            println( "Build and run category hierarchy" )
-            val b = new CHBuilder( topicSet, fullGraph, id => id.toString )
-            println( "  run..." )
-            val maxTopicDistance = 20.0
-            b.run( (x,y) => 1, maxTopicDistance )
-            println( "  complete..." )
+           
+            if ( false )
+            { 
+                println( "Build category graph." )
+                val fullGraph = categoryHierarchy.toTop( topicSet )
+                println( "  complete..." )
+                
+                println( "Build and run category hierarchy" )
+                val b = new CHBuilder( topicSet, fullGraph, id => id.toString )
+                println( "  run..." )
+                val maxTopicDistance = 6.0
+                b.run( (x,y) => 1, maxTopicDistance )
+                println( "  complete..." )
+            }
             
             for ( topicId <- topicSet )
             {
