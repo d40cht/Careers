@@ -270,18 +270,15 @@ class TopicClustering
         {
             //println( " ****** " )
             var compatible = true
-            var totalCount = 0
-            var connectedCount = 0
             for ( set1ms <- from.members(); set2ms <- to.members() if compatible )
             {
-                val cp = compatibleForLink( set1ms.value, set2ms.value )
-                if ( clusterDistances.contains( (set1ms.value, set2ms.value) ) ) connectedCount += 1
-                totalCount += 1
+                val cp = true//compatibleForLink( set1ms.value, set2ms.value )
+                val linked = clusterDistances.contains( (set1ms.value, set2ms.value) )
                 
-                if ( !cp ) compatible = false
+                if ( !cp || !linked ) compatible = false
             }
             
-            if ( compatible && (connectedCount.toDouble/totalCount.toDouble) > 0.5 )
+            if ( compatible )
             {
                 //println( "Merging " + getName( from.value ) + " into " + getName( to.value ) + " : " + weight )
                 from.join(to)
