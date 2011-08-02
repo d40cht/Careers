@@ -34,7 +34,7 @@ object AmbiguityForest
     class SurfaceFormDetails( val start : Int, val end : Int, val phraseId : PhraseId, val weight : Weight, val topicDetails : TopicWeightDetails )
         
     val minPhraseWeight         = 0.005
-    val minContextEdgeWeight    = 1.0e-10
+    val minContextEdgeWeight    = 1.0e-8
     val numAllowedContexts      = 20
     
     // Smith-waterman (and other sparse articles) require this
@@ -81,7 +81,7 @@ class AmbiguitySite( val start : Int, val end : Int )
     var combs = HashSet[AmbiguityAlternative]()
     var numComplete = 0
     
-    def complete = numComplete > 3 || numComplete == combs.size
+    def complete = numComplete > 2 || numComplete == combs.size
     
     class AmbiguityAlternative( siteDetails : List[AmbiguityForest.SurfaceFormDetails] )
     {
@@ -270,15 +270,20 @@ class TopicClustering
         {
             //println( " ****** " )
             var compatible = true
-            for ( set1ms <- from.members(); set2ms <- to.members() )
+            var totalCount = 0
+            var connectedCount = 0
+            for ( set1ms <- from.members(); set2ms <- to.members() if compatible )
             {
                 val cp = compatibleForLink( set1ms.value, set2ms.value )
-                //println( "   " + getName( set1ms.value ) + " -- " + getName( set2ms.value ) + " : " + cp )
+                if ( clusterDistances.contains( (set1ms.value, set2ms.value) ) ) connectedCount += 1
+                totalCount += 1
+                
                 if ( !cp ) compatible = false
             }
-            if ( compatible )
+            
+            if ( compatible && (connectedCount.toDouble/totalCount.toDouble) > 0.5 )
             {
-                println( "Merging " + getName( from.value ) + " into " + getName( to.value ) + " : " + weight )
+                //println( "Merging " + getName( from.value ) + " into " + getName( to.value ) + " : " + weight )
                 from.join(to)
                 
                 from.value.markClustered()
@@ -438,7 +443,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         var contextWeightMap = TreeMap[ContextId, Double]()
         
         
-        var clusterReverseContextMap = TreeMap[ContextId, HashMap[TopicDetailLink, Double]]()
+        //var clusterReverseContextMap = TreeMap[ContextId, HashMap[TopicDetailLink, Double]]()
         for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites )
         {
             val altWeight = alternative.altWeight
@@ -461,14 +466,12 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         contextWeightMap = contextWeightMap.updated( contextId, contextWeightMap.getOrElse( contextId, 0.0 ) + weight )
                     }
                     
-                    val clusterReverseTopics = clusterReverseContextMap.getOrElse( contextId, HashMap() )
-                    
+                    /*val clusterReverseTopics = clusterReverseContextMap.getOrElse( contextId, HashMap() )
                     val maxWeight = clusterReverseTopics.getOrElse( topicDetail, 0.0 )
-                    
                     if ( contextWeight > maxWeight )
                     {
                         clusterReverseContextMap = clusterReverseContextMap.updated( contextId, clusterReverseTopics.updated( topicDetail, contextWeight ) )
-                    }
+                    }*/
                 }
                 
                 
@@ -504,8 +507,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
 
 
         def compatibleForLink( topicDetail1 : TopicDetailLink, topicDetail2 : TopicDetailLink ) =
-            ((topicDetail1.site != topicDetail2.site) || (topicDetail1.alternative == topicDetail2.alternative && topicDetail1.sf != topicDetail2.sf)) &&
-            ( topicDetail1.topicId != topicDetail2.topicId )
+            ((topicDetail1.site != topicDetail2.site) || (topicDetail1.alternative == topicDetail2.alternative && topicDetail1.sf != topicDetail2.sf))
         
         val topicClustering = new TopicClustering()
         
@@ -543,13 +545,13 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         
         
 
-        for ( (contextId, members) <- clusterReverseContextMap; (topicDetail1, weight1) <- members; (topicDetail2, weight2) <- members if topicDetail1.topicId != topicDetail2.topicId )
+        /*for ( (contextId, members) <- clusterReverseContextMap; (topicDetail1, weight1) <- members; (topicDetail2, weight2) <- members if topicDetail1.topicId != topicDetail2.topicId )
         {
             if ( compatibleForLink( topicDetail1, topicDetail2 ) )
             {
                 //topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
             }
-        }
+        }*/
         
         // Topics linked to each other
         if ( AmbiguityForest.topicDirectLinks )
@@ -577,7 +579,10 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         if ( compatibleForLink( topicDetail1, topicDetail2 ) )
                         {
                             val directWeight = altWeight1 * altWeight2 * linkWeight
-                            buildLinks( topicDetail1, topicDetail2, directWeight )
+                            if ( topicDetail1.topicId != topicDetail2.topicId )
+                            {
+                                buildLinks( topicDetail1, topicDetail2, directWeight )
+                            }
                             topicClustering.update( topicDetail1, topicDetail2, directWeight )
                             //topicClustering.update( topicDetail1, topicDetail2, if ( bidirectional) linkWeight else linkWeight * linkWeight )
                             //topicClustering.update( topicDetail1, topicDetail2, altWeight1 * altWeight2 * linkWeight )
@@ -594,8 +599,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         {
             if ( compatibleForLink( topicDetail1, topicDetail2 ) )
             {
-                buildLinks( topicDetail1, topicDetail2, weight1 * weight2 )
-                //topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
+                if ( topicDetail1.topicId != topicDetail2.topicId )
+                {
+                    buildLinks( topicDetail1, topicDetail2, weight1 * weight2 )
+                }
+                topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
             }
         }
         

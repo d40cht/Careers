@@ -370,13 +370,15 @@ class DisambiguatorTest extends FunSuite
             //val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
-            //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
+            val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
+            //val fileText = "Programming – Experienced working in C, C++, Python, Java and Javascript. Programmed real time systems on PIC, AVR, ARM and MSP430 embedded platforms in C. Built a range of web and desktop systems in C++, Java, Python and Javascript – choosing the right tool for the job. Computing – Range of experience built on over a decade of using Linux, from Open Embedded installs through to high availability systems built on the Apache server platform. Have set up small to medium database systems with MySQL for speed and high availability.Electronics  – Experience designing and debugging small embedded systems. I have a particular interest in robotics, embedded computing and computer architecture. Was involved in a student team developing a robotics control kit with vision system."
             
             //val fileText = "smith waterman gene sequencing bioinformatics"
             //val fileText = "gerry adams troubles bloody sunday"
+            //val fileText = "I have just finished my three welcome drinks at ElBulli. A caipirinha sugar cane, a mojito and apple baguette, and a gin fizz with spherical olives. I find myself laughing out loud, not because I have succumbed to the alcohol within – there are minuscule amounts in each “cocktail” – but because of the sheer lunatic creativity of the items I’ve consumed. With the first you chew on the stick, extracting all the flavours of a mint-infused mojito as juice; the second is a slight, weightless wafery concoction shaped like a small baguette that you bite into to reveal the most intense appley flavour; and the third is hot foam and cold liquid in a mini martini glass served alongside a gelatinous, wobbly olive thing that explodes in the mouth releasing another unforgettable, intense taste."
             //val fileText = "rice university cambridge university oxford university yale university harvard university"
             //val fileText = "rice cambridge oxford yale harvard mba"
-            val fileText = "the leaf, a new electric car from nissan. Blah blah blah blah blah blah blah. One autumn morning, the leaf dropped from the tree."
+            //val fileText = "the leaf, a new electric car from nissan. Blah blah blah blah blah blah blah. One autumn morning, the leaf dropped from the tree."
             
             // At present no shared context between 'smith waterman' and 'gene sequencing'.
             // A case for broadening the context to an additional step away?
