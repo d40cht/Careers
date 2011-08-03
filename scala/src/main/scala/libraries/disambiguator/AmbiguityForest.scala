@@ -931,13 +931,14 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 
                 val catEdges = categoryHierarchy.toTop( allTopicIds, (fromId, toId, weight) =>
                 {
+                    val distance = -log(weight)
                     if ( allTopicIds.contains( fromId ) )
                     {
-                        weight + topicLinkUpweight
+                        distance + topicLinkUpweight
                     }
                     else
                     {
-                        weight
+                        distance
                     }
                 } )
 
