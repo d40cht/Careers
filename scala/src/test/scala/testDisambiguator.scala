@@ -30,7 +30,7 @@ import math.{log}
 
 
 // Used for generating the category hierarchy. Move somewhere suitable for batch mode.
-class CategoryTests extends FunSuite
+/*class CategoryTests extends FunSuite
 {
     test( "Category Hierarchy" )
     {
@@ -59,7 +59,7 @@ class CategoryTests extends FunSuite
         b.result().save( new DataOutputStream( new FileOutputStream( new File( "categoryHierarchy.bin" ) ) ) )
         println( "   complete..." )
     }
-}
+}*/
 
 class CategoryDistanceTests extends FunSuite
 {

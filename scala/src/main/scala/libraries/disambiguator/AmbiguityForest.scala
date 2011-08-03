@@ -940,7 +940,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 var maxId = allTopicIds.foldLeft(0)( _ max _ )
                 for ( group <- groupings )
                 {
-                    group.foreach( wti => catEdges.append( (maxId, wti.id, 1.0) ) )
+                    group.foreach( wti => catEdges.append( (maxId, wti.id, 10.0) ) )
                     rootIds = maxId :: rootIds
                     topicNameMap.set( maxId, group.map( wti => topicNameMap( wti.id ) ).mkString(", ") )
                     maxId += 1
@@ -950,7 +950,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 
                 {
                     val hb = new CategoryHierarchy.Builder( rootIds, catEdges, x => topicNameMap(x) )
-                    val trees = hb.run( (x, y) => 0.0, 20.0 )
+                    val trees = hb.run( (x, y) => 0.0, 28.0 )
                     for ( tree <- trees ) tree.print( x => topicNameMap(x) )
                 }
             }

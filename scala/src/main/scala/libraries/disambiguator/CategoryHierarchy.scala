@@ -129,9 +129,10 @@ object CategoryHierarchy
                     {
                         val row = hierarchy(it)
                         val parentId = row.second
-                        //val weight = -log(row.third)
+                        //val weight = if(row.third==0) Double.MaxValue else 1.0/row.third
+                        val weight = -log(row.third)
                         //val weight = 2.0
-                        val weight = 1.0
+                        //val weight = 1.0
                         
                         if ( !bannedCategories.contains(parentId) )//&& !tooFrequent.contains(parentId) )
                         {
@@ -602,12 +603,12 @@ object CategoryHierarchy
             
             g.dump( "0.dot", getName )
             
-            println( "Running clustering" )
+            /*println( "Running clustering" )
             val subgraphFlowEdges = runClustering( allToAllDistances, 20.0 )
             flowLabel( subgraphFlowEdges, e => e.weight, maxTopicDistance )
             pruneZeroFlowEdges()
             
-            g.dump( "0.5.dot", getName )
+            g.dump( "0.5.dot", getName )*/
             
             
             // 2.4 Find most distant point (in each subgraph) and push flow from there
