@@ -77,7 +77,7 @@ object CategoryHierarchy
         
         //val tooFrequent = inboundCounts.filter( _._2 > overbroadCategoryCount ).foldLeft(HashSet[Int]())( _ + _._1 )
                 
-        def toTop( topicIds : Iterable[Int] ) =
+        def toTop( topicIds : Iterable[Int], distFn : (Int, Int, Double) => Double ) =
         {
             val q = Stack[Int]()
             for ( id <- topicIds ) q.push( id )
@@ -129,9 +129,7 @@ object CategoryHierarchy
                     {
                         val row = hierarchy(it)
                         val parentId = row.second
-                        //val weight = -log(row.third)
-                        //val weight = 2.0
-                        val weight = 1.0
+                        val weight = distFn( topic, parentId, row.third )
                         
                         if ( !bannedCategories.contains(parentId) )//&& !tooFrequent.contains(parentId) )
                         {

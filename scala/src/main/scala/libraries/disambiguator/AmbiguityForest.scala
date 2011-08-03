@@ -926,9 +926,20 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             
             if ( true )
             {
-                val allTopicIds = groupings.flatMap( x => x.map( y => y.id ) )
+                val topicLinkUpweight = 5000.0
+                val allTopicIds = groupings.flatMap( x => x.map( y => y.id ) ).foldLeft( HashSet() )( _ + _ )
                 
-                val catEdges = categoryHierarchy.toTop( allTopicIds )
+                val catEdges = categoryHierarchy.toTop( allTopicIds, (fromId, toId, weight) =>
+                {
+                    if ( allTopicIds.contains( fromId ) )
+                    {
+                        weight + topicLinkUpweight
+                    }
+                    else
+                    {
+                        weight
+                    }
+                } )
 
                 val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
                 val topicNameMap = new AutoMap[Int, String]( id => {
@@ -940,7 +951,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 var maxId = allTopicIds.foldLeft(0)( _ max _ )
                 for ( group <- groupings )
                 {
-                    group.foreach( wti => catEdges.append( (maxId, wti.id, 1.0) ) )
+                    group.foreach( wti => catEdges.append( (maxId, wti.id, 0.0) ) )
                     rootIds = maxId :: rootIds
                     topicNameMap.set( maxId, group.map( wti => topicNameMap( wti.id ) ).mkString(", ") )
                     maxId += 1
@@ -950,7 +961,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 
                 {
                     val hb = new CategoryHierarchy.Builder( rootIds, catEdges, x => topicNameMap(x) )
-                    val trees = hb.run( (x, y) => 0.0, 20.0 )
+                    val trees = hb.run( (x, y) => 0.0, (topicLinkUpweight*2.0) + 20.0 )
                     for ( tree <- trees ) tree.print( x => topicNameMap(x) )
                 }
             }
