@@ -129,9 +129,9 @@ object CategoryHierarchy
                     {
                         val row = hierarchy(it)
                         val parentId = row.second
-                        val weight = -log(row.third)
+                        //val weight = -log(row.third)
                         //val weight = 2.0
-                        //val weight = 1.0
+                        val weight = 1.0
                         
                         if ( !bannedCategories.contains(parentId) )//&& !tooFrequent.contains(parentId) )
                         {

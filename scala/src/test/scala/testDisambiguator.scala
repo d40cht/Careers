@@ -30,14 +30,14 @@ import math.{log}
 
 
 // Used for generating the category hierarchy. Move somewhere suitable for batch mode.
-/*class CategoryTests extends FunSuite
+class CategoryTests extends FunSuite
 {
     test( "Category Hierarchy" )
     {
         println( "Starting category dump" )
         val db = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
 
-        val allLinks = db.prepare( "SELECT t1.topicId, t1.contextTopicId, t1.weight, t2.name, t3.name FROM linkWeights2 AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN topics AS t3 ON t1.contextTopicId=t3.id ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::Col[Double]::Col[String]::Col[String]::HNil )
+        val allLinks = db.prepare( "SELECT t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2), t2.name, t3.name FROM linkWeights AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id INNER JOIN topics AS t3 ON t1.contextTopicId=t3.id ORDER BY topicId, contextTopicId", Col[Int]::Col[Int]::Col[Double]::Col[String]::Col[String]::HNil )
         
         
         val linkData = new EfficientArray[EfficientIntIntDouble](0)
@@ -59,7 +59,7 @@ import math.{log}
         b.result().save( new DataOutputStream( new FileOutputStream( new File( "categoryHierarchy.bin" ) ) ) )
         println( "   complete..." )
     }
-}*/
+}
 
 class CategoryDistanceTests extends FunSuite
 {
@@ -369,9 +369,11 @@ class DisambiguatorTest extends FunSuite
             //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
-            //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
+            val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")
-            val fileText = "Programming – Experienced working in C, C++, Python, Java and Javascript. Programmed real time systems on PIC, AVR, ARM and MSP430 embedded platforms in C. Built a range of web and desktop systems in C++, Java, Python and Javascript – choosing the right tool for the job. Computing – Range of experience built on over a decade of using Linux, from Open Embedded installs through to high availability systems built on the Apache server platform. Have set up small to medium database systems with MySQL for speed and high availability.Electronics  – Experience designing and debugging small embedded systems. I have a particular interest in robotics, embedded computing and computer architecture. Was involved in a student team developing a robotics control kit with vision system."
+            //val fileText = "Programming – Experienced working in C, C++, Python, Java and Javascript. Programmed real time systems on PIC, AVR, ARM and MSP430 embedded platforms in C. Built a range of web and desktop systems in C++, Java, Python and Javascript – choosing the right tool for the job. Computing – Range of experience built on over a decade of using Linux, from Open Embedded installs through to high availability systems built on the Apache server platform. Have set up small to medium database systems with MySQL for speed and high availability.Electronics  – Experience designing and debugging small embedded systems. I have a particular interest in robotics, embedded computing and computer architecture. Was involved in a student team developing a robotics control kit with vision system."
+            
+            //val fileText = "EMPLOYMENT HISTORY Full Time • Overview Limited (London) – Senior Embedded Software Engineer (Sep 2007 – present) • Design and implementation of new hardware and software features, and maintenance of current features, for intelligent CCTV cameras (C language) • Porting of existing product features to a new FPGA-based platform (C/Verilog) • Creation of a new user interface framework with full internationalisation and localisation support (C) • Port of an existing Win32-based video codec to the FGPA platform including code optimisation and creation and integration of custom hardware acceleration blocks (C++/Verilog) • Integration of a GPRS/3G modem to provide remote video from and control of a camera • Setup and maintenance of a Linux server for hosting Subversion and Apache/MySQL. Development of intranet sites to support management and production activities"
             
             //val fileText = "smith waterman gene sequencing bioinformatics"
             //val fileText = "gerry adams troubles bloody sunday"

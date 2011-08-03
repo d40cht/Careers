@@ -5,7 +5,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.SequenceFile.{Reader => HadoopReader}
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
 
-import scala.collection.immutable.{TreeMap, HashSet}
+import scala.collection.immutable.{TreeMap, HashSet, HashMap}
 
 
 import org.apache.lucene.util.Version.LUCENE_30
@@ -29,6 +29,33 @@ import java.util.{TreeMap => JTreeMap, LinkedHashSet => JLinkedHashSet}
 
 import scala.collection.mutable.{IndexedSeqOptimized, Builder, ArrayLike, LinkedList}
 
+
+class AutoMap[A, B]( val makeB : A => B )
+{
+    private var map = HashMap[A, B]()
+    
+    def apply( key : A ) =
+    {
+        if ( map.contains(key) )
+        {
+            map(key)
+        }
+        else
+        {
+            val newB = makeB( key )
+            map = map.updated( key, newB )
+            newB
+        }
+    }
+    
+    def set( key : A, value : B )
+    {
+        map = map.updated( key, value )
+    }
+    
+    def foreach = map.foreach _
+    def filter = map.filter _
+}
 
 trait FixedLengthSerializable
 {
