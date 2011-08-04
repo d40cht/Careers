@@ -1004,11 +1004,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 {
                     if ( allTopicIds.contains( fromId ) || allTopicIds.contains( toId ) )
                     {
-                        weight + topicLinkUpweight
+                        distance + topicLinkUpweight
                     }
                     else
                     {
-                        weight
+                        distance
                     }
                 } )
 
