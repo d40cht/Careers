@@ -21,7 +21,7 @@ import org.seacourt.disambiguator.Community._
 import org.seacourt.disambiguator.CategoryHierarchy._
 
 
-import org.seacourt.utility.{Graph, PriorityQ}
+import org.seacourt.utility.{Graph, PriorityQ, AutoMap}
 
 
 object AmbiguityForest
@@ -82,6 +82,23 @@ trait Clusterable[BaseType]
     def < (rhs : BaseType) : Boolean
     def equal (rhs : BaseType) : Boolean
     def select() : Unit
+}
+
+class PeerLink()
+{
+    var totalWeight = 0.0
+    var componentWeights = new AutoMap[Int, Double]( x => 0.0 )
+    
+    def addLink( contextId : Option[Int], weight : Double )
+    {
+        totalWeight += weight
+        contextId match
+        {
+            case Some(id) => componentWeights.set( id, componentWeights(id) + weight )
+            case _ =>
+        }
+        
+    }
 }
 
 class AmbiguitySite( val start : Int, val end : Int )
@@ -152,7 +169,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                     var processed = false
                     
                     type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
-                    var peers = HashMap[TopicDetailLink, Double]()
+                    var peers = new AutoMap[TopicDetailLink, PeerLink]( x => new PeerLink() )
                     
                     // Functions to access back up the nested object hierarchy
                     def sf = SurfaceForm.this
@@ -184,8 +201,8 @@ class AmbiguitySite( val start : Int, val end : Int )
                                 q.remove( peer.algoWeight, peer )
                             }
                             
-                            peer.algoWeight -= linkWeight
-                            peer.alternative.altAlgoWeight -= linkWeight
+                            peer.algoWeight -= linkWeight.totalWeight
+                            peer.alternative.altAlgoWeight -= linkWeight.totalWeight
                             
                             //assert( alternative.altAlgoWeight > -1e-10 )
                             //assert( peer.alternative.altAlgoWeight > -1e-10 )
@@ -289,7 +306,33 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
         }
     }
     
-    def run( sites : Iterable[AmbiguitySite], compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String ) =
+    def getSetDistance( first : DJSet, second : DJSet ) =
+    {
+        var totalCount = 0
+        var connectedCount = 0
+        var total = 0.0
+        for ( m1 <- first.members(); m2 <- second.members() )
+        {
+            val key = keyPair(m1.value, m2.value)
+            
+            if ( clusterDistances.contains(key) )
+            {
+                total += clusterDistances(key)
+                connectedCount += 1
+            }
+            totalCount += 1
+        }
+        
+        // Average of distances for extant links, then upweight for missing links
+        if ( connectedCount == 0 ) Double.MaxValue
+        else
+        {
+            val asym = (totalCount.toDouble / connectedCount.toDouble)
+            (total / connectedCount.toDouble) * asym * asym
+        }
+    }
+    
+    def run( sites : Iterable[AmbiguitySite], compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String, runMerge : Boolean ) =
     {
         val weightOrdered = clusterDistances.toList.sortWith( _._2 > _._2 ).map( x => (getSet(x._1._1), getSet(x._1._2), x._2) )
         
@@ -406,6 +449,32 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
         println( "Total: " + clusterList.size + ", used: " + used )
         
         val groupings = clusterList.map( x => x._1.members().map( y => y.value ) )
+        
+        if ( runMerge )
+        {
+            var setQ = clusterList.foldLeft(HashSet[DJSet]())( _ + _._1 )
+            while ( setQ.size > 1 )
+            {
+                var minPair : Option[(Double, DJSet, DJSet)] = None
+                for ( set1 <- setQ; set2 <- setQ if !(set1 equals set2) )
+                {
+                    val dist = getSetDistance(set1, set2)
+                    minPair match
+                    {
+                        case None => minPair = Some( (dist, set1, set2) )
+                        case Some( (dist_ : Double, _, _) ) =>
+                        {
+                            if ( dist < dist_ ) minPair = Some( (dist, set1, set2) )
+                        }
+                    }
+                }
+                
+                val (dist, set1, set2) = minPair.get
+                println( "MERGE: " + dist + ": " + set1.members().map( x => getName(x.value) ).mkString(", ") + "; " + set2.members().map( x => getName(x.value) ).mkString(", ") )
+                setQ = setQ - set2
+                set1.join(set2)
+            }
+        }
         
         groupings
     }
@@ -607,7 +676,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         implicit def tdlToClusterable( tdl : TopicDetailLink ) = clusterableMap(tdl)
         
         var linkCount = 0
-        def buildLinks( topicDetail1 : TopicDetailLink, topicDetail2 : TopicDetailLink, linkWeight: Double ) =
+        def buildLinks( topicDetail1 : TopicDetailLink, topicDetail2 : TopicDetailLink, linkWeight: Double, contextId : Option[Int] ) =
         {
             if ( linkWeight > AmbiguityForest.minContextEdgeWeight )
             {
@@ -624,11 +693,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 topicDetail1.algoWeight += totalWeight
                 topicDetail2.algoWeight += totalWeight
                 
-                val oldWeight1 = topicDetail1.peers.getOrElse( topicDetail2, 0.0 )
-                topicDetail1.peers = topicDetail1.peers.updated( topicDetail2, oldWeight1 + totalWeight )
+                //val oldWeight1 = topicDetail1.peers.getOrElse( topicDetail2, 0.0 )
+                //topicDetail1.peers = topicDetail1.peers.updated( topicDetail2, oldWeight1 + totalWeight )
+                topicDetail1.peers( topicDetail2 ).addLink( contextId, totalWeight )
+                topicDetail2.peers( topicDetail1 ).addLink( contextId, totalWeight )
                 
-                val oldWeight2 = topicDetail2.peers.getOrElse( topicDetail1, 0.0 )
-                topicDetail2.peers = topicDetail2.peers.updated( topicDetail1, oldWeight2 + totalWeight )
                 
                 linkCount += 1
 
@@ -637,6 +706,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 topicClustering.update( topicDetail1, topicDetail2, linkWeight )
             }
         }
+        
+        
         
         
         // Topics linked to each other
@@ -667,7 +738,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                             val directWeight = altWeight1 * altWeight2 * linkWeight
                             if ( topicDetail1.topicId != topicDetail2.topicId )
                             {
-                                buildLinks( topicDetail1, topicDetail2, directWeight )
+                                buildLinks( topicDetail1, topicDetail2, directWeight, None )
                             }
                             topicClustering.update( topicDetail1, topicDetail2, directWeight )
                         }
@@ -683,7 +754,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             {
                 if ( topicDetail1.topicId != topicDetail2.topicId )
                 {
-                    buildLinks( topicDetail1, topicDetail2, weight1 * weight2 )
+                    buildLinks( topicDetail1, topicDetail2, weight1 * weight2, Some(contextId) )
                 }
                 topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
             }
@@ -693,7 +764,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         if ( true )
         {
             println( "Using aggregate clustering to prune network" )
-            topicClustering.run( sites, (x, y) => compatibleForLink(x.value, y.value), x => topicNameMap(x.value.topicId) )
+            topicClustering.run( sites, (x, y) => compatibleForLink(x.value, y.value), x => topicNameMap(x.value.topicId), false )
             
             for ( site <- sites )
             {
@@ -825,7 +896,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             
             sites = sites.filter( _.combs.size > 0 )
             
-            if ( false )
+            /*if ( false )
             {
                 // Direct topic-topic community graph
                 //val v = new Louvain()
@@ -879,7 +950,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 }
                 
                 //communities = v.run()
-            }
+            }*/
         }
         
         println( "Dumping resolutions." )
@@ -913,22 +984,33 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers )
             {
                 val key = (topicMap(p.topicId), topicMap(t.topicId))
-                linkMap.set( key, linkMap(key) + w )
+                linkMap.set( key, linkMap(key) + w.totalWeight )
             }
             
             val topicClustering2 = new AgglomClustering[WrappedTopicId]()
             
             for ( ((from, to), weight) <- linkMap ) topicClustering2.update( from, to, weight )
-            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers ) topicClustering2.update( topicMap(t.topicId), topicMap(p.topicId), w )
+            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers ) topicClustering2.update( topicMap(t.topicId), topicMap(p.topicId), w.totalWeight )
             
             println( "Using aggregate clustering to prune network" )
-            val groupings = topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id) )
+            val groupings = topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id), true )
             
             if ( true )
             {
-                val allTopicIds = groupings.flatMap( x => x.map( y => y.id ) )
+                val topicLinkUpweight = 5000.0
+                val allTopicIds = groupings.flatMap( x => x.map( y => y.id ) ).foldLeft( HashSet[Int]() )( _ + _ )
                 
-                val catEdges = categoryHierarchy.toTop( allTopicIds )
+                val catEdges = categoryHierarchy.toTop( allTopicIds, (fromId, toId, weight) =>
+                {
+                    if ( allTopicIds.contains( fromId ) || allTopicIds.contains( toId ) )
+                    {
+                        weight + topicLinkUpweight
+                    }
+                    else
+                    {
+                        weight
+                    }
+                } )
 
                 val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
                 val topicNameMap = new AutoMap[Int, String]( id => {
@@ -937,20 +1019,20 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 } )
                 
                 var rootIds = List[Int]()
-                var maxId = allTopicIds.foldLeft(0)( _ max _ )
+                var nextId = allTopicIds.foldLeft(0)( _ max _ ) + 1
                 for ( group <- groupings )
                 {
-                    group.foreach( wti => catEdges.append( (maxId, wti.id, 10.0) ) )
-                    rootIds = maxId :: rootIds
-                    topicNameMap.set( maxId, group.map( wti => topicNameMap( wti.id ) ).mkString(", ") )
-                    maxId += 1
+                    group.foreach( wti => catEdges.append( (nextId, wti.id, 0.0) ) )
+                    rootIds = nextId :: rootIds
+                    topicNameMap.set( nextId, group.map( wti => topicNameMap( wti.id ) ).mkString(", ") )
+                    nextId += 1
                 }
                 
                 println( "Inserting " + catEdges.length + " edges into hierarchy builder with " + allTopicIds.size + " topic ids" )
                 
                 {
-                    val hb = new CategoryHierarchy.Builder( rootIds, catEdges, x => topicNameMap(x) )
-                    val trees = hb.run( (x, y) => 0.0, 28.0 )
+                    val hb = new CategoryHierarchy.Builder( allTopicIds, catEdges, x => topicNameMap(x) )
+                    val trees = hb.run( (x, y) => 0.0, (topicLinkUpweight*2.0) + 25.0 )
                     for ( tree <- trees ) tree.print( x => topicNameMap(x) )
                 }
             }
@@ -1141,7 +1223,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                                                             <weight>{topicDetail.algoWeight}</weight>
                                                             <processed>{topicDetail.processed}</processed>
                                                             {
-                                                                for ( (peer, weight) <- topicDetail.peers.filter(_._1.active).toList.sortWith( _._2 > _._2 ).slice(0, 10) ) yield
+                                                                for ( (peer, weight) <- topicDetail.peers.filter(_._1.active).toList.sortWith( _._2.totalWeight > _._2.totalWeight ).slice(0, 10) ) yield
                                                                 <peer>
                                                                     <name>{topicNameMap(peer.topicId)}</name>
                                                                     <weight>{weight}</weight>

@@ -77,7 +77,7 @@ object CategoryHierarchy
         
         //val tooFrequent = inboundCounts.filter( _._2 > overbroadCategoryCount ).foldLeft(HashSet[Int]())( _ + _._1 )
                 
-        def toTop( topicIds : Iterable[Int] ) =
+        def toTop( topicIds : Iterable[Int], distFn : (Int, Int, Double) => Double ) =
         {
             val q = Stack[Int]()
             for ( id <- topicIds ) q.push( id )
@@ -129,10 +129,7 @@ object CategoryHierarchy
                     {
                         val row = hierarchy(it)
                         val parentId = row.second
-                        //val weight = if(row.third==0) Double.MaxValue else 1.0/row.third
-                        val weight = -log(row.third)
-                        //val weight = 2.0
-                        //val weight = 1.0
+                        val weight = distFn( topic, parentId, row.third )
                         
                         if ( !bannedCategories.contains(parentId) )//&& !tooFrequent.contains(parentId) )
                         {
@@ -222,7 +219,7 @@ object CategoryHierarchy
             {
                 //f.write( n.id + " [label=\"" + getName(n.id) + ": " + n.id + ", " + n.coherence + ", " + n.topicCount + "\"];\n" )
                 
-                f.write( "%d [label=\"%s: %d\"];\n".format( n.id, getName(n.id), n.id ) )
+                f.write( "%d [label=\"%s: %d, %d\"];\n".format( n.id, getName(n.id), n.id, n.flow ) )
             }
             
             var seenEdges = HashSet[Edge]()
@@ -409,9 +406,9 @@ object CategoryHierarchy
                         var it = topic
                         if ( it.prev != null )
                         {
-                            it.flow += 1
                             while ( it != null )
                             {
+                                it.flow += 1
                                 if ( it.prev != null )
                                 {
                                     it.prev.flow += 1
@@ -555,6 +552,8 @@ object CategoryHierarchy
         {
             // Run flow labelling to mark a subset of edges that are required to keep
             // the topic graph connected
+            g.dump( "raw.dot", getName )
+            
             println( "Building all to all links." )
             val allToAll = for ( topic <- topics.toStream ) yield (topic, for ( innerTopic <- topics.toStream if topic.id < innerTopic.id /*&& topicDistance(topic.id, innerTopic.id) != 0.0*/ ) yield innerTopic )
             

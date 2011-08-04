@@ -245,7 +245,7 @@ class DisambiguatorTest extends FunSuite
             }
         
             for ( id <- topicIds ) println( id + " : " + getName(id) )
-            val fullGraph = ch.toTop( topicIds )
+            val fullGraph = ch.toTop( topicIds, (f, t, w) => w )
             
             println( "Fetching topic linkage weights" )
             var topicDistances = HashMap[(Int, Int), Double]()

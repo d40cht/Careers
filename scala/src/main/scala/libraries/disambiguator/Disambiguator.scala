@@ -464,7 +464,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             if ( false )
             { 
                 println( "Build category graph." )
-                val fullGraph = categoryHierarchy.toTop( topicSet )
+                val fullGraph = categoryHierarchy.toTop( topicSet, (f, t, w) => w )
                 println( "  complete..." )
                 
                 println( "Build and run category hierarchy" )
