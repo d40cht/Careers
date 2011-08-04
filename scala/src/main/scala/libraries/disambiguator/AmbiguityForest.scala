@@ -44,6 +44,10 @@ import org.seacourt.utility.{Graph, PriorityQ, AutoMap}
 //   a) Pre-calculate second order contexts (and weights) in db.
 //   b) Prune db based on appropriate weight thresholds.
 //   c) Re-pack db info in binary files and load all into memory?
+//
+// 5) Data
+//   a) Ask Globals for CVs.
+//   b) Send wider email when site a bit more tested.
 
 object AmbiguityForest
 {
