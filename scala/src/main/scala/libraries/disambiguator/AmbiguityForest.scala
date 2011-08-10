@@ -23,6 +23,31 @@ import org.seacourt.disambiguator.CategoryHierarchy._
 
 import org.seacourt.utility.{Graph, PriorityQ, AutoMap}
 
+// TODO:
+//
+// 1) Having resolved down to a set of topics, construct a set of contexts using the 'component weights' field of PeerLink.
+//   a) Think about which contexts to include and how. If someone has OO and Java on their CV, C++ should not neccessarily be a context.
+//   b) How to choose a sensible default set, and then how to allow tuning?
+//
+// 2) Play around with cosine similarity metric.
+//   a) Need to show which top N topics/contexts contributed to a match.
+//   b) Need to be able to then punt some out and search again.
+//   c) Efficient implementation of search online? Needs to be an O(N) comparison per search
+//   d) Run a batch job overnight doing N^2 comparisons for email updates.
+//
+// 3) Consider how to organise the groups of skills. Fiddle with category hierarchies some more.
+//   a) When clustering groups (currently using context distances)
+//      When doing a + b, do a min depth labelling from all (a+b) to all (a+b). After each labelling update a max distance for each node.
+//      Choose the category node with the minimum max distance as the parent?
+//
+// 4) Speedups
+//   a) Pre-calculate second order contexts (and weights) in db.
+//   b) Prune db based on appropriate weight thresholds.
+//   c) Re-pack db info in binary files and load all into memory?
+//
+// 5) Data
+//   a) Ask Globals for CVs.
+//   b) Send wider email when site a bit more tested.
 
 object AmbiguityForest
 {
