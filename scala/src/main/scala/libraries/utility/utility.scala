@@ -32,29 +32,31 @@ import scala.collection.mutable.{IndexedSeqOptimized, Builder, ArrayLike, Linked
 
 class AutoMap[A, B]( val makeB : A => B )
 {
-    private var map = HashMap[A, B]()
+    private var mapImpl = HashMap[A, B]()
     
     def apply( key : A ) =
     {
-        if ( map.contains(key) )
+        if ( mapImpl.contains(key) )
         {
-            map(key)
+            mapImpl(key)
         }
         else
         {
             val newB = makeB( key )
-            map = map.updated( key, newB )
+            mapImpl = mapImpl.updated( key, newB )
             newB
         }
     }
     
     def set( key : A, value : B )
     {
-        map = map.updated( key, value )
+        mapImpl = mapImpl.updated( key, value )
     }
     
-    def foreach = map.foreach _
-    def filter = map.filter _
+    def foreach = mapImpl.foreach _
+    def filter = mapImpl.filter _
+    def map[C]( fn : ((A, B)) => C ) = mapImpl.map( fn )
+    def toList = mapImpl.toList
 }
 
 trait FixedLengthSerializable

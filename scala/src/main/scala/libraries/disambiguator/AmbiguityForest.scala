@@ -60,7 +60,7 @@ object AmbiguityForest
     class SurfaceFormDetails( val start : Int, val end : Int, val phraseId : PhraseId, val weight : Weight, val topicDetails : TopicWeightDetails )
         
     val minPhraseWeight         = 0.005
-    val minContextEdgeWeight    = 1.0e-8
+    val minContextEdgeWeight    = 1.0e-7
     val numAllowedContexts      = 20
     
     // Smith-waterman (and other sparse articles) require this
@@ -114,15 +114,10 @@ class PeerLink()
     var totalWeight = 0.0
     var componentWeights = new AutoMap[Int, Double]( x => 0.0 )
     
-    def addLink( contextId : Option[Int], weight : Double )
+    def addLink( contextId : Int, weight : Double )
     {
         totalWeight += weight
-        contextId match
-        {
-            case Some(id) => componentWeights.set( id, componentWeights(id) + weight )
-            case _ =>
-        }
-        
+        componentWeights.set( contextId, componentWeights(contextId) + weight )
     }
 }
 
@@ -720,8 +715,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 
                 //val oldWeight1 = topicDetail1.peers.getOrElse( topicDetail2, 0.0 )
                 //topicDetail1.peers = topicDetail1.peers.updated( topicDetail2, oldWeight1 + totalWeight )
-                topicDetail1.peers( topicDetail2 ).addLink( contextId, totalWeight )
-                topicDetail2.peers( topicDetail1 ).addLink( contextId, totalWeight )
+                topicDetail1.peers( topicDetail2 ).addLink( if (contextId.isEmpty) topicDetail2.topicId else contextId.get , totalWeight )
+                topicDetail2.peers( topicDetail1 ).addLink( if (contextId.isEmpty) topicDetail1.topicId else contextId.get, totalWeight )
                 
                 
                 linkCount += 1
@@ -1027,6 +1022,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 
                 val catEdges = categoryHierarchy.toTop( allTopicIds, (fromId, toId, weight) =>
                 {
+                    val distance = -log(weight)
                     if ( allTopicIds.contains( fromId ) || allTopicIds.contains( toId ) )
                     {
                         distance + topicLinkUpweight
@@ -1298,12 +1294,17 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             {
                 val resolution = phraseIt.head
                 val topicLink = wikiLink( resolution.name )
-                val size = if (resolution.weight == 0.0) 3.0 else 18.0 + log(resolution.weight)
+                val size = (18.0 + log(resolution.weight max 1.0e-15)) max 4
                 val fs = "font-size:"+size.toInt
+                val fsSmall = "font-size:" + ( (size / 1.5).toInt max 3 )
                 l.append(
+                    <span style="position:relative;">
+                    <span id={"hover_%d_%d".format(resolution.start, resolution.end)} style={"position:absolute;background-color:#ff7; color:#000; opacity:0.9; top:1.5em; z-index:1;border: 1px solid;%s".format(fsSmall)}></span>
                     <a id={"%d_%d".format(resolution.start, resolution.end)} href={ topicLink } title={"Weight: " + resolution.weight } style={fs} >
+                        
                         {"[" + words.slice( resolution.start, resolution.end+1 ).mkString(" ") + "] "}
-                    </a> )
+                    </a>
+                    </span> )
                 i = resolution.end+1
                 phraseIt = phraseIt.tail
             }
@@ -1329,14 +1330,18 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     var offs = List[String]()
                 
                     val fromTopic = alt.sf.topics.head
-                    for ( (toTopic, weight) <- fromTopic.peers )
+                    for ( (toTopic, peerLink) <- fromTopic.peers )
                     {
+                        val sortedWeights = peerLink.componentWeights.toList.sortWith( _._2 > _._2 ) 
+                        val debugWeights = sortedWeights.map( x => ("%s: %2.2e".format( topicNameMap(x._1).replace("'", ""), x._2 ) ) ).mkString( ", " )
                         ons = "$('#%d_%d').addClass('hover');".format( toTopic.altSite.start, toTopic.altSite.end ) :: ons
+                        ons = "$('#hover_%d_%d').text('%s');".format( toTopic.altSite.start, toTopic.altSite.end, debugWeights ) :: ons
                         offs = "$('#%d_%d').removeClass('hover');".format( toTopic.altSite.start, toTopic.altSite.end ) :: offs
+                        offs = "$('#hover_%d_%d').text('');".format( toTopic.altSite.start, toTopic.altSite.end ) :: offs
                     }
                 
-                    highlights = "$('#%d_%d').mouseover( function() { %s } );".format( fromTopic.altSite.start, fromTopic.altSite.end, ons.mkString(" ") ) :: highlights
-                    highlights = "$('#%d_%d').mouseout( function() { %s } );".format( fromTopic.altSite.start, fromTopic.altSite.end, offs.mkString(" ") ) :: highlights
+                    highlights = "$('#%d_%d').mouseover( function() { %s } );".format( fromTopic.altSite.start, fromTopic.altSite.end, ons.mkString("\n") ) :: highlights
+                    highlights = "$('#%d_%d').mouseout( function() { %s } );".format( fromTopic.altSite.start, fromTopic.altSite.end, offs.mkString("\n") ) :: highlights
                 }
             }
             
