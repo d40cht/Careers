@@ -1400,7 +1400,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         val resolutions =
             <sites>
             {
-                for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 )
+                for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 ) yield
                 {
                     <site>
                         <id>{topicDetailIds(topic)}</id>
@@ -1410,12 +1410,12 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         <endIndex>{alt.end}</endIndex>
                         <peers>
                         {
-                            for ( (toTopic, peerLink) <- topic.peers )
+                            for ( (toTopic, peerLink) <- topic.peers ) yield
                             {
                                 <peer>
                                     <id>{topicDetailIds(toTopic)}</id>
                                     {
-                                        for ( (contextTopicId, weight) <- peerLink.componentWeights  )
+                                        for ( (contextTopicId, weight) <- peerLink.componentWeights ) yield
                                         {
                                             <component>
                                                 <contextTopicId>{contextTopicId}</contextTopicId>
