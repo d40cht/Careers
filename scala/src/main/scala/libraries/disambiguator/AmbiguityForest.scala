@@ -1388,8 +1388,9 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
             </topics>*/
 
+        type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
         var lastTopicId = 0
-        val topicDetailIds = AutoMap[TopicDetailLink, Int]( x =>
+        val topicDetailIds = new AutoMap[TopicDetailLink, Int]( x =>
         {
             val thisId = lastTopicId
             lastTopicId += 1
@@ -1413,8 +1414,15 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                             {
                                 <peer>
                                     <id>{topicDetailIds(toTopic)}</id>
-                                    <weight>{peerLink.weight}</weight>
-                                    <contextTopicId>{peerLink.}</contextTopicId>
+                                    {
+                                        for ( (contextTopicId, weight) <- peerLink.componentWeights  )
+                                        {
+                                            <component>
+                                                <contextTopicId>{contextTopicId}</contextTopicId>
+                                                <weight>{weight}</weight>
+                                            </component>
+                                        }
+                                    }
                                 </peer>
                             }
                         }
