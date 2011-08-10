@@ -1371,7 +1371,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             }
         }
         
-        val allTopicIds = (for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 ) yield topic.topicId).foldLeft(HashSet[Int]())( _ + _ )
+        /*val allTopicIds = (for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 ) yield topic.topicId).foldLeft(HashSet[Int]())( _ + _ )
         val resolutions =
             <topics>
             {
@@ -1381,7 +1381,44 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     <name>{topicNameMap(topicId)}</name>
                 </topic>
             }
-            </topics>
+            </topics>*/
+
+        var lastTopicId = 0
+        val topicDetailIds = AutoMap[TopicDetailLink, Int]( x =>
+        {
+            val thisId = lastTopicId
+            lastTopicId += 1
+            thisId
+        } )
+        
+        val resolutions =
+            <sites>
+            {
+                for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 )
+                {
+                    <site>
+                        <id>{topicDetailIds(topic)}</id>
+                        <topicId>{topic.topicId}</topicId>
+                        <weight>{topic.algoWeight}</weight>
+                        <startIndex>{alt.start}</startIndex>
+                        <endIndex>{alt.end}</endIndex>
+                        <peers>
+                        {
+                            for ( (toTopic, peerLink) <- topic.peers )
+                            {
+                                <peer>
+                                    <id>{topicDetailIds(toTopic)}</id>
+                                    <weight>{peerLink.weight}</weight>
+                                    <contextTopicId>{peerLink.}</contextTopicId>
+                                </peer>
+                            }
+                        }
+                        </peers>
+                    </site>
+                }
+            }
+            </sites>
+            
         XML.save( resolutionFileName, resolutions, "utf8" )
         
         
