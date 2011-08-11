@@ -1372,8 +1372,23 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             thisId
         } )
 
-        val topicClustering2 = new AgglomClustering[WrappedTopicId]()        
-        val groupings = topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id) )
+        val groupings =
+        {
+            val topicClustering2 = new AgglomClustering[WrappedTopicId]()
+            var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
+            val linkMap = new AutoMap[(WrappedTopicId, WrappedTopicId), Double]( x => 0.0 )
+            
+            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers )
+            {
+                val key = (topicMap(p.topicId), topicMap(t.topicId))
+                linkMap.set( key, linkMap(key) + w.totalWeight )
+            }
+            
+            for ( ((from, to), weight) <- linkMap ) topicClustering2.update( from, to, weight )
+            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers ) topicClustering2.update( topicMap(t.topicId), topicMap(p.topicId), w.totalWeight )
+            
+            topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id) )
+        }
         
         var allTopicIds = HashSet[Int]()
         
