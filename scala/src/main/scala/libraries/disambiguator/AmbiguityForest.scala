@@ -1378,14 +1378,14 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
             val linkMap = new AutoMap[(WrappedTopicId, WrappedTopicId), Double]( x => 0.0 )
             
-            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers )
+            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, peerLink) <- t.peers; (contextId, contextWeight) <- peerLink.componentWeights )
             {
-                val key = (topicMap(p.topicId), topicMap(t.topicId))
-                linkMap.set( key, linkMap(key) + w.totalWeight )
+                val key = (topicMap(p.topicId), topicMap(contextId))
+                linkMap.set( key, linkMap(key) + contextWeight )
             }
             
             for ( ((from, to), weight) <- linkMap ) topicClustering2.update( from, to, weight )
-            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers ) topicClustering2.update( topicMap(t.topicId), topicMap(p.topicId), w.totalWeight )
+            //for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers ) topicClustering2.update( topicMap(t.topicId), topicMap(p.topicId), w.totalWeight )
             
             topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id) )
         }
