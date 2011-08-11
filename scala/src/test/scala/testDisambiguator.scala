@@ -361,15 +361,15 @@ class DisambiguatorTest extends FunSuite
         assert( v.size == 0 )
         assert( v.isEmpty )*/
         
-        if ( true )
+        if ( false )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             
-            //val fileText = "ORLANDO, Fla. (AP) - Texas quarterback Vince Young and Southern California tailback Reggie Bush each took home two awards Thursday night, one as best player in the nation and one for being the best at his position, as college football honored its stars. Young won the Maxwell Award as the nation's top player and the Davey O'Brien Award given to the nation's top quarterback. Bush came away with the Walter Camp player of the year award and the Doak Walker Award given to the nation's best running back. Young and Bush will be in New York on Saturday night as finalists for the Heisman Trophy. USC quarterback Matt Leinart is the other Heisman finalist. Texas safety Michael Huff won the Thorpe Award as the best defensive back in the country, becoming the first Longhorns player to do so. Penn State linebacker Paul Posluszny won the Chuck Bednarik Trophy, given to the best defensive player in the country. Mike Hass, the NCAA's leader in receiving yards (139.3 per game), took the Fred Biletnikoff Award as the nation's best wideout. Minnesota center Greg Eslinger won the Outland Trophy as the country's best lineman, Oregon State's Alexis Serna took the Groza Award as the nation's top kicker. Wake Forest punter Ryan Plackemeier was the Ray Award winner."
+            val fileText = "ORLANDO, Fla. (AP) - Texas quarterback Vince Young and Southern California tailback Reggie Bush each took home two awards Thursday night, one as best player in the nation and one for being the best at his position, as college football honored its stars. Young won the Maxwell Award as the nation's top player and the Davey O'Brien Award given to the nation's top quarterback. Bush came away with the Walter Camp player of the year award and the Doak Walker Award given to the nation's best running back. Young and Bush will be in New York on Saturday night as finalists for the Heisman Trophy. USC quarterback Matt Leinart is the other Heisman finalist. Texas safety Michael Huff won the Thorpe Award as the best defensive back in the country, becoming the first Longhorns player to do so. Penn State linebacker Paul Posluszny won the Chuck Bednarik Trophy, given to the best defensive player in the country. Mike Hass, the NCAA's leader in receiving yards (139.3 per game), took the Fred Biletnikoff Award as the nation's best wideout. Minnesota center Greg Eslinger won the Outland Trophy as the country's best lineman, Oregon State's Alexis Serna took the Groza Award as the nation's top kicker. Wake Forest punter Ryan Plackemeier was the Ray Award winner."
             
             //val fileText = fromFile("./src/test/scala/data/georgecv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/RobDonald-CV-Analyst-V6.txt").getLines.mkString(" ")
-            val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
+            //val fileText = fromFile("./src/test/scala/data/gavcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/sem.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/awcv.txt").getLines.mkString(" ")
             //val fileText = fromFile("./src/test/scala/data/stevecv.txt").getLines.mkString(" ")

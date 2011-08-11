@@ -1397,40 +1397,59 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             thisId
         } )
         
+        var allTopicIds = HashSet[Int]()
+        
         val resolutions =
-            <sites>
-            {
-                for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 ) yield
+            <data>
+                <sites>
                 {
-                    <site>
-                        <id>{topicDetailIds(topic)}</id>
-                        <topicId>{topic.topicId}</topicId>
-                        <weight>{topic.algoWeight}</weight>
-                        <startIndex>{alt.start}</startIndex>
-                        <endIndex>{alt.end}</endIndex>
-                        <peers>
-                        {
-                            for ( (toTopic, peerLink) <- topic.peers ) yield
+                    for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics if topic.algoWeight > 0.0 ) yield
+                    {
+                        allTopicIds += topic.topicId
+                        
+                        <site>
+                            <id>{topicDetailIds(topic)}</id>
+                            <topicId>{topic.topicId}</topicId>
+                            <weight>{topic.algoWeight}</weight>
+                            <startIndex>{alt.start}</startIndex>
+                            <endIndex>{alt.end}</endIndex>
+                            <peers>
                             {
-                                <peer>
-                                    <id>{topicDetailIds(toTopic)}</id>
-                                    {
-                                        for ( (contextTopicId, weight) <- peerLink.componentWeights ) yield
+                                for ( (toTopic, peerLink) <- topic.peers ) yield
+                                {
+                                    <peer>
+                                        <id>{topicDetailIds(toTopic)}</id>
                                         {
-                                            <component>
-                                                <contextTopicId>{contextTopicId}</contextTopicId>
-                                                <weight>{weight}</weight>
-                                            </component>
+                                            for ( (contextTopicId, weight) <- peerLink.componentWeights.toList.sortWith( _._2 > _._2 ) ) yield
+                                            {
+                                                allTopicIds += contextTopicId
+                                                
+                                                <component>
+                                                    <contextTopicId>{contextTopicId}</contextTopicId>
+                                                    <weight>{weight}</weight>
+                                                </component>
+                                            }
                                         }
-                                    }
-                                </peer>
+                                    </peer>
+                                }
                             }
-                        }
-                        </peers>
-                    </site>
+                            </peers>
+                        </site>
+                    }
                 }
-            }
-            </sites>
+                </sites>
+                <topicNames>
+                {
+                    for ( id <- allTopicIds ) yield
+                    {
+                        <topic>
+                            <id>{id}</id>
+                            <name>{topicNameMap(id)}</name>
+                        </topic>
+                    }
+                }
+                </topicNames>
+            </data>
             
         XML.save( resolutionFileName, resolutions, "utf8" )
         

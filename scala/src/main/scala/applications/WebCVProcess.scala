@@ -40,8 +40,10 @@ object WebCVProcess
         val res = p.fetch( "http://cvnlp.com:9000/application/listcvs" )
         val cvs = XML.loadString(res)
         
+        val minId = args(0).toInt
+        
         val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
-        for ( id <- cvs \\ "id" )
+        for ( id <- (cvs \\ "id") if (id.text.trim.toInt >= minId) )
         {
             val trimmedId = id.text.trim
             println( "Fetching: " + trimmedId )
