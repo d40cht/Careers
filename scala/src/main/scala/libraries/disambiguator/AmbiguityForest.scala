@@ -309,7 +309,6 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
 
         val oldWeight = clusterDistances.getOrElse( key, 0.0 )
         clusterDistances = clusterDistances.updated( key, weight + oldWeight )
-        //clusterDistances = clusterDistances.updated( key, 1.0 + oldWeight )
     }
     
     private def getSet( topicDetail : NodeType ) =
@@ -352,7 +351,20 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
         }
     }
     
-    def run( sites : Iterable[AmbiguitySite], compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String ) =
+    def getWeight( from : NodeType, to : NodeType ) =
+    {
+        val key = keyPair(from, to)
+        if ( clusterDistances.contains(key) )
+        {
+            clusterDistances(key)
+        }
+        else
+        {
+            0.0
+        }
+    }
+    
+    def run( sites : Iterable[AmbiguitySite], compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String, mopupOutliers : Boolean ) =
     {
         val weightOrdered = clusterDistances.toList.sortWith( _._2 > _._2 ).map( x => (getSet(x._1._1), getSet(x._1._2), x._2) )
         
@@ -376,6 +388,7 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
                         {
                             val key = keyPair(set1ms.value, set2ms.value)
                             val cp = compatibleForLink( set1ms.value, set2ms.value )
+                            val weight = getWeight(set1ms.value, set2ms.value)
                             val linked = clusterDistances.contains( key )
                             
                             if ( !cp || !linked )
@@ -383,7 +396,7 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
                                 compatible = false
                                 break
                             }
-                            sum += clusterDistances( key )
+                            sum += weight
                             count += 1
                         }
                     }
@@ -397,6 +410,20 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
                         to.value.select()
                         
                         if ( completeCoverage(6) ) break
+                    }
+                }
+            }
+            
+            if ( mopupOutliers )
+            {
+                for ( (from, to, weight) <- weightOrdered )
+                {
+                    if ( from.find() != to.find() )
+                    {
+                        if ( (from.size == 1 && to.size > 2) || (to.size == 1 && from.size > 2) )
+                        {
+                            from.join(to)
+                        }
                     }
                 }
             }
@@ -419,11 +446,10 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
             var count = 0
             for ( m1 <- dj.members(); m2 <- dj.members() if !(m1.value equal m2.value) )//if m1.value.topicId != m2.value.topicId )
             {
-                val key = keyPair(m1.value, m2.value)
-                sum += clusterDistances( key )
+                sum += getWeight( m1.value, m2.value )
                 count += 1
             }
-            if ( count > 2 )
+            if ( count > 1 )
             {
                 val coherence = sum / count.toDouble
                 
@@ -764,7 +790,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         if ( true )
         {
             println( "Using aggregate clustering to prune network" )
-            topicClustering.run( sites, (x, y) => compatibleForLink(x.value, y.value), x => topicNameMap(x.value.topicId) )
+            topicClustering.run( sites, (x, y) => compatibleForLink(x.value, y.value), x => topicNameMap(x.value.topicId), false )
             
             for ( site <- sites )
             {
@@ -990,7 +1016,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             
             if ( false )
             {
-                val groupings = topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id) )
+                val groupings = topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id), false )
                 
                 val topicLinkUpweight = 5000.0
                 val allTopicIds = groupings.flatMap( x => x.map( y => y.id ) ).foldLeft( HashSet[Int]() )( _ + _ )
@@ -1372,22 +1398,34 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             thisId
         } )
 
+        // Things that are topics (not just contexts)
+        var realTopicIds = HashSet[Int]()
         val groupings =
         {
             val topicClustering2 = new AgglomClustering[WrappedTopicId]()
             var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
             val linkMap = new AutoMap[(WrappedTopicId, WrappedTopicId), Double]( x => 0.0 )
             
-            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, peerLink) <- t.peers; (contextId, contextWeight) <- peerLink.componentWeights )
+            for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics if t.algoWeight > 0.0; (p, peerLink) <- t.peers; (contextId, contextWeight) <- peerLink.componentWeights )
             {
-                val key = (topicMap(p.topicId), topicMap(contextId))
-                linkMap.set( key, linkMap(key) + contextWeight )
+                assert( site.combs.size == 1 )
+                val key1 = (topicMap(t.topicId), topicMap(contextId))
+                linkMap.set( key1, linkMap(key1) + sqrt(contextWeight) )
+                
+                val key2 = (topicMap(contextId), topicMap(p.topicId))
+                linkMap.set( key2, linkMap(key2) + sqrt(contextWeight) )
+                
+                val key3 = (topicMap(t.topicId), topicMap(p.topicId))
+                linkMap.set( key3, linkMap(key3) + contextWeight )
+                
+                realTopicIds += t.topicId
+                realTopicIds += p.topicId
             }
             
             for ( ((from, to), weight) <- linkMap ) topicClustering2.update( from, to, weight )
             //for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers ) topicClustering2.update( topicMap(t.topicId), topicMap(p.topicId), w.totalWeight )
             
-            topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id) )
+            topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id), true )
         }
         
         var allTopicIds = HashSet[Int]()
@@ -1433,9 +1471,9 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 </sites>
                 <groups>
                 {
-                    for ( topics <- groupings ) yield
+                    for ( (topics, index) <- groupings.view.zipWithIndex ) yield
                     {
-                        <group>
+                        <group id={index.toString}>
                         {
                             for ( topic <- topics ) yield
                             {
@@ -1453,6 +1491,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         <topic>
                             <id>{id}</id>
                             <name>{topicNameMap(id)}</name>
+                            <primaryTopic>{realTopicIds.contains(id).toString}</primaryTopic>
                         </topic>
                     }
                 }
