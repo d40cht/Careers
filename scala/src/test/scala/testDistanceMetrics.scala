@@ -10,13 +10,13 @@ class TopicVector( val id : Int )
     type TopicId = Int
     type TopicWeight = Double
     
-    class TopicElement( val weight : TopicWeight, val name : String )
+    class TopicElement( val weight : TopicWeight, val name : String, groupId : Int )
     {
     }
     
     private var topics = HashMap[TopicId, TopicElement]()
     
-    def addTopic( id : TopicId, weight : TopicWeight, name : String )
+    def addTopic( id : TopicId, weight : TopicWeight, name : String, groupId : Int )
     {
         topics = topics.updated( id, new TopicElement( weight, name ) )
     }
@@ -27,7 +27,8 @@ class TopicVector( val id : Int )
         var AA = 0.0
         var BB = 0.0
         
-        var weightedMatches = List[(Double, String)]()
+        // Weight, name, groupId
+        var weightedMatches = List[(Double, String, Int)]()
         
         for ( (id, te) <- topics )
         {
@@ -39,7 +40,7 @@ class TopicVector( val id : Int )
                 val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
                 
                 
-                weightedMatches = (priorityWeight, te.name) :: weightedMatches
+                weightedMatches = (priorityWeight, te.name, te.id) :: weightedMatches
                 
                 AB += combinedWeight
             }
@@ -53,7 +54,7 @@ class TopicVector( val id : Int )
         
         val cosineDist = AB / (math.sqrt(AA) * math.sqrt(BB))
         
-        ( cosineDist, weightedMatches.sortWith( _._1 > _._1 ).slice(0, 15) )
+        ( cosineDist, weightedMatches.sortWith( _._1 > _._1 ) )
     }
 }
 
@@ -63,8 +64,20 @@ class DistanceMetricTest extends FunSuite
     {
         val data = XML.loadFile( fileName )
         
-        // Pull out the name map at the end of the resolution file
+        // Pull out the name map at the end of the resolution file.
         val nameMap = (data \\ "topic").foldLeft( HashMap[Int, String]() )( (c, el) => c.updated( (el \\ "id").text.toInt, (el \\ "name").text ) )
+        
+        // Pull out the topic groupings: map from topicId to group id
+        var groupMembership = HashMap[Int, Int]()
+        for ( group <- data \\ "group" )
+        {
+            val groupId = (group \ "@id").toInt
+            for ( topic <- group \\ "topicId" )
+            {
+                val topicId = topic.text.toInt
+                groupMembership = groupMembership.updated( topicId, groupId )
+            }
+        }
         
         val topicWeightings = new AutoMap[Int, Double]( x => 0.0 )
         for ( site <- data \ "sites" \ "site" )
@@ -91,7 +104,7 @@ class DistanceMetricTest extends FunSuite
             val name = nameMap(id)
             if ( !name.startsWith("Category:") )
             {
-                topicVector.addTopic( id, weight, nameMap(id) )
+                topicVector.addTopic( id, weight, nameMap(id), groupMembership(id) )
             }                
         }
         
@@ -116,10 +129,16 @@ class DistanceMetricTest extends FunSuite
             {
                 println( "%d to %d: %2.6f".format( tv1.id, tv2.id, dist ) )
                 
-                for ( (weight, name) <- why )
+                var rankBuilder = new AutoMap[Int, List[(Int, String, Double)]]( x => Nil )
+                for ( ((weight, name, groupId), index) <- why.zipWithIndex )
                 {
-                    println( "  %s %2.6f".format( name, weight ) )
+                    val rank = index + 1
+                    rankBuilder.set( groupId, (rank, name, weight) :: rankBuilder(groupId) )
+                    //println( "  %s %2.6f".format( name, weight ) )
                 }
+                
+                // TODO: Build an average group rank
+                val ranked = rankBuilder.map( x => 
             }
         }
     }
