@@ -104,8 +104,15 @@ class DistanceMetricTest extends FunSuite
             val name = nameMap(id)
             if ( !name.startsWith("Category:") )
             {
-                val groupId = groupMembership(id)
-                topicVector.addTopic( id, weight, name, groupId )
+                if ( groupMembership.contains(id) )
+                {
+                    val groupId = groupMembership(id)
+                    topicVector.addTopic( id, weight, name, groupId )
+                }
+                else
+                {
+                    println( "Missing group for id: " + id )
+                }
             }                
         }
         
