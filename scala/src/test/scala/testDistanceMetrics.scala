@@ -10,7 +10,7 @@ class TopicVector( val id : Int )
     type TopicId = Int
     type TopicWeight = Double
     
-    class TopicElement( val weight : TopicWeight, val name : String, groupId : Int )
+    class TopicElement( val weight : TopicWeight, val name : String, val groupId : Int )
     {
     }
     
@@ -18,7 +18,7 @@ class TopicVector( val id : Int )
     
     def addTopic( id : TopicId, weight : TopicWeight, name : String, groupId : Int )
     {
-        topics = topics.updated( id, new TopicElement( weight, name ) )
+        topics = topics.updated( id, new TopicElement( weight, name, groupId ) )
     }
     
     def distance( other : TopicVector ) =
@@ -40,7 +40,7 @@ class TopicVector( val id : Int )
                 val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
                 
                 
-                weightedMatches = (priorityWeight, te.name, te.id) :: weightedMatches
+                weightedMatches = (priorityWeight, te.name, te.groupId) :: weightedMatches
                 
                 AB += combinedWeight
             }
@@ -71,7 +71,7 @@ class DistanceMetricTest extends FunSuite
         var groupMembership = HashMap[Int, Int]()
         for ( group <- data \\ "group" )
         {
-            val groupId = (group \ "@id").toInt
+            val groupId = (group \ "@id").text.toInt
             for ( topic <- group \\ "topicId" )
             {
                 val topicId = topic.text.toInt
