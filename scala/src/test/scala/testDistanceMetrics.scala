@@ -137,8 +137,29 @@ class DistanceMetricTest extends FunSuite
                     //println( "  %s %2.6f".format( name, weight ) )
                 }
                 
-                // TODO: Build an average group rank
-                val ranked = rankBuilder.map( x => 
+                val aveRankSorted = rankBuilder.toList.map( x =>
+                {
+                    val groupId = x._1
+                    var totalRank = 0
+                    var count = 0
+                    for ( (rank, name, weight) <- x._2 )
+                    {
+                        totalRank += rank
+                        count += 1
+                    }
+                    
+                    (totalRank.toDouble / count.toDouble, groupId, x._2)
+                } ).sortWith( _._2 < _._2 )
+                
+                for ( (aveRank, groupId, groupMembership) <- aveRankSorted )
+                {
+                    println( "Group id: %d, ave rank: %.2f".format( groupId, aveRank ) )
+                    
+                    for ( (rank, name, weight) <- groupMembership )
+                    {
+                        println( "  %s: %d, %2.2e".format( name, rank, weight ) )
+                    }
+                }
             }
         }
     }
