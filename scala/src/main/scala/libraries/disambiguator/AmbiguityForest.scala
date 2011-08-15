@@ -721,7 +721,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 
                 //val oldWeight1 = topicDetail1.peers.getOrElse( topicDetail2, 0.0 )
                 //topicDetail1.peers = topicDetail1.peers.updated( topicDetail2, oldWeight1 + totalWeight )
-                topicDetail1.peers( topicDetail2 ).addLink( if (contextId.isEmpty) topicDetail2.topicId else contextId.get , totalWeight )
+                topicDetail1.peers( topicDetail2 ).addLink( if (contextId.isEmpty) topicDetail2.topicId else contextId.get, totalWeight )
                 topicDetail2.peers( topicDetail1 ).addLink( if (contextId.isEmpty) topicDetail1.topicId else contextId.get, totalWeight )
                 
                 
@@ -766,7 +766,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                             {
                                 buildLinks( topicDetail1, topicDetail2, directWeight, None )
                             }
-                            topicClustering.update( topicDetail1, topicDetail2, directWeight )
+                            //topicClustering.update( topicDetail1, topicDetail2, directWeight )
                         }
                     }
                 }
@@ -782,7 +782,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                 {
                     buildLinks( topicDetail1, topicDetail2, weight1 * weight2, Some(contextId) )
                 }
-                topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
+                //topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
             }
         }
         
