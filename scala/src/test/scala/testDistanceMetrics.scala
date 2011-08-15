@@ -104,7 +104,7 @@ class DistanceMetricTest extends FunSuite
             val name = nameMap(id)
             if ( !name.startsWith("Category:") )
             {
-                topicVector.addTopic( id, weight, nameMap(id), groupMembership(id) )
+                topicVector.addTopic( id, weight, name, groupMembership(id) )
             }                
         }
         
