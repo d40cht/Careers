@@ -135,7 +135,7 @@ class DistanceMetricTest extends FunSuite
             
             if ( dist > 0.01 )
             {
-                println( "%d to %d: %2.6f".format( tv1.id, tv2.id, dist ) )
+                println( "************* %d to %d: %2.6f ***************".format( tv1.id, tv2.id, dist ) )
                 
                 var rankBuilder = new AutoMap[Int, List[(Int, String, Double)]]( x => Nil )
                 for ( ((weight, name, groupId), index) <- why.zipWithIndex )
@@ -159,7 +159,7 @@ class DistanceMetricTest extends FunSuite
                     (totalRank.toDouble / count.toDouble, groupId, x._2)
                 } ).sortWith( _._2 < _._2 )
                 
-                for ( (aveRank, groupId, groupMembership) <- aveRankSorted )
+                for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0,5) )
                 {
                     println( "Group id: %d, ave rank: %.2f".format( groupId, aveRank ) )
                     
