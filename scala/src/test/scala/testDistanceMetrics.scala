@@ -157,7 +157,7 @@ class DistanceMetricTest extends FunSuite
                     }
                     
                     (totalRank.toDouble / count.toDouble, groupId, x._2)
-                } ).sortWith( _._2 < _._2 )
+                } ).sortWith( _._1 < _._1 )
                 
                 for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0,5) )
                 {
