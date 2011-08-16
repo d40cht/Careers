@@ -364,11 +364,9 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
         }
     }
     
-    def run( sites : Iterable[AmbiguitySite], compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String, mopupOutliers : Boolean ) =
+    def run( strictness: Double, completeCoverage: (Int) => Boolean, resetCoverage : () => Unit, compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String, mopupOutliers : Boolean ) =
     {
         val weightOrdered = clusterDistances.toList.sortWith( _._2 > _._2 ).map( x => (getSet(x._1._1), getSet(x._1._2), x._2) )
-        
-        def completeCoverage(numAlternatives : Int) = sites.foldLeft(true)( (x, y) => x && y.complete(numAlternatives) )
         
         breakable
         {
@@ -377,8 +375,9 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
                 if ( from.find() != to.find() )
                 {
                     //println( " ****** " )
-                    var compatible = true
+                    //var compatible = true
                     
+                    var linkCount = 0
                     var count = 0
                     var sum = 0.0
                     breakable
@@ -391,15 +390,18 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
                             val weight = getWeight(set1ms.value, set2ms.value)
                             val linked = clusterDistances.contains( key )
                             
-                            if ( !cp || !linked )
+                            if ( cp && linked )
                             {
-                                compatible = false
-                                break
+                                //compatible = false
+                                //break
+                                linkCount += 1
                             }
                             sum += weight
                             count += 1
                         }
                     }
+                    
+                    val compatible = (linkCount.toDouble / count.toDouble) >= strictness
                     
                     if ( compatible )
                     {
@@ -461,7 +463,7 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
         }
         
         // Reset all markers
-        sites.foreach( _.resetMarkings() )
+        resetCoverage()
         
         var used = 0
         
@@ -790,7 +792,10 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         if ( true )
         {
             println( "Using aggregate clustering to prune network" )
-            topicClustering.run( sites, (x, y) => compatibleForLink(x.value, y.value), x => topicNameMap(x.value.topicId), false )
+            def completeCoverage(numAlternatives : Int) = sites.foldLeft(true)( (x, y) => x && y.complete(numAlternatives) )
+            def resetCoverage() = sites.foreach( _.resetMarkings() )
+            
+            topicClustering.run( 0.99, completeCoverage, resetCoverage, (x, y) => compatibleForLink(x.value, y.value), x => topicNameMap(x.value.topicId), false )
             
             for ( site <- sites )
             {
@@ -1016,7 +1021,9 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             
             if ( false )
             {
-                val groupings = topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id), false )
+                def completeCoverage(numAlternatives : Int) = sites.foldLeft(true)( (x, y) => x && y.complete(numAlternatives) )
+                def resetCoverage() = sites.foreach( _.resetMarkings() )
+                val groupings = topicClustering2.run( 0.99, completeCoverage, resetCoverage, (x, y) => true, x => topicNameMap(x.id), false )
                 
                 val topicLinkUpweight = 5000.0
                 val allTopicIds = groupings.flatMap( x => x.map( y => y.id ) ).foldLeft( HashSet[Int]() )( _ + _ )
@@ -1425,7 +1432,9 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
             for ( ((from, to), weight) <- linkMap ) topicClustering2.update( from, to, weight )
             //for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers ) topicClustering2.update( topicMap(t.topicId), topicMap(p.topicId), w.totalWeight )
             
-            topicClustering2.run( sites, (x, y) => true, x => topicNameMap(x.id), true )
+            def completeCoverage(numAlternatives : Int) = sites.foldLeft(true)( (x, y) => x && y.complete(numAlternatives) )
+            def resetCoverage() = sites.foreach( _.resetMarkings() )
+            topicClustering2.run( 0.99, completeCoverage, resetCoverage, (x, y) => true, x => topicNameMap(x.id), true )
         }
         
         var allTopicIds = HashSet[Int]()
