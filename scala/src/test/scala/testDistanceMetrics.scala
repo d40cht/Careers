@@ -3,6 +3,7 @@ import scala.collection.immutable.{HashMap}
 
 import scala.xml._
 import org.seacourt.utility._
+import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering}
 
 
 class TopicVector( val id : Int )
@@ -10,15 +11,15 @@ class TopicVector( val id : Int )
     type TopicId = Int
     type TopicWeight = Double
     
-    class TopicElement( val weight : TopicWeight, val name : String, val groupId : Int )
+    class TopicElement( val weight : TopicWeight, val name : String, val groupId : Int, val primaryTopic : Boolean )
     {
     }
     
     private var topics = HashMap[TopicId, TopicElement]()
     
-    def addTopic( id : TopicId, weight : TopicWeight, name : String, groupId : Int )
+    def addTopic( id : TopicId, weight : TopicWeight, name : String, groupId : Int, primaryTopic : Boolean )
     {
-        topics = topics.updated( id, new TopicElement( weight, name, groupId ) )
+        topics = topics.updated( id, new TopicElement( weight, name, groupId, primaryTopic ) )
     }
     
     def distance( other : TopicVector ) =
@@ -40,7 +41,7 @@ class TopicVector( val id : Int )
                 val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
                 
                 
-                weightedMatches = (priorityWeight, te.name, te.groupId) :: weightedMatches
+                weightedMatches = (priorityWeight, (if (te.primaryTopic) "* " else "  ") + te.name, te.groupId) :: weightedMatches
                 
                 AB += combinedWeight
             }
@@ -65,9 +66,9 @@ class DistanceMetricTest extends FunSuite
         val data = XML.loadFile( fileName )
         
         // Pull out the name map at the end of the resolution file.
-        val nameMap = (data \\ "topic").foldLeft( HashMap[Int, String]() )( (c, el) => c.updated( (el \\ "id").text.toInt, (el \\ "name").text ) )
+        val nameMap = (data \\ "topic").foldLeft( HashMap[Int, (String, Boolean)]() )( (c, el) => c.updated( (el \\ "id").text.toInt, ((el \\ "name").text, (el \\ "primaryTopic").text.toBoolean ) ) )
         
-        // Pull out the topic groupings: map from topicId to group id
+        /*// Pull out the topic groupings: map from topicId to group id
         var groupMembership = HashMap[Int, Int]()
         for ( group <- data \\ "group" )
         {
@@ -77,7 +78,10 @@ class DistanceMetricTest extends FunSuite
                 val topicId = topic.text.toInt
                 groupMembership = groupMembership.updated( topicId, groupId )
             }
-        }
+        }*/
+        
+        var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
+        val topicClustering = new AgglomClustering[WrappedTopicId]()
         
         val topicWeightings = new AutoMap[Int, Double]( x => 0.0 )
         for ( site <- data \ "sites" \ "site" )
@@ -93,21 +97,35 @@ class DistanceMetricTest extends FunSuite
                 
                 for ( (id, weight) <- weightings )
                 {
+                    topicClustering.update( topicMap(topicId), topicMap(id), weight )
                     topicWeightings.set( id, topicWeightings(id) + weight )
                 }
             }
         }
         
+        val groupings = topicClustering.run( 0.3, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, false )
+        var groupMembership = HashMap[Int, Int]()
+        groupings.zipWithIndex.foreach( x => {
+            val members = x._1
+            val gid = x._2
+            
+            members.foreach( wid =>
+            {
+                groupMembership = groupMembership.updated( wid.id, gid )
+            } )
+        } )
+
+        
         val topicVector = new TopicVector(documentId)
         for ( (id, weight) <- topicWeightings )
         {
-            val name = nameMap(id)
+            val (name, primaryTopic) = nameMap(id)
             if ( !name.startsWith("Category:") )
             {
                 if ( groupMembership.contains(id) )
                 {
                     val groupId = groupMembership(id)
-                    topicVector.addTopic( id, weight, name, groupId )
+                    topicVector.addTopic( id, weight, name, groupId, primaryTopic )
                 }
                 else
                 {
@@ -123,7 +141,7 @@ class DistanceMetricTest extends FunSuite
     test( "DistanceMetricTest" )
     {
         var tvs = List[TopicVector]()
-        for ( i <- 1 until 16 )
+        for ( i <- 1 until 17 )
         {
             val tv = makeTopicVector( "/home/alexw/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i )
             tvs = tv :: tvs
@@ -159,11 +177,11 @@ class DistanceMetricTest extends FunSuite
                     (totalRank.toDouble / count.toDouble, groupId, x._2)
                 } ).sortWith( _._1 < _._1 )
                 
-                for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0,5) )
+                for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0,10) )
                 {
                     println( "Group id: %d, ave rank: %.2f".format( groupId, aveRank ) )
                     
-                    for ( (rank, name, weight) <- groupMembership )
+                    for ( (rank, name, weight) <- groupMembership.sortWith( _._3 > _._3 ) )
                     {
                         println( "  %s: %d, %2.2e".format( name, rank, weight ) )
                     }
