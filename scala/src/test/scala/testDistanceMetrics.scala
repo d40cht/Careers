@@ -103,7 +103,7 @@ class DistanceMetricTest extends FunSuite
             }
         }
         
-        val groupings = topicClustering.run( 0.3, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, false )
+        val groupings = topicClustering.run( 0.3, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, true )
         var groupMembership = HashMap[Int, Int]()
         groupings.zipWithIndex.foreach( x => {
             val members = x._1
@@ -141,7 +141,7 @@ class DistanceMetricTest extends FunSuite
     test( "DistanceMetricTest" )
     {
         var tvs = List[TopicVector]()
-        for ( i <- 1 until 17 )
+        for ( i <- 1 until 19 )
         {
             val tv = makeTopicVector( "/home/alexw/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i )
             tvs = tv :: tvs
@@ -156,7 +156,7 @@ class DistanceMetricTest extends FunSuite
                 println( "************* %d to %d: %2.6f ***************".format( tv1.id, tv2.id, dist ) )
                 
                 var rankBuilder = new AutoMap[Int, List[(Int, String, Double)]]( x => Nil )
-                for ( ((weight, name, groupId), index) <- why.zipWithIndex )
+                for ( ((weight, name, groupId), index) <- why.slice(0, 100).zipWithIndex )
                 {
                     val rank = index + 1
                     rankBuilder.set( groupId, (rank, name, weight) :: rankBuilder(groupId) )
@@ -177,7 +177,7 @@ class DistanceMetricTest extends FunSuite
                     (totalRank.toDouble / count.toDouble, groupId, x._2)
                 } ).sortWith( _._1 < _._1 )
                 
-                for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0,10) )
+                for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0, 10) )
                 {
                     println( "Group id: %d, ave rank: %.2f".format( groupId, aveRank ) )
                     
