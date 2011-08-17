@@ -292,9 +292,9 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
     {
         val wordList = Utils.luceneTextTokenizer( Utils.normalize( text ) )
         
-        var topicCategoryMap = TreeMap[Int, TreeMap[Int, Double]]()
-        var topicNameMap = TreeMap[Int, String]()
-        var contextWeightMap = TreeMap[Int, Double]()
+        var topicCategoryMap = HashMap[Int, HashMap[Int, Double]]()
+        var topicNameMap = HashMap[Int, String]()
+        var contextWeightMap = HashMap[Int, Double]()
         
         
         
@@ -430,7 +430,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                             }
                                             
                                             val topContextsByWeight = contextWeights.toList.sortWith( _._2 > _._2 ).slice(0, AmbiguityForest.numAllowedContexts)
-                                            val reducedContextWeightMap = topContextsByWeight.foldLeft( TreeMap[Int, Double]() )( (m, v) => m.updated(v._1, v._2) )
+                                            val reducedContextWeightMap = topContextsByWeight.foldLeft( HashMap[Int, Double]() )( (m, v) => m.updated(v._1, v._2) )
 
                                             topicCategoryMap = topicCategoryMap.updated(topicId, reducedContextWeightMap)
                                             

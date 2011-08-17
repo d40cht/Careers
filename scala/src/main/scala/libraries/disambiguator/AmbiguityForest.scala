@@ -212,7 +212,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                         }
                     }
                     
-                    def downWeightPeers( q : PriorityQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
+                    def downWeightPeers( q : PriorityQ[TopicDetailLink], topicNameMap : HashMap[Int, String] )
                     {
                         for ( (peer, linkWeight) <- peers )
                         {
@@ -241,7 +241,7 @@ class AmbiguitySite( val start : Int, val end : Int )
             }
         }
         
-        def remove( q : PriorityQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
+        def remove( q : PriorityQ[TopicDetailLink], topicNameMap : HashMap[Int, String] )
         {
             for ( site <- sites )
             {
@@ -259,7 +259,7 @@ class AmbiguitySite( val start : Int, val end : Int )
             combs = combs - this
         }
         
-        def cullUpwards( q : PriorityQ[TopicDetailLink], topicNameMap : TreeMap[Int, String] )
+        def cullUpwards( q : PriorityQ[TopicDetailLink], topicNameMap : HashMap[Int, String] )
         {
             activeSiteCount -= 1
          
@@ -472,7 +472,7 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
         {
             for ( (dj, coherence) <- clusterList.sortWith( _._2 > _._2 ) )
             {
-                println( "+++++++++++ " + dj.size + ", " + coherence + " +++++++++++" )
+                //println( "+++++++++++ " + dj.size + ", " + coherence + " +++++++++++" )
                 for ( v <- dj.members() )
                 {
                     v.value.select()
@@ -481,11 +481,11 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
                     if (avail)
                     {
                         chosen += v.value
-                        println( "* " + getName( v.value ) )
+                        //println( "* " + getName( v.value ) )
                     }
                     else
                     {
-                        println( "  " + getName( v.value ) )
+                        //println( "  " + getName( v.value ) )
                     }
                 }
                 
@@ -509,7 +509,7 @@ class WrappedTopicId( val id : Int ) extends Clusterable[WrappedTopicId]
     def select() {}
 }
 
-class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int, String], topicCategoryMap : TreeMap[Int, TreeMap[Int, Double]], val topicDb : SQLiteWrapper, val categoryHierarchy : CategoryHierarchy )
+class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int, String], topicCategoryMap : HashMap[Int, HashMap[Int, Double]], val topicDb : SQLiteWrapper, val categoryHierarchy : CategoryHierarchy )
 {
     class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
     
@@ -535,11 +535,16 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
     var disambiguated = List[SureSite]()
     var communities : CommunityTreeBase[TopicGraphNode] = null
     
-    var debug = List[scala.xml.Elem]()
+    var debugData = List[scala.xml.Elem]()
+    def addDebug( entryFn : () => scala.xml.Elem )
+    {
+        debugData = entryFn() :: debugData
+    }
+    def debug = false
     
     def addTopics( sortedPhrases : List[AmbiguityForest.SurfaceFormDetails] )
     {
-        debug =
+        addDebug( () =>
             <surfaceForms>
                 { for ( sf <- sortedPhrases ) yield
                     <element>
@@ -567,8 +572,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                         </topics>
                     </element>
                 }
-            </surfaceForms> :: debug
-
+            </surfaceForms> )
+            
         var asbs = List[AmbiguitySiteBuilder]()
         for ( sf <- sortedPhrases )
         {
@@ -585,8 +590,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
     }
     
     def alternativeBasedResolution()
-    {        
-        debug =
+    {
+        addDebug( () =>
             <sites>
             {
                 for ( site <- sites ) yield
@@ -624,7 +629,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     }
                     </site>
             }
-            </sites> :: debug
+            </sites> )
         
         type ContextId = Int
         type SiteCentre = Double
@@ -739,18 +744,20 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         
         
         // Topics linked to each other
+        println( "Direct topic links" )
         if ( AmbiguityForest.topicDirectLinks )
         {
             for ( site1 <- sites; alternative1 <- site1.combs; altSite1 <- alternative1.sites; topicDetail1 <- altSite1.sf.topics )
             {
                 val contexts = topicCategoryMap(topicDetail1.topicId)
+                
+                assert( contexts.size <= AmbiguityForest.numAllowedContexts )
                 for ( site2 <- sites; alternative2 <- site2.combs; altSite2 <- alternative2.sites; topicDetail2 <- altSite2.sf.topics )
                 {
                     if ( contexts.contains( topicDetail2.topicId ) )
                     {
-                        val contexts2 = topicCategoryMap( topicDetail2.topicId )
-                        
-                        val bidirectional = contexts2.contains( topicDetail1.topicId )
+                        //val contexts2 = topicCategoryMap( topicDetail2.topicId )
+                        //val bidirectional = contexts2.contains( topicDetail1.topicId )
                         
                         val linkWeight = contexts( topicDetail2.topicId ) 
                         val altWeight1 = alternative1.altWeight * topicDetail1.topicWeight
@@ -776,6 +783,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
         }
         
         // Topics linked via contexts
+        println( "Links via contexts" )
         for ( (contextId, alternatives) <- reverseContextMap; (topicDetail1, weight1) <- alternatives; (topicDetail2, weight2) <- alternatives )
         {
             if ( compatibleForLink( topicDetail1, topicDetail2 ) )
@@ -1223,7 +1231,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
     
     def dumpResolutions()
     {
-        debug =
+        addDebug( () =>
             <resolutions>
             {
                 for ( site <- sites.reverse ) yield
@@ -1268,18 +1276,21 @@ class AmbiguityForest( val words : List[String], val topicNameMap : TreeMap[Int,
                     </site>
                 }
             }
-            </resolutions> :: debug
+            </resolutions> )
     }
     
     
     def dumpDebug( fileName : String )
     {
-        val fullDebug =
-            <root>
-            { for ( el <-debug.reverse ) yield el }
-            </root>
+        if ( debug )
+        {
+            val fullDebug =
+                <root>
+                { for ( el <-debugData.reverse ) yield el }
+                </root>
 
-        XML.save( fileName, fullDebug, "utf8" )
+            XML.save( fileName, fullDebug, "utf8" )
+        }            
     }
     
     def output( htmlFileName : String, resolutionFileName : String )
