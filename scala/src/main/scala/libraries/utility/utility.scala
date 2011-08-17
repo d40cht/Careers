@@ -53,6 +53,7 @@ class AutoMap[A, B]( val makeB : A => B )
         mapImpl = mapImpl.updated( key, value )
     }
     
+    def contains = mapImpl.contains _
     def foreach = mapImpl.foreach _
     def filter = mapImpl.filter _
     def map[C]( fn : ((A, B)) => C ) = mapImpl.map( fn )
