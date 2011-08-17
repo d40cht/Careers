@@ -103,7 +103,7 @@ class DistanceMetricTest extends FunSuite
             }
         }
         
-        val groupings = topicClustering.run( 0.3, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, true )
+        val groupings = topicClustering.run( 0.3, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, false )
         var groupMembership = HashMap[Int, Int]()
         groupings.zipWithIndex.foreach( x => {
             val members = x._1
@@ -141,7 +141,7 @@ class DistanceMetricTest extends FunSuite
     test( "DistanceMetricTest" )
     {
         var tvs = List[TopicVector]()
-        for ( i <- 1 until 19 )
+        for ( i <- 1 until 21 )
         {
             val tv = makeTopicVector( "/home/alexw/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i )
             tvs = tv :: tvs

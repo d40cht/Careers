@@ -643,6 +643,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         
         
         // Link via contexts
+        var idToTopicMap = new AutoMap[Int, HashSet[TopicDetailLink]]( x => HashSet[TopicDetailLink]())
         for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites )
         {
             val altWeight = alternative.altWeight
@@ -650,7 +651,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             {
                 allTds = topicDetail :: allTds
                 
-                
+                idToTopicMap.set( topicDetail.topicId, idToTopicMap(topicDetail.topicId) + topicDetail )
                 
                 val contexts = topicCategoryMap(topicDetail.topicId)
                 for ( (contextId, contextWeight) <- contexts )
@@ -744,12 +745,14 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         
         
         // Topics linked to each other
-        println( "Direct topic links" )
+        /*println( "Direct topic links" )
         if ( AmbiguityForest.topicDirectLinks )
         {
             for ( site1 <- sites; alternative1 <- site1.combs; altSite1 <- alternative1.sites; topicDetail1 <- altSite1.sf.topics )
             {
                 val contexts = topicCategoryMap(topicDetail1.topicId)
+                
+                idToTopicMap.set( topicDetail1.topicId, idToTopicMap(topicDetail1.topicId) + topicDetail1 )
                 
                 assert( contexts.size <= AmbiguityForest.numAllowedContexts )
                 for ( site2 <- sites; alternative2 <- site2.combs; altSite2 <- alternative2.sites; topicDetail2 <- altSite2.sf.topics )
@@ -762,6 +765,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                         val linkWeight = contexts( topicDetail2.topicId ) 
                         val altWeight1 = alternative1.altWeight * topicDetail1.topicWeight
                         val altWeight2 = alternative2.altWeight * topicDetail2.topicWeight
+                        
+                        altWeight * topicDetail.topicWeight * contextWeight
                         
                         
                         //println( "Direct link: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + altWeight1 * altWeight2 * linkWeight )
@@ -780,19 +785,43 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                     }
                 }
             }
-        }
+        }*/
         
         // Topics linked via contexts
         println( "Links via contexts" )
-        for ( (contextId, alternatives) <- reverseContextMap; (topicDetail1, weight1) <- alternatives; (topicDetail2, weight2) <- alternatives )
+        for ( (contextId, alternatives) <- reverseContextMap )
         {
-            if ( compatibleForLink( topicDetail1, topicDetail2 ) )
+            if ( idToTopicMap.contains( contextId ) )
             {
-                if ( topicDetail1.topicId != topicDetail2.topicId )
+                // Direct link
+                val directLinks = idToTopicMap(contextId)
+                
+                for ( (topicDetail1, weight1) <- alternatives )
                 {
-                    buildLinks( topicDetail1, topicDetail2, weight1 * weight2, Some(contextId) )
+                    for ( topicDetail2 <- directLinks )
+                    {
+                        val combinedWeight = topicDetail2.alternative.altWeight * topicDetail2.topicWeight * weight1
+                        if ( compatibleForLink( topicDetail1, topicDetail2 ) )
+                        {
+                            if ( topicDetail1.topicId != topicDetail2.topicId )
+                            {
+                                buildLinks( topicDetail1, topicDetail2, combinedWeight, None )
+                            }
+                        }
+                    }
                 }
-                //topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
+            }
+            
+            for ( (topicDetail1, weight1) <- alternatives; (topicDetail2, weight2) <- alternatives )
+            {
+                if ( compatibleForLink( topicDetail1, topicDetail2 ) )
+                {
+                    if ( topicDetail1.topicId != topicDetail2.topicId )
+                    {
+                        buildLinks( topicDetail1, topicDetail2, weight1 * weight2, Some(contextId) )
+                    }
+                    //topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
+                }
             }
         }
         
