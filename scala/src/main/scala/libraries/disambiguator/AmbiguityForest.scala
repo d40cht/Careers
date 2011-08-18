@@ -61,7 +61,7 @@ object AmbiguityForest
         
     val minPhraseWeight         = 0.005
     val minContextEdgeWeight    = 1.0e-7
-    val numAllowedContexts      = 20
+    val numAllowedContexts      = 30
     
     // Smith-waterman (and other sparse articles) require this
     val secondOrderContexts             = true
@@ -745,47 +745,48 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         
         
         // Topics linked to each other
-        /*println( "Direct topic links" )
-        if ( AmbiguityForest.topicDirectLinks )
+        if ( false )
         {
-            for ( site1 <- sites; alternative1 <- site1.combs; altSite1 <- alternative1.sites; topicDetail1 <- altSite1.sf.topics )
+            println( "Direct topic links" )
+            if ( AmbiguityForest.topicDirectLinks )
             {
-                val contexts = topicCategoryMap(topicDetail1.topicId)
-                
-                idToTopicMap.set( topicDetail1.topicId, idToTopicMap(topicDetail1.topicId) + topicDetail1 )
-                
-                assert( contexts.size <= AmbiguityForest.numAllowedContexts )
-                for ( site2 <- sites; alternative2 <- site2.combs; altSite2 <- alternative2.sites; topicDetail2 <- altSite2.sf.topics )
+                for ( site1 <- sites; alternative1 <- site1.combs; altSite1 <- alternative1.sites; topicDetail1 <- altSite1.sf.topics )
                 {
-                    if ( contexts.contains( topicDetail2.topicId ) )
+                    val contexts = topicCategoryMap(topicDetail1.topicId)
+                    
+                    idToTopicMap.set( topicDetail1.topicId, idToTopicMap(topicDetail1.topicId) + topicDetail1 )
+                    
+                    assert( contexts.size <= AmbiguityForest.numAllowedContexts )
+                    for ( site2 <- sites; alternative2 <- site2.combs; altSite2 <- alternative2.sites; topicDetail2 <- altSite2.sf.topics )
                     {
-                        //val contexts2 = topicCategoryMap( topicDetail2.topicId )
-                        //val bidirectional = contexts2.contains( topicDetail1.topicId )
-                        
-                        val linkWeight = contexts( topicDetail2.topicId ) 
-                        val altWeight1 = alternative1.altWeight * topicDetail1.topicWeight
-                        val altWeight2 = alternative2.altWeight * topicDetail2.topicWeight
-                        
-                        altWeight * topicDetail.topicWeight * contextWeight
-                        
-                        
-                        //println( "Direct link: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + altWeight1 * altWeight2 * linkWeight )
-                        //println( linkWeight + ", " + altWeight1 + ", " + altWeight2 + ", " + topicDetail1.topicWeight + ", " + topicDetail2.topicWeight )
-                        
-                        
-                        if ( compatibleForLink( topicDetail1, topicDetail2 ) )
+                        if ( contexts.contains( topicDetail2.topicId ) )
                         {
-                            val directWeight = altWeight1 * altWeight2 * linkWeight
-                            if ( topicDetail1.topicId != topicDetail2.topicId )
+                            //val contexts2 = topicCategoryMap( topicDetail2.topicId )
+                            //val bidirectional = contexts2.contains( topicDetail1.topicId )
+                            
+                            val linkWeight = contexts( topicDetail2.topicId ) 
+                            val altWeight1 = alternative1.altWeight * topicDetail1.topicWeight
+                            val altWeight2 = alternative2.altWeight * topicDetail2.topicWeight
+                            
+                            
+                            //println( "Direct link: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + altWeight1 * altWeight2 * linkWeight )
+                            //println( linkWeight + ", " + altWeight1 + ", " + altWeight2 + ", " + topicDetail1.topicWeight + ", " + topicDetail2.topicWeight )
+                            
+                            
+                            if ( compatibleForLink( topicDetail1, topicDetail2 ) )
                             {
-                                buildLinks( topicDetail1, topicDetail2, directWeight, None )
+                                val directWeight = altWeight1 * altWeight2 * linkWeight
+                                if ( topicDetail1.topicId != topicDetail2.topicId )
+                                {
+                                    buildLinks( topicDetail1, topicDetail2, directWeight, None )
+                                }
+                                //topicClustering.update( topicDetail1, topicDetail2, directWeight )
                             }
-                            //topicClustering.update( topicDetail1, topicDetail2, directWeight )
                         }
                     }
                 }
             }
-        }*/
+        }
         
         // Topics linked via contexts
         println( "Links via contexts" )

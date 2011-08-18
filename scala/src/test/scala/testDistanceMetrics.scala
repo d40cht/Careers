@@ -140,50 +140,53 @@ class DistanceMetricTest extends FunSuite
 
     test( "DistanceMetricTest" )
     {
-        var tvs = List[TopicVector]()
-        for ( i <- 1 until 21 )
+        if ( true )
         {
-            val tv = makeTopicVector( "/home/alexw/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i )
-            tvs = tv :: tvs
-        }
-        
-        for ( tv1 <- tvs; tv2 <- tvs if ( tv1.id < tv2.id && tv1.id != 6 && tv2.id != 6 ) )
-        {
-            val (dist, why) = tv1.distance(tv2)
-            
-            if ( dist > 0.01 )
+            var tvs = List[TopicVector]()
+            for ( i <- 1 until 21 )
             {
-                println( "************* %d to %d: %2.6f ***************".format( tv1.id, tv2.id, dist ) )
+                val tv = makeTopicVector( "/home/alex/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i )
+                tvs = tv :: tvs
+            }
+            
+            for ( tv1 <- tvs; tv2 <- tvs if ( tv1.id < tv2.id && tv1.id != 6 && tv2.id != 6 ) )
+            {
+                val (dist, why) = tv1.distance(tv2)
                 
-                var rankBuilder = new AutoMap[Int, List[(Int, String, Double)]]( x => Nil )
-                for ( ((weight, name, groupId), index) <- why.slice(0, 100).zipWithIndex )
+                if ( dist > 0.01 )
                 {
-                    val rank = index + 1
-                    rankBuilder.set( groupId, (rank, name, weight) :: rankBuilder(groupId) )
-                    //println( "  %s %2.6f".format( name, weight ) )
-                }
-                
-                val aveRankSorted = rankBuilder.toList.map( x =>
-                {
-                    val groupId = x._1
-                    var totalRank = 0
-                    var count = 0
-                    for ( (rank, name, weight) <- x._2 )
+                    println( "************* %d to %d: %2.6f ***************".format( tv1.id, tv2.id, dist ) )
+                    
+                    var rankBuilder = new AutoMap[Int, List[(Int, String, Double)]]( x => Nil )
+                    for ( ((weight, name, groupId), index) <- why.slice(0, 100).zipWithIndex )
                     {
-                        totalRank += rank
-                        count += 1
+                        val rank = index + 1
+                        rankBuilder.set( groupId, (rank, name, weight) :: rankBuilder(groupId) )
+                        //println( "  %s %2.6f".format( name, weight ) )
                     }
                     
-                    (totalRank.toDouble / count.toDouble, groupId, x._2)
-                } ).sortWith( _._1 < _._1 )
-                
-                for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0, 10) )
-                {
-                    println( "Group id: %d, ave rank: %.2f".format( groupId, aveRank ) )
-                    
-                    for ( (rank, name, weight) <- groupMembership.sortWith( _._3 > _._3 ) )
+                    val aveRankSorted = rankBuilder.toList.map( x =>
                     {
-                        println( "  %s: %d, %2.2e".format( name, rank, weight ) )
+                        val groupId = x._1
+                        var totalRank = 0
+                        var count = 0
+                        for ( (rank, name, weight) <- x._2 )
+                        {
+                            totalRank += rank
+                            count += 1
+                        }
+                        
+                        (totalRank.toDouble / count.toDouble, groupId, x._2)
+                    } ).sortWith( _._1 < _._1 )
+                    
+                    for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0, 10) )
+                    {
+                        println( "Group id: %d, ave rank: %.2f".format( groupId, aveRank ) )
+                        
+                        for ( (rank, name, weight) <- groupMembership.sortWith( _._3 > _._3 ) )
+                        {
+                            println( "  %s: %d, %2.2e".format( name, rank, weight ) )
+                        }
                     }
                 }
             }

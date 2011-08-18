@@ -15,6 +15,8 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
     val jungApi = "net.sf.jung" % "jung-api" % "2.0.1"
     val jungGraphImpl = "net.sf.jung" % "jung-graph-impl" % "2.0.1"
     val jungAlgorithms = "net.sf.jung" % "jung-algorithms" % "2.0.1"
+    val h2 = "com.h2database" % "h2" % "1.3.158"
+    val scalaQuery = "org.scalaquery" %% "scalaquery" % "0.9.4"
 
 
     
