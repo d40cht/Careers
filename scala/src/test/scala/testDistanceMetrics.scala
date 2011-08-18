@@ -2,8 +2,43 @@ import org.scalatest.FunSuite
 import scala.collection.immutable.{HashMap}
 
 import scala.xml._
+import scala.io.Source._
 import org.seacourt.utility._
 import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering}
+
+import wordcram._
+import processing.core.{PApplet, PGraphics, PConstants, PGraphicsJava2D}
+
+
+
+class MyGraphics2D() extends PGraphicsJava2D
+{
+    override def displayable() = false
+}
+
+class Blah() extends PApplet
+{
+    var wc : WordCram = null
+    //val pg = createGraphics( 400, 300, "MyGraphics2D" )
+    
+    override def setup()
+    {
+        // http://wordcram.org/2010/09/09/get-acquainted-with-wordcram/
+        wc = new wordcram.WordCram( this )
+        wc.fromTextFile( "./src/test/scala/data/georgecv.txt" )
+        size( 400, 300, "MyGraphics2D" )
+        //noLoop()
+    }
+    
+    override def draw()
+    {
+        println( "Here2" )
+        wc.drawAll()
+        println( "Here3" )
+        save( "wordcram.png" )
+        exit()
+    }
+}
 
 
 class TopicVector( val id : Int )
@@ -137,15 +172,26 @@ class DistanceMetricTest extends FunSuite
         topicVector
     }
     
+    
+    
+    test( "WordCram" )
+    {   
+        /*val b = new Blah( fileText )
+        println( "Here4" )
+        b.setup()
+        b.redraw()
+        println( "Here5" )*/
+        PApplet.main( List("--present", "Blah").toArray )
+    }
 
     test( "DistanceMetricTest" )
     {
-        if ( true )
+        if ( false )
         {
             var tvs = List[TopicVector]()
-            for ( i <- 1 until 21 )
+            for ( i <- 1 until 23 )
             {
-                val tv = makeTopicVector( "/home/alex/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i )
+                val tv = makeTopicVector( "/home/alexw/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i )
                 tvs = tv :: tvs
             }
             
