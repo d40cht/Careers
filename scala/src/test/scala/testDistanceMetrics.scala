@@ -24,10 +24,23 @@ class Blah() extends PApplet
     override def setup()
     {
         // http://wordcram.org/2010/09/09/get-acquainted-with-wordcram/
+        background(255)
+        //colorMode(HSB)
         wc = new wordcram.WordCram( this )
+        
+        //wc.withColors( color(0, 250, 200), color(30), color(170, 230, 200) )
+        //wc.withColors( 0x444493, 0xD0D0F0, 0x90F090 )
+        //wc.sizedByWeight( 10, 90 )
+        //wc.withAngler( Anglers.mostlyHoriz() )
+        //wc.withPlacer( Placers.horizLine() )
+        //wc.withColorer( Colorers.pickFrom() )
+            //Fonters.alwaysUse(createFont("LiberationSerif-Regular.ttf", 1)),
+
         wc.fromTextFile( "./src/test/scala/data/georgecv.txt" )
+        
         size( 400, 300, "MyGraphics2D" )
-        //noLoop()
+        println( "Here1" )
+        noLoop()
     }
     
     override def draw()
@@ -36,7 +49,8 @@ class Blah() extends PApplet
         wc.drawAll()
         println( "Here3" )
         save( "wordcram.png" )
-        exit()
+        Thread.sleep( 15000 )
+        //exit()
     }
 }
 
@@ -176,8 +190,9 @@ class DistanceMetricTest extends FunSuite
     
     test( "WordCram" )
     {   
-        /*val b = new Blah( fileText )
-        println( "Here4" )
+        val b = new Blah()
+        b.init()
+        /*println( "Here4" )
         b.setup()
         b.redraw()
         println( "Here5" )*/
