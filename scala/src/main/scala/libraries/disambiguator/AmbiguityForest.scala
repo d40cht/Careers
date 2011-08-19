@@ -364,7 +364,7 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
         }
     }
     
-    def run( strictness: Double, completeCoverage: (Int) => Boolean, resetCoverage : () => Unit, compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String, mopupOutliers : Boolean ) =
+    def run( strictness : Double, completeCoverage: (Int) => Boolean, resetCoverage : () => Unit, compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String, mopupOutliers : Boolean ) =
     {
         val weightOrdered = clusterDistances.toList.sortWith( _._2 > _._2 ).map( x => (getSet(x._1._1), getSet(x._1._2), x._2) )
         
