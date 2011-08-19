@@ -86,7 +86,7 @@ object WebCVProcess
 {
     def main( args : Array[String] )
     {
-        if ( true )
+        if ( false )
         {
             //val b = new Blah()
             //b.init()

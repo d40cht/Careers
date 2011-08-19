@@ -256,7 +256,7 @@ class DistanceMetricTest extends FunSuite
                                                             }
                                                             else
                                                             {
-                                                                styles = "color: #%s".format(greys.head) :: styles
+                                                                styles = "color: %s".format(greys.head) :: styles
                                                                 greys = greys.tail ++ List(greys.head)
                                                             }
                                                             
