@@ -6,54 +6,6 @@ import scala.io.Source._
 import org.seacourt.utility._
 import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering}
 
-import wordcram._
-import processing.core.{PApplet, PGraphics, PConstants, PGraphicsJava2D}
-
-
-
-class MyGraphics2D() extends PGraphicsJava2D
-{
-    override def displayable() = false
-}
-
-class Blah() extends PApplet
-{
-    var wc : WordCram = null
-    //val pg = createGraphics( 400, 300, "MyGraphics2D" )
-    
-    override def setup()
-    {
-        // http://wordcram.org/2010/09/09/get-acquainted-with-wordcram/
-        background(255)
-        //colorMode(HSB)
-        wc = new wordcram.WordCram( this )
-        
-        //wc.withColors( color(0, 250, 200), color(30), color(170, 230, 200) )
-        //wc.withColors( 0x444493, 0xD0D0F0, 0x90F090 )
-        //wc.sizedByWeight( 10, 90 )
-        //wc.withAngler( Anglers.mostlyHoriz() )
-        //wc.withPlacer( Placers.horizLine() )
-        //wc.withColorer( Colorers.pickFrom() )
-            //Fonters.alwaysUse(createFont("LiberationSerif-Regular.ttf", 1)),
-
-        wc.fromTextFile( "./src/test/scala/data/georgecv.txt" )
-        
-        size( 400, 300, "MyGraphics2D" )
-        println( "Here1" )
-        noLoop()
-    }
-    
-    override def draw()
-    {
-        println( "Here2" )
-        wc.drawAll()
-        println( "Here3" )
-        save( "wordcram.png" )
-        Thread.sleep( 15000 )
-        //exit()
-    }
-}
-
 
 class TopicVector( val id : Int )
 {
@@ -186,18 +138,6 @@ class DistanceMetricTest extends FunSuite
         topicVector
     }
     
-    
-    
-    test( "WordCram" )
-    {   
-        val b = new Blah()
-        b.init()
-        /*println( "Here4" )
-        b.setup()
-        b.redraw()
-        println( "Here5" )*/
-        PApplet.main( List("--present", "Blah").toArray )
-    }
 
     test( "DistanceMetricTest" )
     {
