@@ -361,7 +361,7 @@ class DisambiguatorTest extends FunSuite
         assert( v.size == 0 )
         assert( v.isEmpty )*/
         
-        if ( true )
+        if ( false )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             
