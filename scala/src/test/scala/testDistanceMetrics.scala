@@ -34,7 +34,7 @@ class TopicVector( val id : Int )
         // Weight, name, groupId
         var weightedMatches = List[(Double, String, Boolean, Int)]()
         
-        
+        // Choose top N from each
         val topTopics = topics
         val topOtherTopics = other.topics
         for ( (id, te) <- topTopics )
@@ -148,7 +148,7 @@ class DistanceMetricTest extends FunSuite
 
     test( "DistanceMetricTest" )
     {
-        if ( true )
+        if ( false )
         {
             val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)" )
             
