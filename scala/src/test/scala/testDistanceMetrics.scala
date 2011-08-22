@@ -34,19 +34,25 @@ class TopicVector( val id : Int )
         // Weight, name, groupId
         var weightedMatches = List[(Double, String, Boolean, Int)]()
         
-        for ( (id, te) <- topics )
+        
+        val topTopics = topics
+        val topOtherTopics = other.topics
+        for ( (id, te) <- topTopics )
         {
-            if ( other.topics.contains(id) )
+            if ( topOtherTopics.contains(id) )
             {
-                val otherte = other.topics(id)
+                val otherte = topOtherTopics(id)
                 
-                val combinedWeight = te.weight * otherte.weight
-                val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
-                
-                
-                weightedMatches = (priorityWeight, te.name, te.primaryTopic, te.groupId) :: weightedMatches
-                
-                AB += combinedWeight
+                if ( true )//te.primaryTopic || otherte.primaryTopic )
+                {
+                    val combinedWeight = te.weight * otherte.weight
+                    val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
+                    
+                    
+                    weightedMatches = (priorityWeight, te.name, te.primaryTopic, te.groupId) :: weightedMatches
+                    
+                    AB += combinedWeight
+                }
             }
             AA += (te.weight*te.weight)
         }
@@ -106,7 +112,7 @@ class DistanceMetricTest extends FunSuite
             }
         }
         
-        val groupings = topicClustering.run( 0.3, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, false )
+        val groupings = topicClustering.run( 0.2, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, false )
         var groupMembership = HashMap[Int, Int]()
         groupings.zipWithIndex.foreach( x => {
             val members = x._1
@@ -144,7 +150,10 @@ class DistanceMetricTest extends FunSuite
     {
         if ( true )
         {
-            val tvs = (1 until 26).map( i => makeTopicVector( "/home/alexw/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i ) )
+            val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)" )
+            
+            
+            val tvs = (1 until 34).map( i => makeTopicVector( "/home/alex/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i ) )
             
             /*for ( tv1 <- tvs; tv2 <- tvs if ( tv1.id < tv2.id && tv1.id != 6 && tv2.id != 6 ) )
             {
@@ -188,7 +197,7 @@ class DistanceMetricTest extends FunSuite
                 }
             }*/
             
-            val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "?1", "?2", "?2", "Pippo", "Oly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill" )
+            
             
             def wikiLink( topicName : String ) =
             {
@@ -245,7 +254,7 @@ class DistanceMetricTest extends FunSuite
                                                     <td style="padding:6px">
                                                     {
                                                         var colours = List( "#a0a040", "#40a0a0" )
-                                                        var greys = List( "#808080", "#a0a0a0" )
+                                                        var greys = List( "#606060", "#a0a0a0" )
                                                         for ( (rank, name, primaryTopic, weight) <- groupMembership.sortWith( _._4 > _._4 ) ) yield
                                                         {
                                                             var styles = "font-size: %d".format( 17 + log(weight).toInt ) :: "text-decoration: none" :: Nil

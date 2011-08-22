@@ -422,7 +422,8 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]]
                 {
                     if ( from.find() != to.find() )
                     {
-                        if ( (from.size == 1 && to.size > 2) || (to.size == 1 && from.size > 2) )
+                        //if ( (from.size == 1 && to.size > 2) || (to.size == 1 && from.size > 2) )
+                        if ( (from.size == 1) || (to.size == 1) )
                         {
                             from.join(to)
                         }
@@ -1467,7 +1468,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                 linkMap.set( key3, linkMap(key3) + contextWeight )
                 
                 realTopicIds += t.topicId
-                realTopicIds += p.topicId
+                //realTopicIds += p.topicId
             }
             
             for ( ((from, to), weight) <- linkMap ) topicClustering2.update( from, to, weight )
@@ -1519,21 +1520,6 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                     }
                 }
                 </sites>
-                <groups>
-                {
-                    for ( (topics, index) <- groupings.view.zipWithIndex ) yield
-                    {
-                        <group id={index.toString}>
-                        {
-                            for ( topic <- topics ) yield
-                            {
-                                <topicId>{topic.id}</topicId>
-                            }
-                        }
-                        </group>
-                    }
-                }
-                </groups>
                 <topicNames>
                 {
                     for ( id <- allTopicIds ) yield
