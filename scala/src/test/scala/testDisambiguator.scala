@@ -404,7 +404,7 @@ class DisambiguatorTest extends FunSuite
     
     test( "Disambiguator short phrase test" )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             var fail = false
@@ -422,33 +422,21 @@ class DisambiguatorTest extends FunSuite
                 var dres = forest.disambiguated
                 
                 val dresf = dres.filter( _.weight > 0.0 )
-                println( phrase, dresf.map( x=>x.name) )
+                info( "Testing: " + phrase + ": " + res + ", " + dresf.map( _.name ) )
+                //println( phrase, res, dresf.map( x=>x.name) )
                 
-                //assert( dresf.length === res.length )
+                assert( dresf.length === res.length )
                 if ( dresf.length == res.length )
                 {
                     for ( (topicl, expected) <- dresf.zip(res) )
                     {
                         val topic = topicl.name
-                        //assert( topic === expected )
-                        if ( topic != expected )
-                        {
-                            println( "############## " + topic + " != " + expected )
-                            fail = true
-                        }
-                        
+                        assert( topic === expected )
                     }
-                }
-                else
-                {
-                    println( "################ " )
-                    fail = true
                 }
                 
                 forest.dumpGraph( "test.graph", "test.names" )
             }
-            
-            assert( fail === false )
         }
     }
     

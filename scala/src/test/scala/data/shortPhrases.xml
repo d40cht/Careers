@@ -2,6 +2,7 @@
 
   <!-- ********* Problem resolutions first ********* -->
   
+  <!--
   <test>
     <phrase>
     A rupture in the planned Keystone XL pipeline could release up to 6.9m US gallons into the famed Yellowstone river, a nightmare scenario far outstripping the present spill, a new report warns.
@@ -13,11 +14,12 @@ But an accident on the Keystone XL would carry an vastly greater risk, environme
 Monday's study by the environmental engineer, John Stansbury, argues the pipeline operators TransCanada Corp, have significantly underestimated the chances of a spill and painted an overly optimistic picture of how long it would take to shut down the pipeline.
     </phrase>
   </test>
+  -->
   
   <test>
     <phrase>smith waterman gene sequencing bioinformatics</phrase>
     <topic>Smith–Waterman algorithm</topic>
-    <topic>Gene sequencing</topic>
+    <topic>DNA sequencing</topic>
     <topic>Bioinformatics</topic>
   </test>
     
@@ -29,7 +31,7 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
     <topic>Kuwait</topic>
   </test>
 
-  <!-- Currently cambridge and oxford yield the towns not the universities.
+  <!-- Currently cambridge and oxford yield the towns not the universities. -->
   <test>
     <phrase>rice imperial college cambridge oxford yale harvard </phrase>
     <topic>Rice University</topic>
@@ -39,7 +41,6 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
     <topic>Yale University</topic>
     <topic>Harvard University</topic>
   </test>
-  -->
 
   <!-- ********* Should work ********* -->
   <test>

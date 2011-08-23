@@ -12,12 +12,14 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
     val commonsCollections = "commons-collections" % "commons-collections" % "3.0"
     //val jung2 = "net.sf.jung" % "jung2" % "2.0.1"
     //val jgrapht = "jgrapht" % "jgrapht" % "0.7.3"
-    val jungApi = "net.sf.jung" % "jung-api" % "2.0.1"
-    val jungGraphImpl = "net.sf.jung" % "jung-graph-impl" % "2.0.1"
-    val jungAlgorithms = "net.sf.jung" % "jung-algorithms" % "2.0.1"
+    //val jungApi = "net.sf.jung" % "jung-api" % "2.0.1"
+    //val jungGraphImpl = "net.sf.jung" % "jung-graph-impl" % "2.0.1"
+    //val jungAlgorithms = "net.sf.jung" % "jung-algorithms" % "2.0.1"
     val h2 = "com.h2database" % "h2" % "1.3.158"
     val scalaQuery = "org.scalaquery" %% "scalaquery" % "0.9.4"
     val dependency = "net.databinder.spde" % "processing-core" % "1.0.3__0.1.3"
+    val slf4jLog4j12 = "org.slf4j" % "slf4j-log4j12" % "1.6.0"
+    val slf4s = "com.weiglewilczek.slf4s" %% "slf4s" % "1.0.6"
 
 
     
