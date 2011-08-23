@@ -24,8 +24,9 @@ import java.io.{DataInput, DataOutput, FileInputStream, FileOutputStream, File}
 
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, ByteArrayInputStream}
 import java.util.{ArrayList, Arrays}
-
 import java.util.{TreeMap => JTreeMap, LinkedHashSet => JLinkedHashSet}
+
+import org.apache.commons.io.FileUtils.{deleteDirectory}
 
 import scala.collection.mutable.{IndexedSeqOptimized, Builder, ArrayLike, LinkedList}
 
@@ -534,11 +535,7 @@ object Utils
         }
         finally
         {
-            for ( child <- dir.list )
-            {
-                new File(dir, child).delete()
-            }
-            dir.delete()
+            deleteDirectory( dir )
         }
     }
 }

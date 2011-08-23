@@ -1,4 +1,6 @@
 import org.scalatest.FunSuite
+import org.scalatest.Tag
+
 import scala.collection.immutable.{HashMap}
 import scala.collection.mutable.{ArrayBuffer}
 
@@ -13,7 +15,7 @@ class TopicVector( val id : Int )
 {
     type TopicId = Int
     type TopicWeight = Double
-    
+
     class TopicElement( val weight : TopicWeight, val name : String, val groupId : Int, val primaryTopic : Boolean )
     {
     }
@@ -45,14 +47,14 @@ class TopicVector( val id : Int )
                 
                 if ( true )//te.primaryTopic || otherte.primaryTopic )
                 {
-                    val combinedWeight = te.weight * otherte.weight
-                    val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
-                    
-                    
-                    weightedMatches = (priorityWeight, te.name, te.primaryTopic, te.groupId) :: weightedMatches
-                    
-                    AB += combinedWeight
-                }
+                val combinedWeight = te.weight * otherte.weight
+                val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
+                
+                
+                weightedMatches = (priorityWeight, te.name, te.primaryTopic, te.groupId) :: weightedMatches
+                
+                AB += combinedWeight
+            }
             }
             AA += (te.weight*te.weight)
         }
@@ -146,57 +148,57 @@ class DistanceMetricTest extends FunSuite
         topicVector
     }
 
-    test( "DistanceMetricTest" )
+    test( "DistanceMetricTest", Tag("DataTest") )
     {
-        if ( false )
+        if ( true )
         {
             val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)" )
             
             
-            val tvs = (1 until 34).map( i => makeTopicVector( "/home/alex/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i ) )
-            
+            val tvs = (1 until 34).map( i => makeTopicVector( "./ambiguityresolution%d.xml".format(i), i ) )
+
             /*for ( tv1 <- tvs; tv2 <- tvs if ( tv1.id < tv2.id && tv1.id != 6 && tv2.id != 6 ) )
-            {
+                    {
                 val (dist, why) = tv1.distance(tv2)
                 
                 if ( dist > 0.01 )
-                {
+                        {
                     println( "************* %d to %d: %2.6f ***************".format( tv1.id, tv2.id, dist ) )
                     
                     var rankBuilder = new AutoMap[Int, List[(Int, String, Double)]]( x => Nil )
                     for ( ((weight, name, groupId), index) <- why.slice(0, 100).zipWithIndex )
-                    {
+                            {
                         val rank = index + 1
                         rankBuilder.set( groupId, (rank, name, weight) :: rankBuilder(groupId) )
                         //println( "  %s %2.6f".format( name, weight ) )
-                    }
-                    
+                            }
+                            
                     val aveRankSorted = rankBuilder.toList.map( x =>
-                    {
+                            {
                         val groupId = x._1
                         var totalRank = 0
-                        var count = 0
+                                var count = 0
                         for ( (rank, name, weight) <- x._2 )
-                        {
+                                {
                             totalRank += rank
-                            count += 1
-                        }
-                        
+                                    count += 1
+                                }
+
                         (totalRank.toDouble / count.toDouble, groupId, x._2)
                     } ).sortWith( _._1 < _._1 )
-                    
+                                
                     for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0, 10) )
-                    {
+                                    {
                         println( "Group id: %d, ave rank: %.2f".format( groupId, aveRank ) )
                         
                         for ( (rank, name, weight) <- groupMembership.sortWith( _._3 > _._3 ) )
-                        {
+                                        {
                             println( "  %s: %d, %2.2e".format( name, rank, weight ) )
-                        }
-                    }
-                }
+                                        }
+                                    }
+                                }
             }*/
-            
+                                
             
             
             def wikiLink( topicName : String ) =
@@ -209,77 +211,77 @@ class DistanceMetricTest extends FunSuite
                 <html>
                     <head></head>
                     <body style="font-family:sans-serif">
-                    {
+                                    {
                         for ( tv1 <- tvs ) yield
-                        {
+                                        {
                             <div style="text-align:justify">
                             <h1>{names(tv1.id-1)}</h1>
-                            
+                                            
                             <table>
-                            {
+                                        {
                                 val dists = for ( tv2 <- tvs if tv1.id != tv2.id ) yield (tv2, tv1.distance(tv2))
-                                
-                                for ( (tv2, (dist, why)) <- dists.sortWith( _._2._1 > _._2._1 ) ) yield
-                                {
-                                    if ( dist > 0.01 )
+                                    
+                                    for ( (tv2, (dist, why)) <- dists.sortWith( _._2._1 > _._2._1 ) ) yield
                                     {
-                                        <tr>
-                                            <td><h3>{names(tv2.id-1)}:&nbsp;{"%.2f".format(dist)}</h3></td>
+                                        if ( dist > 0.01 )
+                                        {
+                                            <tr>
+                                                <td><h3>{names(tv2.id-1)}:&nbsp;{"%.2f".format(dist)}</h3></td>
 
-                                            {
-                                                var rankBuilder = new AutoMap[Int, List[(Int, String, Boolean, Double)]]( x => Nil )
+                                                {
+                                                    var rankBuilder = new AutoMap[Int, List[(Int, String, Boolean, Double)]]( x => Nil )
                                                 for ( ((weight, name, primaryTopic, groupId), index) <- why.slice(0, 100).zipWithIndex )
-                                                {
-                                                    val rank = index + 1
-                                                    rankBuilder.set( groupId, (rank, name, primaryTopic, weight) :: rankBuilder(groupId) )
-                                                    //println( "  %s %2.6f".format( name, weight ) )
-                                                }
-                                                
-                                                val aveRankSorted = rankBuilder.toList.map( x =>
-                                                {
-                                                    val groupId = x._1
-                                                    var totalRank = 0
-                                                    var count = 0
-                                                    for ( (rank, name, primaryTopic, weight) <- x._2 )
                                                     {
-                                                        totalRank += rank
-                                                        count += 1
+                                                        val rank = index + 1
+                                                        rankBuilder.set( groupId, (rank, name, primaryTopic, weight) :: rankBuilder(groupId) )
+                                                        //println( "  %s %2.6f".format( name, weight ) )
                                                     }
                                                     
-                                                    (totalRank.toDouble / count.toDouble, groupId, x._2)
-                                                } ).sortWith( _._1 < _._1 )
-                                                
-                                                for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0, 10) ) yield
-                                                {
-                                                    <td style="padding:6px">
+                                                    val aveRankSorted = rankBuilder.toList.map( x =>
                                                     {
-                                                        var colours = List( "#a0a040", "#40a0a0" )
-                                                        var greys = List( "#606060", "#a0a0a0" )
-                                                        for ( (rank, name, primaryTopic, weight) <- groupMembership.sortWith( _._4 > _._4 ) ) yield
+                                                        val groupId = x._1
+                                                        var totalRank = 0
+                                                        var count = 0
+                                                        for ( (rank, name, primaryTopic, weight) <- x._2 )
                                                         {
-                                                            var styles = "font-size: %d".format( 17 + log(weight).toInt ) :: "text-decoration: none" :: Nil
-                                                            if ( primaryTopic )
-                                                            {
-                                                                styles = "color: %s; font-weight: bold".format(colours.head) :: styles
-                                                                colours = colours.tail ++ List(colours.head)
-                                                            }
-                                                            else
-                                                            {
-                                                                styles = "color: %s".format(greys.head) :: styles
-                                                                greys = greys.tail ++ List(greys.head)
-                                                            }
-                                                            
-                                                            <a href={wikiLink(name)} style={styles.mkString(";")}>{ name.replace( "Main:", "" ) }</a><span> </span>
+                                                            totalRank += rank
+                                                            count += 1
                                                         }
+                                                        
+                                                        (totalRank.toDouble / count.toDouble, groupId, x._2)
+                                                    } ).sortWith( _._1 < _._1 )
+                                                    
+                                                    for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0, 10) ) yield
+                                                    {
+                                                        <td style="padding:6px">
+                                                        {
+                                                            var colours = List( "#a0a040", "#40a0a0" )
+                                                            var greys = List( "#606060", "#a0a0a0" )
+                                                            for ( (rank, name, primaryTopic, weight) <- groupMembership.sortWith( _._4 > _._4 ) ) yield
+                                                            {
+                                                                var styles = "font-size: %d".format( 17 + log(weight).toInt ) :: "text-decoration: none" :: Nil
+                                                                if ( primaryTopic )
+                                                                {
+                                                                    styles = "color: %s; font-weight: bold".format(colours.head) :: styles
+                                                                    colours = colours.tail ++ List(colours.head)
+                                                                }
+                                                                else
+                                                                {
+                                                                    styles = "color: %s".format(greys.head) :: styles
+                                                                    greys = greys.tail ++ List(greys.head)
+                                                                }
+                                                                
+                                                                <a href={wikiLink(name)} style={styles.mkString(";")}>{ name.replace( "Main:", "" ) }</a><span> </span>
+                                                            }
+                                                        }
+                                                        </td>
                                                     }
-                                                    </td>
                                                 }
-                                            }
-                                        </tr> 
+                                            </tr> 
+                                        }
                                     }
                                 }
-                            }
-                            </table>
+                                </table>
                             </div>
                         }
                     }

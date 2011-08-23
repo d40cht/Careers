@@ -1,4 +1,6 @@
 import org.scalatest.FunSuite
+import org.scalatest.Tag
+
 import scala.collection.mutable.{Stack, ArrayBuffer}
 import scala.collection.immutable.{HashSet, HashMap}
 import scala.util.Random
@@ -6,6 +8,12 @@ import compat.Platform.currentTime
 
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
+
+import org.apache.lucene.util.Version.LUCENE_30
+import org.apache.lucene.analysis.Token
+import org.apache.lucene.analysis.tokenattributes.{TermAttribute, OffsetAttribute, TypeAttribute}
+import org.apache.lucene.analysis.standard.StandardTokenizer
+import org.apache.lucene.analysis.ASCIIFoldingFilter
 
 import java.io.File
 import java.lang.System
@@ -21,11 +29,43 @@ import scala.util.Sorting._
 import resource._
 
 import java.io.{DataInput, DataOutput, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
+import java.io.{StringReader}
 
+
+class TokenizerTest extends FunSuite
+{
+    test( "Smarter tokenizer test", Tag("UnitTests") )
+    {
+        val s = "On the first day of Christmas my true love sent to me some lovely C++ wrapped in F# and C#"
+        
+        val textSource = new StringReader( s.replace( "+", "Plus" ).replace( "#", "Hash" ) )
+    	
+        val tokenizerBase = new StandardTokenizer( LUCENE_30, textSource )
+        val tokenizer = new ASCIIFoldingFilter( tokenizerBase )
+    
+        var run = true
+        var wordList : List[String] = Nil
+        while ( run )
+        {
+            val offset = tokenizer.getAttribute(classOf[OffsetAttribute])
+            val ta = tokenizer.getAttribute(classOf[TypeAttribute])
+            println( offset.startOffset() + ", " + offset.endOffset() + ": " + ta.`type`() )
+            
+            val nextTerm = tokenizer.getAttribute(classOf[TermAttribute]).term()
+            if ( nextTerm != "" )
+            {
+                println( nextTerm )
+                wordList = nextTerm :: wordList
+            }
+            run = tokenizer.incrementToken()
+        }
+        tokenizer.close()
+    }
+}
 
 class DisjointSetTest extends FunSuite
 {
-    test( "Disjoint set" )
+    test( "Disjoint set", Tag("UnitTests") )
     {
         val d1 = new DisjointSet[Int](1)
         val d2 = new DisjointSet[Int](2)
@@ -82,11 +122,6 @@ class DisjointSetTest extends FunSuite
         assert( d2.size() === 4 )
         assert( d3.size() === 4 )
         assert( d4.size() === 4 )
-        
-        println( d1.members().map( _.value ) )
-        println( d2.members().map( _.value ) )
-        println( d3.members().map( _.value ) )
-        println( d4.members().map( _.value ) )
         assert( d1.members() === List(d1, d3, d4, d2) )
         assert( d2.members() === List(d1, d3, d4, d2) )
         assert( d3.members() === List(d1, d3, d4, d2) )
@@ -97,40 +132,37 @@ class DisjointSetTest extends FunSuite
 
 class SizeTests extends FunSuite
 {
-    test( "Efficient array large test" )
+    test( "Efficient array large test", Tag("UnitTests") )
     {
         val count = 50000
         val tarr = new EfficientArray[FixedLengthString](0)
         val builder = tarr.newBuilder
         
-        println( "Building...")
         for ( i <- 0 until count )
         {
             builder += new FixedLengthString(((count-1)-i).toString)
         }
         
-        println( "Extracting" )
         val data = builder.result()
         
-        println( "Sorting" )
         val sorted = data.sortWith( _.value.toInt < _.value.toInt )
         
-        println( "Saving" )
-        sorted.save( new DataOutputStream( new FileOutputStream( new File("largeTest.bin" ) ) ) )
-        
-        println( "Loading" )
-        val larr = new EfficientArray[FixedLengthString](0)
-        larr.load( new DataInputStream( new FileInputStream( new File("largeTest.bin") ) ) )
-        
-        println( "Validating" )
-        assert( larr.size === count )
-        for ( i <- 0 until count )
+        Utils.withTemporaryDirectory( dirName =>
         {
-            assert( larr(i).value === i.toString )
-        }
+            sorted.save( new DataOutputStream( new FileOutputStream( new File(dirName, "largeTest.bin" ) ) ) )
+            
+            val larr = new EfficientArray[FixedLengthString](0)
+            larr.load( new DataInputStream( new FileInputStream( new File(dirName, "largeTest.bin") ) ) )
+            
+            assert( larr.size === count )
+            for ( i <- 0 until count )
+            {
+                assert( larr(i).value === i.toString )
+            }
+        } )
     }
     
-    test("Efficient array builder and serialization test")
+    test( "Efficient array builder and serialization test", Tag("UnitTests") )
     {
         val tarr = new EfficientArray[FixedLengthString](0)
         val builder = tarr.newBuilder
@@ -144,19 +176,22 @@ class SizeTests extends FunSuite
         val arr = builder.result()
         assert( arr.length === 5 )
         
-        arr.save( new DataOutputStream( new FileOutputStream( new File( "testEArr.bin" ) ) ) )
-        
-        val larr = new EfficientArray[FixedLengthString](0)
-        larr.load( new DataInputStream( new FileInputStream( new File( "testEArr.bin" ) ) ) )
-        
-        assert( arr.length === larr.length )
-        for ( i <- 0 until arr.length )
-        {
-            assert( arr(i).value === larr(i).value )
-        }
+        Utils.withTemporaryDirectory( dirName =>
+        { 
+            arr.save( new DataOutputStream( new FileOutputStream( new File( dirName, "testEArr.bin" ) ) ) )
+            
+            val larr = new EfficientArray[FixedLengthString](0)
+            larr.load( new DataInputStream( new FileInputStream( new File( dirName, "testEArr.bin" ) ) ) )
+            
+            assert( arr.length === larr.length )
+            for ( i <- 0 until arr.length )
+            {
+                assert( arr(i).value === larr(i).value )
+            }
+        } )
     }
     
-    test("Efficient array lower bound test")
+    test( "Efficient array lower bound test", Tag("UnitTests") )
     {
         def comp( x : EfficientIntPair, y : EfficientIntPair ) =
         {
@@ -216,7 +251,7 @@ class SizeTests extends FunSuite
         }
     }
 
-    test("Efficient array test 1")
+    test( "Efficient array test 1", Tag("UnitTests") )
     {
         val arr = new EfficientArray[FixedLengthString]( 5 )
         arr(0) = new FixedLengthString( "57" )
@@ -283,7 +318,7 @@ class SizeTests extends FunSuite
         //arr3(0) = new FixedLengthString("123456789123456789")
     }
 
-    test("Array size test")
+    test( "Array size test", Tag("UnitTests") )
     {
         System.gc()
         val before = Runtime.getRuntime().totalMemory()
@@ -311,7 +346,7 @@ class SizeTests extends FunSuite
 
 class BerkeleyDbTests extends FunSuite
 {
-    test("Simple test")
+    test( "Simple test", Tag("UnitTests") )
     {
         val envPath = new File( "./bdblocaltest" )
         
@@ -338,14 +373,13 @@ class VariousDbpediaParseTests extends FunSuite
 {
     val markupParser = WikiParser()
     
-    test("Redirect parsing")
+    test( "Redirect parsing", Tag("UnitTests") )
     {
         val pageTitle = "Academic Acceleration"
         val pageText = "#REDIRECT [[Academic acceleration]] {{R from other capitalisation}}"
         
         val page = new WikiPage( WikiTitle.parse( pageTitle ), 0, 0, pageText )
         val parsed = markupParser( page )
-        println( parsed )
         assert( parsed.isRedirect === true )
     }
     
@@ -354,7 +388,7 @@ class VariousDbpediaParseTests extends FunSuite
  
 class ResTupleTestSuite extends FunSuite
 {
-    test("SQLite wrapper test")
+    test( "SQLite wrapper test", Tag("UnitTests") )
     {
         val db = new SQLiteWrapper( null )
         db.exec( "BEGIN" )
@@ -368,7 +402,6 @@ class ResTupleTestSuite extends FunSuite
         val getStatement = db.prepare( "SELECT * from test ORDER BY NUMBER ASC", Col[Int]::Col[Double]::Col[String]::HNil )
 	    for ( (row, expected) <- getStatement.zip(data.iterator) )
         {
-            println( ":__: " + _1(row).get )
         	assert( expected._1 === _1(row).get )
         	assert( expected._2 === _2(row).get )
         	assert( expected._3 === _3(row).get )
@@ -388,7 +421,7 @@ class BasicTestSuite1 extends FunSuite
         return markupFiltered
     }
 
-    test("A first test")
+    test("A first test", Tag("UnitTests"))
     {
         assert( 3 === 5-2 )
         assert( "a" === "a" )
@@ -400,18 +433,69 @@ class BasicTestSuite1 extends FunSuite
         }
     }
     
-    test("A simple dbpedia test")
+    test("A simple dbpedia test", Tag("UnitTests"))
     {
         val topicTitle = "Hello_World"
         val topicText = "[[Blah|'''blah blah''']] ''An italicised '''bit''' of text'' <b>Some markup</b>"
-        
-        //println( topicText.filter(_ != '\'' ) )
 
         val markupParser = WikiParser()
         val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
         val parsed = markupParser( page )
+    }
+    
+    test("Priority Q test", Tag("UnitTests") )
+    {
+        val v = new PriorityQ[Int]()
+        v.add( 12.0, 4 )
+        v.add( 12.0, 5 )
+        v.add( 15.0, 6 )
+        v.add( 14.0, 7 )
+        v.add( 13.0, 8 )
         
-        //println( parsed.toString() )
+        assert( v.size === 5 )
+        val first = v.popFirst()
+        val second = v.popFirst()
+        assert( first._1 === 12.0 )
+        assert( second._1 == 12.0 )
+        assert( HashSet( 4, 5 ) === HashSet( first._2, second._2 ) )
+        assert( v.size === 3 )
+        v.add( 12.0, 6 )
+        assert( v.size === 4 )
+        assert( v.popFirst() === (12.0, 6) )
+        assert( v.size === 3 )
+        assert( v.popFirst() === (13.0, 8) )
+        assert( v.size === 2 )
+        assert( v.popFirst() === (14.0, 7) )
+        assert( v.size === 1 )
+        assert( v.popFirst() === (15.0, 6) )
+        assert( v.size === 0 )
+        assert( v.isEmpty )
+    }
+    
+    test("N Priority Q test", Tag("UnitTests") )
+    {
+        val v = new NPriorityQ[Int]()
+        v.add( 12.0, 4 )
+        v.add( 12.0, 5 )
+        v.add( 13.0, 6 )
+        v.add( 13.0, 7 )
+        v.add( 13.0, 8 )
+        
+        assert( v.size === 5 )
+        assert( v.popFirst() === (12.0, 4) )
+        assert( v.popFirst() === (12.0, 5) )
+        assert( v.size === 3 )
+        v.add( 12.0, 6 )
+        assert( v.size === 4 )
+        assert( v.popFirst() === (12.0, 6) )
+        assert( v.size === 3 )
+        assert( v.popFirst() === (13.0, 6) )
+        assert( v.size === 2 )
+        assert( v.popFirst() === (13.0, 7) )
+        assert( v.size === 1 )
+        assert( v.popFirst() === (13.0, 8) )
+        assert( v.size === 0 )
+        assert( v.isEmpty )
     }
 }
 

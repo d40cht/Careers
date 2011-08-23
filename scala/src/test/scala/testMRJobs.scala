@@ -1,4 +1,6 @@
 import org.scalatest.FunSuite
+import org.scalatest.Tag
+
 import scala.collection.immutable.TreeSet
 import scala.io.Source._
 
@@ -223,7 +225,7 @@ class CategoryMembershipTest extends FunSuite
         }
     }
     
-    test("Test counting words in topics")
+    test("Test counting words in topics", Tag("UnitTests"))
     {
         val v = new WordInTopicCounter.JobMapper()
         
@@ -243,43 +245,5 @@ class CategoryMembershipTest extends FunSuite
         assert( words.contains( "there" ) )
         assert( words.contains( "alleyne" ) )
     }
-    
-    test("Test phrase counting in topics")
-    {
-        /*val v = new PhraseCounter.JobMapper()
-        val topicTitle = "Test title"
-        val topicText = "Hello. On the first day of christmas, my true love sent to me, a partridge in a pear tree. On the second day of Christmas, my true love sent to me Two turtle doves, And a partridge in a pear tree"
-        
-        var phrases = new TreeSet[String]
-        v.mapWork( topicTitle, topicText, (phrase, count) =>
-        {
-            assert( count === 1 )
-            assert( !phrases.contains(phrase) )
-            phrases = phrases + phrase
-        } )
-        
-        assert( phrases.contains( "hello" ) )
-        assert( phrases.contains( "hello on" ) )
-        assert( phrases.contains( "hello on the" ) )
-        assert( phrases.contains( "hello on the first" ) )
-        assert( phrases.contains( "hello on the first day" ) )
-        assert( phrases.contains( "on the first day of christmas my" ) )
-        assert( phrases.contains( "true" ) )
-        assert( phrases.contains( "true love" ) )
-        assert( phrases.contains( "true love sent" ) )
-        assert( phrases.contains( "true love sent to" ) )
-        assert( phrases.contains( "true love sent to me" ) )
-        assert( phrases.contains( "and" ) )
-        assert( phrases.contains( "and a" ) )
-        assert( phrases.contains( "and a partridge" ) )
-        assert( phrases.contains( "and a partridge in" ) )
-        assert( phrases.contains( "and a partridge in a" ) )
-        assert( phrases.contains( "and a partridge in a pear" ) )
-        assert( phrases.contains( "and a partridge in a pear tree" ) )
-        
-        for ( substring <- phrases )
-        {
-            assert( Utils.luceneTextTokenizer(substring).length <= 8 )
-        }*/
-    }
+
 }

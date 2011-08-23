@@ -949,7 +949,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                 }
                 
                 var count = 0
-                val v = new Louvain[TopicGraphNode]()
+                val v = new Louvain[TopicGraphNode]( new File( "./community" ) )
                 for ( (id, fromNode) <- idToTopicMap )
                 {
                     for ( (toNode, weight) <- fromNode.peers )
