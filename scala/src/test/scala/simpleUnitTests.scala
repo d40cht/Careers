@@ -32,6 +32,7 @@ import java.io.{DataInput, DataOutput, DataInputStream, DataOutputStream, FileIn
 import java.io.{StringReader}
 
 
+
 class TokenizerTest extends FunSuite
 {
     test( "Smarter tokenizer test", Tag("UnitTests") )
