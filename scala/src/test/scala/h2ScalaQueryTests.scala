@@ -5,6 +5,7 @@ import org.scalaquery.session._
 import org.scalaquery.session.Database.threadLocalSession
 
 import org.scalaquery.ql.basic.{BasicTable => Table}
+import org.scalaquery.ql.basic.BasicDriver.Implicit._
 import org.scalaquery.ql.TypeMapper._
 import org.scalaquery.ql._
 
@@ -21,21 +22,18 @@ class H2DbDebugTest extends FunSuite
 {
     test( "Simple H2 and Scalaquery test", Tag("UnitTests") )
     {
-        if ( false )
+        val db = Database.forURL("jdbc:h2:mem:test1;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver")
+        
+        db withSession
         {
-            val db = Database.forURL("jdbc:h2:mem:test1;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver")
+            CVs.ddl.create
             
-            db withSession
+            for ( id <- 0 until 12 )
             {
-                CVs.ddl.create
+                val str = id.toString
+                val sqr = id.toDouble * id.toDouble
                 
-                for ( id <- 0 until 12 )
-                {
-                    val str = id.toString
-                    val sqr = id.toDouble * id.toDouble
-                    
-                    CVs insert (id, str, sqr)
-                }
+                CVs insert (id, str, sqr)
             }
         }
     }
