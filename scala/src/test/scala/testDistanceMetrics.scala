@@ -150,7 +150,7 @@ class DistanceMetricTest extends FunSuite
         topicVector
     }
 
-    test( "DistanceMetricTest", TestTags.dataTests )
+    test( "DistanceMetricTest", TestTags.largeDataTests )
     {
         if ( true )
         {

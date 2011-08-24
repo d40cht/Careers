@@ -5,7 +5,8 @@ import org.scalatest.Tag
 object TestTags
 {
     val unitTests = Tag("UnitTests")
-    val dataTests = Tag("DataTests")
+    val smallDataTests = Tag("SmallDataTests")
+    val largeDataTests = Tag("LargeDataTests")
 }
 
 

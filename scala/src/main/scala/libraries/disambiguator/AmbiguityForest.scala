@@ -514,6 +514,8 @@ class WrappedTopicId( val id : Int ) extends Clusterable[WrappedTopicId]
 
 class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int, String], topicCategoryMap : HashMap[Int, HashMap[Int, Double]], val topicDb : SQLiteWrapper, val categoryHierarchy : CategoryHierarchy ) extends Logging
 {
+    type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
+    
     class SureSite( val start : Int, val end : Int, val topicId : Int, val weight : Double, val name : String ) {}
     
     class TopicGraphNode( val topicId : Int )
@@ -592,6 +594,41 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         sites = asbs.reverse.map( _.buildSite() ).filter( _.combs.size >= 1 )
     }
     
+    private def validate()
+    {
+        def close( a : Double, b : Double ) = (a - b).abs <= (0.00001 * (a max b))
+        
+        val weightings = new AutoMap[TopicDetailLink, Double]( x => 0.0 )
+        for
+        (
+            site <- sites;
+            alternative <- site.combs;
+            altSite <- alternative.sites;
+            topicDetail <- altSite.sf.topics;
+            peerL <- topicDetail.peers
+        )
+        {
+            val (peer, peerLink) = peerL
+            
+            require( close( peerLink.totalWeight, peerLink.componentWeights.toList.foldLeft(0.0)(_ + _._2) ) )
+            
+            weightings.set(topicDetail, weightings(topicDetail) + peerLink.totalWeight)
+            //weightings.set(peer, weightings(peer) + peerLink.totalWeight)
+        }
+        
+        for
+        (
+            site <- sites;
+            alternative <- site.combs;
+            altSite <- alternative.sites;
+            topicDetail <- altSite.sf.topics
+        )
+        {
+            //println( weightings(topicDetail), topicDetail.algoWeight )
+            require( close( weightings(topicDetail), topicDetail.algoWeight ) )
+        }
+    }
+    
     def alternativeBasedResolution()
     {
         addDebug( () =>
@@ -636,7 +673,6 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         
         type ContextId = Int
         type SiteCentre = Double
-        type TopicDetailLink = AmbiguitySite#AmbiguityAlternative#AltSite#SurfaceForm#TopicDetail
                 
         logger.debug( "Building weighted context edges." )
         var allTds = List[TopicDetailLink]()
@@ -748,7 +784,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         
         
         // Topics linked to each other
-        if ( false )
+        /*if ( false )
         {
             logger.debug( "Direct topic links" )
             if ( AmbiguityForest.topicDirectLinks )
@@ -789,7 +825,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                     }
                 }
             }
-        }
+        }*/
         
         // Topics linked via contexts
         logger.debug( "Links via contexts" )
@@ -829,6 +865,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             }
         }
         
+        validate()
+        
         // Use top-level aggregate clustering to prune 
         if ( true )
         {
@@ -845,6 +883,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             }
             sites = sites.filter( _.combs.size > 0 )
         }
+        
+        validate()
         
         logger.debug( "Links in play: " + linkCount )
         
@@ -888,6 +928,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             
             sites = sites.filter( _.combs.size > 0 )
             
+            validate()
+            
             logger.debug( "Pruning down to one topic per site." )
             while ( !q.isEmpty )
             {
@@ -912,6 +954,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                 }
             }
             
+            validate()
             
             if ( false )
             {
