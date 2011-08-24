@@ -1,3 +1,5 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
@@ -8,7 +10,7 @@ import org.seacourt.utility.{Graph}
 
 class GraphTests extends FunSuite
 {
-    test( "Strongly connected components test", Tag("UnitTests") )
+    test( "Strongly connected components test", TestTags.unitTests )
     {
         type GraphType = Graph[String]
         type Node = GraphType#Node

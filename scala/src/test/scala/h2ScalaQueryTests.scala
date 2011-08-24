@@ -1,5 +1,8 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
-import org.scalatest.Tag
+
+import java.io.{File}
 
 import org.scalaquery.session._
 import org.scalaquery.session.Database.threadLocalSession
@@ -8,6 +11,8 @@ import org.scalaquery.ql.basic.{BasicTable => Table}
 import org.scalaquery.ql.basic.BasicDriver.Implicit._
 import org.scalaquery.ql.TypeMapper._
 import org.scalaquery.ql._
+
+import org.seacourt.utility._
 
 object CVs extends Table[(Int, String, Double)]("CVs")
 {
@@ -20,22 +25,36 @@ object CVs extends Table[(Int, String, Double)]("CVs")
 
 class H2DbDebugTest extends FunSuite
 {
-    test( "Simple H2 and Scalaquery test", Tag("UnitTests") )
+    test( "H2 and Scalaquery test1", TestTags.unitTests )
     {
-        val db = Database.forURL("jdbc:h2:mem:test1;DB_CLOSE_DELAY=-1", driver = "org.h2.Driver")
-        
-        db withSession
+        Utils.withTemporaryDirectory( dirName =>
         {
-            CVs.ddl.create
+            val dbFileName = new File( dirName, "testdb" )
+            val db = Database.forURL("jdbc:h2:file:%s;DB_CLOSE_DELAY=-1".format( dbFileName.toString ), driver = "org.h2.Driver")
             
-            for ( id <- 0 until 12 )
+            db withSession
             {
-                val str = id.toString
-                val sqr = id.toDouble * id.toDouble
+                CVs.ddl.create
                 
-                CVs insert (id, str, sqr)
+                val range = 0 until 5
+                for ( id <- range )
+                {
+                    val str = id.toString
+                    val sqr = id.toDouble * id.toDouble
+                    
+                    CVs insert (id, str, sqr)
+                }
+                
+                val rows = for
+                {
+                    row <- CVs
+                    __ <- Query.orderBy( row.id desc )
+                } yield row.id ~ row.str ~ row.sqr
+                
+                val expected = range.reverse.map( x => (x, x.toString, x.toDouble * x.toDouble) )
+                assert( expected === rows.list.map( x => (x._1, x._2, x._3) ) )
             }
-        }
+        } )
     }
 }
 

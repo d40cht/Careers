@@ -1,3 +1,5 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
@@ -148,7 +150,7 @@ class DistanceMetricTest extends FunSuite
         topicVector
     }
 
-    test( "DistanceMetricTest", Tag("DataTest") )
+    test( "DistanceMetricTest", TestTags.dataTests )
     {
         if ( true )
         {

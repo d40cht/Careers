@@ -1,3 +1,5 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
@@ -35,7 +37,7 @@ import java.io.{StringReader}
 
 class TokenizerTest extends FunSuite
 {
-    test( "Smarter tokenizer test", Tag("UnitTests") )
+    test( "Smarter tokenizer test", TestTags.unitTests )
     {
         val s = "On the first day of Christmas my true love sent to me some lovely C++ wrapped in F# and C#"
         
@@ -50,12 +52,12 @@ class TokenizerTest extends FunSuite
         {
             val offset = tokenizer.getAttribute(classOf[OffsetAttribute])
             val ta = tokenizer.getAttribute(classOf[TypeAttribute])
-            println( offset.startOffset() + ", " + offset.endOffset() + ": " + ta.`type`() )
+            //println( offset.startOffset() + ", " + offset.endOffset() + ": " + ta.`type`() )
             
             val nextTerm = tokenizer.getAttribute(classOf[TermAttribute]).term()
             if ( nextTerm != "" )
             {
-                println( nextTerm )
+                //println( nextTerm )
                 wordList = nextTerm :: wordList
             }
             run = tokenizer.incrementToken()
@@ -66,7 +68,7 @@ class TokenizerTest extends FunSuite
 
 class DisjointSetTest extends FunSuite
 {
-    test( "Disjoint set", Tag("UnitTests") )
+    test( "Disjoint set", TestTags.unitTests )
     {
         val d1 = new DisjointSet[Int](1)
         val d2 = new DisjointSet[Int](2)
@@ -133,7 +135,7 @@ class DisjointSetTest extends FunSuite
 
 class SizeTests extends FunSuite
 {
-    test( "Efficient array large test", Tag("UnitTests") )
+    test( "Efficient array large test", TestTags.unitTests )
     {
         val count = 50000
         val tarr = new EfficientArray[FixedLengthString](0)
@@ -163,7 +165,7 @@ class SizeTests extends FunSuite
         } )
     }
     
-    test( "Efficient array builder and serialization test", Tag("UnitTests") )
+    test( "Efficient array builder and serialization test", TestTags.unitTests )
     {
         val tarr = new EfficientArray[FixedLengthString](0)
         val builder = tarr.newBuilder
@@ -192,7 +194,7 @@ class SizeTests extends FunSuite
         } )
     }
     
-    test( "Efficient array lower bound test", Tag("UnitTests") )
+    test( "Efficient array lower bound test", TestTags.unitTests )
     {
         def comp( x : EfficientIntPair, y : EfficientIntPair ) =
         {
@@ -252,7 +254,7 @@ class SizeTests extends FunSuite
         }
     }
 
-    test( "Efficient array test 1", Tag("UnitTests") )
+    test( "Efficient array test 1", TestTags.unitTests )
     {
         val arr = new EfficientArray[FixedLengthString]( 5 )
         arr(0) = new FixedLengthString( "57" )
@@ -319,7 +321,7 @@ class SizeTests extends FunSuite
         //arr3(0) = new FixedLengthString("123456789123456789")
     }
 
-    test( "Array size test", Tag("UnitTests") )
+    test( "Array size test", TestTags.unitTests )
     {
         System.gc()
         val before = Runtime.getRuntime().totalMemory()
@@ -347,7 +349,7 @@ class SizeTests extends FunSuite
 
 class BerkeleyDbTests extends FunSuite
 {
-    test( "Simple test", Tag("UnitTests") )
+    test( "Simple test", TestTags.unitTests )
     {
         val envPath = new File( "./bdblocaltest" )
         
@@ -374,7 +376,7 @@ class VariousDbpediaParseTests extends FunSuite
 {
     val markupParser = WikiParser()
     
-    test( "Redirect parsing", Tag("UnitTests") )
+    test( "Redirect parsing", TestTags.unitTests )
     {
         val pageTitle = "Academic Acceleration"
         val pageText = "#REDIRECT [[Academic acceleration]] {{R from other capitalisation}}"
@@ -389,7 +391,7 @@ class VariousDbpediaParseTests extends FunSuite
  
 class ResTupleTestSuite extends FunSuite
 {
-    test( "SQLite wrapper test", Tag("UnitTests") )
+    test( "SQLite wrapper test", TestTags.unitTests )
     {
         val db = new SQLiteWrapper( null )
         db.exec( "BEGIN" )
@@ -422,7 +424,7 @@ class BasicTestSuite1 extends FunSuite
         return markupFiltered
     }
 
-    test("A first test", Tag("UnitTests"))
+    test("A first test", TestTags.unitTests)
     {
         assert( 3 === 5-2 )
         assert( "a" === "a" )
@@ -434,7 +436,7 @@ class BasicTestSuite1 extends FunSuite
         }
     }
     
-    test("A simple dbpedia test", Tag("UnitTests"))
+    test("A simple dbpedia test", TestTags.unitTests)
     {
         val topicTitle = "Hello_World"
         val topicText = "[[Blah|'''blah blah''']] ''An italicised '''bit''' of text'' <b>Some markup</b>"
@@ -444,7 +446,7 @@ class BasicTestSuite1 extends FunSuite
         val parsed = markupParser( page )
     }
     
-    test("Priority Q test", Tag("UnitTests") )
+    test("Priority Q test", TestTags.unitTests)
     {
         val v = new PriorityQ[Int]()
         v.add( 12.0, 4 )
@@ -473,7 +475,7 @@ class BasicTestSuite1 extends FunSuite
         assert( v.isEmpty )
     }
     
-    test("N Priority Q test", Tag("UnitTests") )
+    test("N Priority Q test", TestTags.unitTests)
     {
         val v = new NPriorityQ[Int]()
         v.add( 12.0, 4 )

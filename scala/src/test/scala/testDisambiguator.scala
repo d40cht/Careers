@@ -1,3 +1,5 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
@@ -95,7 +97,7 @@ class CategoryDistanceTests extends FunSuite
 
 class CategoryHierarchyTest extends FunSuite
 {
-    test("Category hierarchy MST", Tag("UnitTests") )
+    test("Category hierarchy MST", TestTags.unitTests )
     {
         val topicIds = List( 1, 2, 3, 4 )
         val edges = List(
@@ -143,7 +145,7 @@ class CategoryHierarchyTest extends FunSuite
 
 class CommunityTests extends FunSuite
 {
-    test( "Louvain", Tag("UnitTests") )
+    test( "Louvain", TestTags.unitTests )
     {
         val v = new Louvain[Int]( new File("./community") )
         v.addEdge( 1, 2, 1.0 )
@@ -176,7 +178,7 @@ class CommunityTests extends FunSuite
 class WikiBatchPhraseDictTest extends FunSuite
 {
     
-    test( "Phrase map etc", Tag("UnitTests") )
+    test( "Phrase map etc", TestTags.unitTests )
     {
         // Parse all words from a text
         val wordSource = List[(String, Int)]( ("on", 10), ("the", 10), ("first", 10), ("day", 10), ("of", 10), ("christmas", 10), ("my", 10), ("true", 10), ("love", 10), ("sent", 10), ("to", 10), ("me", 10) )
@@ -219,7 +221,7 @@ class DisambiguatorTest extends FunSuite with Logging
     
     // NOTE: Sad to have 'test suite' and not 'test suites'. Consider stemming.
     
-    test( "Category hierarchy", Tag("DataTests") )
+    test( "Category hierarchy", TestTags.dataTests )
     {
         if ( false )
         {
@@ -339,7 +341,7 @@ class DisambiguatorTest extends FunSuite with Logging
         }
     }
     
-    test( "New disambiguator test", Tag("DataTests") )
+    test( "New disambiguator test", TestTags.dataTests )
     {
         if ( false )
         {
@@ -380,7 +382,7 @@ class DisambiguatorTest extends FunSuite with Logging
         }
     }
     
-    test( "Disambiguator short phrase test", Tag("DataTests") )
+    test( "Disambiguator short phrase test", TestTags.dataTests )
     {
         if ( true )
         {
@@ -462,7 +464,7 @@ class DisambiguatorTest extends FunSuite with Logging
     
     
     
-    test( "Disambiguation alternative generation", Tag("UnitTests") )
+    test( "Disambiguation alternative generation", TestTags.unitTests )
     {
         //             0            1          2            3           4           5           6            7            8        9      10
         val words = "covent" :: "garden" :: "barack" :: "hussein" :: "obama" :: "design" :: "pattern" :: "language" :: "about" :: "a" :: "boy" :: Nil

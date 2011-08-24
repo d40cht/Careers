@@ -1,3 +1,5 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
@@ -89,7 +91,7 @@ class CategoryMembershipTest extends FunSuite
         }
     }*/
     
-    test("Test category and context parsing")
+    test("Test category and context parsing", TestTags.unitTests)
     {
         // Remove duplicates!
         val expectedResultsL =
@@ -137,7 +139,7 @@ class CategoryMembershipTest extends FunSuite
         }
     }
     
-    test("Test redirect parsing")
+    test("Test redirect parsing", TestTags.unitTests)
     {
         // Not a redirect page. Should not add to the list
         {
@@ -169,7 +171,7 @@ class CategoryMembershipTest extends FunSuite
         }
     }
     
-    test("Test surface form parsing")
+    test("Test surface form parsing", TestTags.unitTests)
     {
         val expectedResults =
             ("the rotted", "Main:The Rotted") ::
@@ -225,7 +227,7 @@ class CategoryMembershipTest extends FunSuite
         }
     }
     
-    test("Test counting words in topics", Tag("UnitTests"))
+    test("Test counting words in topics", TestTags.unitTests)
     {
         val v = new WordInTopicCounter.JobMapper()
         
