@@ -158,50 +158,6 @@ class DistanceMetricTest extends FunSuite
             
             
             val tvs = (1 until 34).map( i => makeTopicVector( "./ambiguityresolution%d.xml".format(i), i ) )
-
-            /*for ( tv1 <- tvs; tv2 <- tvs if ( tv1.id < tv2.id && tv1.id != 6 && tv2.id != 6 ) )
-                    {
-                val (dist, why) = tv1.distance(tv2)
-                
-                if ( dist > 0.01 )
-                        {
-                    println( "************* %d to %d: %2.6f ***************".format( tv1.id, tv2.id, dist ) )
-                    
-                    var rankBuilder = new AutoMap[Int, List[(Int, String, Double)]]( x => Nil )
-                    for ( ((weight, name, groupId), index) <- why.slice(0, 100).zipWithIndex )
-                            {
-                        val rank = index + 1
-                        rankBuilder.set( groupId, (rank, name, weight) :: rankBuilder(groupId) )
-                        //println( "  %s %2.6f".format( name, weight ) )
-                            }
-                            
-                    val aveRankSorted = rankBuilder.toList.map( x =>
-                            {
-                        val groupId = x._1
-                        var totalRank = 0
-                                var count = 0
-                        for ( (rank, name, weight) <- x._2 )
-                                {
-                            totalRank += rank
-                                    count += 1
-                                }
-
-                        (totalRank.toDouble / count.toDouble, groupId, x._2)
-                    } ).sortWith( _._1 < _._1 )
-                                
-                    for ( (aveRank, groupId, groupMembership) <- aveRankSorted.slice(0, 10) )
-                                    {
-                        println( "Group id: %d, ave rank: %.2f".format( groupId, aveRank ) )
-                        
-                        for ( (rank, name, weight) <- groupMembership.sortWith( _._3 > _._3 ) )
-                                        {
-                            println( "  %s: %d, %2.2e".format( name, rank, weight ) )
-                                        }
-                                    }
-                                }
-            }*/
-                                
-            
             
             def wikiLink( topicName : String ) =
             {

@@ -923,9 +923,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                         val allAlternatives = for ( site <- prunableSites; alt <- site.combs.toList ) yield alt
                         val leastWeight = allAlternatives.reduceLeft( (x, y) => if (x.altAlgoWeight < y.altAlgoWeight) x else y )
                         
-                        validate()
                         leastWeight.remove( q, topicNameMap )
-                        validate()
                     }
                     else
                     {
@@ -1019,6 +1017,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             }
             
             sites = sites.filter( _.combs.size > 0 )
+            
+            for ( site <- sites; alternative <- site.combs; alt <- alternative.sites )
+            {
+                assert( alt.sf.topics.size == 1 )
+            }
             
             /*if ( false )
             {

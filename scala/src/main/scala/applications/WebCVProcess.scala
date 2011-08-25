@@ -111,7 +111,7 @@ object WebCVProcess
                 println( "Fetching: " + trimmedId )
                 val text = p.fetch( "http://cvnlp.com:9000/application/cvtext?id=" + trimmedId )
                 
-                println( "Text: " + text )
+                //println( "Text: " + text )
                 
                 val b = new d.Builder(text)
                 val forest = b.build()
