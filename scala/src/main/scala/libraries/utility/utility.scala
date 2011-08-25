@@ -49,6 +49,11 @@ class AutoMap[A, B]( val makeB : A => B )
         }
     }
     
+    def remove( key : A )
+    {
+        mapImpl = mapImpl - key
+    }
+    
     def set( key : A, value : B )
     {
         mapImpl = mapImpl.updated( key, value )

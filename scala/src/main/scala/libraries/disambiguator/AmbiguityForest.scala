@@ -225,6 +225,10 @@ class AmbiguitySite( val start : Int, val end : Int )
                             
                             peer.algoWeight -= linkWeight.totalWeight
                             peer.alternative.altAlgoWeight -= linkWeight.totalWeight
+                            algoWeight -= linkWeight.totalWeight
+                            alternative.altAlgoWeight -= linkWeight.totalWeight
+                            
+                            peer.peers.remove( this )
                             
                             //assert( alternative.altAlgoWeight > -1e-10 )
                             //assert( peer.alternative.altAlgoWeight > -1e-10 )
@@ -596,7 +600,11 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
     
     private def validate()
     {
-        def close( a : Double, b : Double ) = (a - b).abs <= (0.00001 * (a max b))
+        def close( a : Double, b : Double ) =
+        {
+            val diff = (a - b).abs
+            diff < 1e-10 || diff <= (0.0001 * (a max b))
+        }
         
         val weightings = new AutoMap[TopicDetailLink, Double]( x => 0.0 )
         for
@@ -914,7 +922,10 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                     {
                         val allAlternatives = for ( site <- prunableSites; alt <- site.combs.toList ) yield alt
                         val leastWeight = allAlternatives.reduceLeft( (x, y) => if (x.altAlgoWeight < y.altAlgoWeight) x else y )
+                        
+                        validate()
                         leastWeight.remove( q, topicNameMap )
+                        validate()
                     }
                     else
                     {
@@ -926,9 +937,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             }
             
             
-            sites = sites.filter( _.combs.size > 0 )
             
-            validate()
             
             logger.debug( "Pruning down to one topic per site." )
             while ( !q.isEmpty )
