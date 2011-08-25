@@ -221,7 +221,7 @@ class DisambiguatorTest extends FunSuite with Logging
     
     // NOTE: Sad to have 'test suite' and not 'test suites'. Consider stemming.
     
-    test( "Category hierarchy", TestTags.dataTests )
+    test( "Category hierarchy", TestTags.largeDataTests )
     {
         if ( false )
         {
@@ -341,9 +341,9 @@ class DisambiguatorTest extends FunSuite with Logging
         }
     }
     
-    test( "New disambiguator test", TestTags.dataTests )
+    test( "New disambiguator test", TestTags.largeDataTests )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             
@@ -382,7 +382,7 @@ class DisambiguatorTest extends FunSuite with Logging
         }
     }
     
-    test( "Disambiguator short phrase test", TestTags.dataTests )
+    test( "Disambiguator short phrase test", TestTags.smallDataTests )
     {
         if ( true )
         {
