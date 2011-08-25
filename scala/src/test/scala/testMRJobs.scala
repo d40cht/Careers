@@ -37,7 +37,7 @@ class WEXParser extends FunSuite
     
     def markupParser( node : scala.xml.Node )
     {
-        println( node.label )
+        //println( node.label )
         node match
         {
             case h @ <heading>{children @ _*}</heading>     =>
