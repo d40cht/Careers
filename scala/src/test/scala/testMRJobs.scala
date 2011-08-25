@@ -5,6 +5,7 @@ import org.scalatest.Tag
 
 import scala.collection.immutable.TreeSet
 import scala.io.Source._
+import scala.xml._
 
 import org.seacourt.utility._
 import org.seacourt.mapreducejobs._
@@ -13,6 +14,79 @@ import org.apache.hadoop.io.SequenceFile.{createWriter, Reader}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.Text
+
+class WEXParser extends FunSuite
+{
+    val wexTestFile = "./src/test/scala/data/wexSample.xml"
+    
+    def templateParser( node : scala.xml.Node )
+    {
+        node match
+        {
+            case p @ <param>{children @ _*}</param>         =>
+            {
+                val name = p \ "name"
+                children.foreach( markupParser )
+            }
+            case scala.xml.Text(t)                          =>
+            case scala.xml.PCData(d)                        =>
+            case _                                          => throw new AssertionError( "Boo: " + node.label + ", " + node.getClass.toString )
+        }
+    }
+    
+    
+    def markupParser( node : scala.xml.Node )
+    {
+        println( node.label )
+        node match
+        {
+            case h @ <heading>{children @ _*}</heading>     =>
+            {
+                val level = h \ "@level"
+                children.foreach( markupParser )
+            }
+
+            case <link>{children @ _*}</link>               =>
+            {
+                val target = children \ "target"
+                val surfaceForm = children \ "part"
+            }
+
+            case t @ <template>{children @ _*}</template>   => children.foreach( templateParser )
+            case scala.xml.Text(t)                          =>
+            case scala.xml.PCData(d)                        =>
+            
+            
+            case <paragraph>{children @ _*}</paragraph>     => children.foreach( markupParser )
+            case <preblock>{children @ _*}</preblock>       => children.foreach( markupParser )
+            case <bold>{children @ _*}</bold>               => children.foreach( markupParser )
+            case <italics>{children @ _*}</italics>         => children.foreach( markupParser )
+            case <extension>{children @ _*}</extension>     => children.foreach( markupParser )
+            case <preline>{children @ _*}</preline>         => children.foreach( markupParser )
+            case <center>{children @ _*}</center>           => children.foreach( markupParser )
+            case <table>{children @ _*}</table>             => children.foreach( markupParser )
+            case <tablerow>{children @ _*}</tablerow>       => children.foreach( markupParser )
+            case <tablecell>{children @ _*}</tablecell>     => children.foreach( markupParser )
+            case l @ <list>{children @ _*}</list>           => children.foreach( markupParser )
+            case li @ <listitem>{children @ _*}</listitem>  => children.foreach( markupParser )
+            
+            case <space></space>                            =>
+            case <br></br>                                  =>
+            
+            case _                                          => throw new AssertionError( "Boo: " + node.label + ", " + node.getClass.toString )
+        }
+    }
+    
+    test( "WEX parse test", TestTags.unitTests )
+    {
+        val inputData = XML.loadFile( wexTestFile )
+        
+        for ( article <- inputData \\ "article" )
+        {
+            article.child.foreach( markupParser( _ ) )
+        }
+    }
+}
 
 class CategoryMembershipTest extends FunSuite
 {
