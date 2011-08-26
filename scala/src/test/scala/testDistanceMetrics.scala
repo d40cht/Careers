@@ -1,3 +1,5 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
@@ -8,87 +10,13 @@ import scala.math.{log, pow}
 import scala.xml._
 import scala.io.Source._
 import org.seacourt.utility._
-import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering}
+import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering, TopicVector}
 
 class TopicElement( val weight : Double, val name : String, val groupId : Int, val primaryTopic : Boolean )
 {
 }
 
-class TopicVector( val id : Int )
-{
-    type TopicId = Int
-    type TopicWeight = Double
-
-    var topics = HashMap[TopicId, TopicElement]()
-    
-    def size = topics.size
-    
-    def prunedToTop( N : Int ) =
-    {
-        val prunedSortedList = topics.toList.sortWith( _._2.weight > _._2.weight ).slice( 0, N )
-        
-        prunedSortedList.foldLeft( new TopicVector( id ) )( (tv, idte) => tv.addTopic( idte._1, idte._2 ) )
-    }
-    
-    def pruneSolitaryContexts( other : TopicVector, strict : Boolean )
-    {
-        topics = topics.filter( el =>
-        {
-            val (id, te) = el
-            te.primaryTopic || (!strict && (other.topics.contains(id) && other.topics(id).primaryTopic))
-        } )
-    }
-    
-    def addTopic( id : TopicId, weight : TopicWeight, name : String, groupId : Int, primaryTopic : Boolean )
-    {
-        topics = topics.updated( id, new TopicElement( weight, name, groupId, primaryTopic ) )
-    }
-    
-    def addTopic( id : TopicId, te : TopicElement ) =
-    {
-        topics = topics.updated( id, te )
-        this
-    }
-  
-    def distance( other : TopicVector ) =
-    {
-        var AB = 0.0
-        var AA = 0.0
-        var BB = 0.0
-        
-        // Weight, name, groupId
-        var weightedMatches = List[(Double, String, Boolean, Int)]()
-        
-        
-        val topTopics = topics
-        val topOtherTopics = other.topics
-        for ( (id, te) <- topTopics )
-        {
-            if ( topOtherTopics.contains(id) )
-            {
-                val otherte = topOtherTopics(id)
-                
-                val combinedWeight = te.weight * otherte.weight
-                val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
-                
-                
-                weightedMatches = (priorityWeight, te.name, te.primaryTopic, te.groupId) :: weightedMatches
-                
-                AB += combinedWeight
-            }
-            AA += (te.weight*te.weight)
-        }
-        
-        for ( (id, te) <- other.topics )
-        {
-            BB += (te.weight*te.weight)
-        }
-        
-        val cosineDist = AB / (math.sqrt(AA) * math.sqrt(BB))
-        
-        ( cosineDist, weightedMatches.sortWith( _._1 > _._1 ) )
-    }
-}
+import org.seacourt.serialization.SerializationProtocol._
 
 class DistanceMetricTest extends FunSuite
 {
@@ -114,6 +42,7 @@ class DistanceMetricTest extends FunSuite
         var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
         val topicClustering = new AgglomClustering[WrappedTopicId]()
         
+        var linkWeights = new AutoMap[(Int, Int), Double]( x => 0.0 )
         val topicWeightings = new AutoMap[Int, Double]( x => 0.0 )
         for ( site <- data \ "sites" \ "site" )
         {
@@ -126,11 +55,20 @@ class DistanceMetricTest extends FunSuite
                 val peerId = (peer \\ "id").text.toInt
                 val weightings = (peer \\ "component").foldLeft( List[(Int, Double)]() )( (l, el) => ( (el \\ "contextTopicId").text.toInt, (el \\ "weight").text.toDouble) :: l )
                 
-                for ( (id, weight) <- weightings )
+                for ( (contextId, weight) <- weightings )
                 {
+<<<<<<< HEAD
                     val reweight = weight//pow( weight, 0.7 )
                     topicClustering.update( topicMap(topicId), topicMap(id), reweight )
                     topicWeightings.set( id, topicWeightings(id) + reweight )
+=======
+                    val key = if (topicId < contextId) (topicId, contextId) else (contextId, topicId)
+                    linkWeights.set( key, linkWeights(key) + weight )
+                    
+                    topicClustering.update( topicMap(topicId), topicMap(contextId), weight )
+                    topicWeightings.set( contextId, topicWeightings(contextId) + weight )
+                    topicWeightings.set( topicId, topicWeightings(topicId) + weight )
+>>>>>>> origin/master
                 }
             }
         }
@@ -166,14 +104,29 @@ class DistanceMetricTest extends FunSuite
                 }
             }                
         }
+        topicVector.topicLinks = linkWeights.map( x => (x._1._1, x._1._2, x._2) ).toList
         
         topicVector
     }
 
+<<<<<<< HEAD
     test( "DistanceMetricTest", Tag("DataTest") )
     {
         if ( true )
         {
+=======
+    test( "DistanceMetricTest", TestTags.largeDataTests )
+    {
+        if ( true )
+        {
+            val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)" )
+            
+            
+            val tvs = (1 until 34).map( i => makeTopicVector( "./ambiguityresolution%d.xml".format(i), i ) )
+            
+            tvs.zipWithIndex.foreach( tv => sbinary.Operations.toFile( tv._1)( new java.io.File( "./tv%d.bin".format(tv._2) ) ) )
+            
+>>>>>>> origin/master
             def wikiLink( topicName : String ) =
             {
                 val wikiBase = "http://en.wikipedia.org/wiki/"
@@ -189,8 +142,9 @@ class DistanceMetricTest extends FunSuite
                 <html>
                     <head></head>
                     <body style="font-family:sans-serif">
-                    {
+                                    {
                         for ( tv1 <- tvs ) yield
+<<<<<<< HEAD
                         {
                             val rankedTopics = tv1.topics.map( _._2 ).filter( _.primaryTopic ).toList.sortWith( _.weight > _.weight ).zipWithIndex
                             var grouped = new AutoMap[Int, List[(Int, TopicElement)]]( x => Nil )
@@ -256,6 +210,18 @@ class DistanceMetricTest extends FunSuite
                                     
                                     for ( (tv2, (dist, why)) <- dists.sortWith( _._2._1 > _._2._1 ) ) yield
                                     {
+=======
+                                        {
+                            <div style="text-align:justify">
+                            <h1>{names(tv1.id-1)}</h1>
+                                            
+                            <table>
+                                        {
+                                val dists = for ( tv2 <- tvs if tv1.id != tv2.id ) yield (tv2, tv1.distance(tv2))
+                                    
+                                    for ( (tv2, (dist, why)) <- dists.sortWith( _._2._1 > _._2._1 ) ) yield
+                                    {
+>>>>>>> origin/master
                                         if ( dist > 0.01 )
                                         {
                                             <tr>
@@ -263,7 +229,11 @@ class DistanceMetricTest extends FunSuite
 
                                                 {
                                                     var rankBuilder = new AutoMap[Int, List[(Int, String, Boolean, Double)]]( x => Nil )
+<<<<<<< HEAD
                                                     for ( ((weight, name, primaryTopic, groupId), index) <- why.slice(0, 200).zipWithIndex )
+=======
+                                                    for ( ((weight, name, primaryTopic, groupId), index) <- why.slice(0, 100).zipWithIndex )
+>>>>>>> origin/master
                                                     {
                                                         val rank = index + 1
                                                         rankBuilder.set( groupId, (rank, name, primaryTopic, weight) :: rankBuilder(groupId) )

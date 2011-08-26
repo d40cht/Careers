@@ -1,3 +1,5 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
@@ -26,6 +28,7 @@ import org.seacourt.disambiguator.Community._
 import org.seacourt.disambiguator.CategoryHierarchy._
 
 import org.apache.hadoop.io.{Writable, Text, IntWritable}
+import com.weiglewilczek.slf4s.{Logging}
 
 import math.{log}
 
@@ -94,7 +97,7 @@ class CategoryDistanceTests extends FunSuite
 
 class CategoryHierarchyTest extends FunSuite
 {
-    test("Category hierarchy MST", )
+    test("Category hierarchy MST", TestTags.unitTests )
     {
         val topicIds = List( 1, 2, 3, 4 )
         val edges = List(
@@ -142,85 +145,83 @@ class CategoryHierarchyTest extends FunSuite
 
 class CommunityTests extends FunSuite
 {
-    test( "Louvain" )
+    test( "Louvain", TestTags.unitTests )
     {
-        if ( false )
-        {
-            val v = new Louvain[Int]()
-            v.addEdge( 1, 2, 1.0 )
-            v.addEdge( 1, 3, 1.0 )
-            v.addEdge( 1, 4, 1.0 )
-            v.addEdge( 2, 3, 1.0 )
-            v.addEdge( 2, 4, 1.0 )
-            v.addEdge( 3, 4, 1.0 )
+        val v = new Louvain[Int]( new File("./community") )
+        v.addEdge( 1, 2, 1.0 )
+        v.addEdge( 1, 3, 1.0 )
+        v.addEdge( 1, 4, 1.0 )
+        v.addEdge( 2, 3, 1.0 )
+        v.addEdge( 2, 4, 1.0 )
+        v.addEdge( 3, 4, 1.0 )
+        
+        v.addEdge( 5, 6, 1.0 )
+        v.addEdge( 5, 7, 1.0 )
+        v.addEdge( 5, 8, 1.0 )
+        v.addEdge( 6, 7, 1.0 )
+        v.addEdge( 6, 8, 1.0 )
+        v.addEdge( 7, 8, 1.0 )
+        
+        v.addEdge( 3, 5, 0.2 )
+        v.addEdge( 4, 6, 0.2 )
+        
+        val res = v.run()
+        
+        val expected = new InternalNode[Int]( ArrayBuffer(
+            new InternalNode[Int]( ArrayBuffer( new LeafNode[Int]( ArrayBuffer( 1, 2, 3, 4 ) ) ) ),
+            new InternalNode[Int]( ArrayBuffer( new LeafNode[Int]( ArrayBuffer( 5, 6, 7, 8 ) ) ) ) ) )
             
-            v.addEdge( 5, 6, 1.0 )
-            v.addEdge( 5, 7, 1.0 )
-            v.addEdge( 5, 8, 1.0 )
-            v.addEdge( 6, 7, 1.0 )
-            v.addEdge( 6, 8, 1.0 )
-            v.addEdge( 7, 8, 1.0 )
-            
-            v.addEdge( 3, 5, 0.2 )
-            v.addEdge( 4, 6, 0.2 )
-            
-            val res = v.run()
-            
-            println( res )
-            
-            val expected = new InternalNode[Int]( ArrayBuffer(
-                new InternalNode[Int]( ArrayBuffer( new LeafNode[Int]( ArrayBuffer( 1, 2, 3, 4 ) ) ) ),
-                new InternalNode[Int]( ArrayBuffer( new LeafNode[Int]( ArrayBuffer( 5, 6, 7, 8 ) ) ) ) ) )
-                
-            assert( res === expected )
-        }
+        assert( res === expected )
     }
 }
 
 class WikiBatchPhraseDictTest extends FunSuite
 {
     
-    test( "Phrase map etc", Tag("UnitTests") )
+    test( "Phrase map etc", TestTags.unitTests )
     {
         // Parse all words from a text
         val wordSource = List[(String, Int)]( ("on", 10), ("the", 10), ("first", 10), ("day", 10), ("of", 10), ("christmas", 10), ("my", 10), ("true", 10), ("love", 10), ("sent", 10), ("to", 10), ("me", 10) )
         val phraseSource = List[(String, List[(String, Int)])]( ("on", Nil), ("on the first", Nil), ("first day", Nil), ("on the first day of christmas", Nil), ("my true love", Nil), ("true love", Nil) )
-        
-        // Then a few parse phrases and save all out       
-        {
-            val wb = new PhraseMapBuilder( "wordMap", "phraseMap" )
-            val wordMap = wb.buildWordMap( wordSource.iterator )
-            val phraseMap = wb.parseSurfaceForms( phraseSource.iterator )
+     
+        Utils.withTemporaryDirectory( dirName =>
+        {   
+            // Then a few parse phrases and save all out       
+            {
+                val wb = new PhraseMapBuilder( new File( dirName, "wordMap" ), new File( dirName, "phraseMap" ) )
+                val wordMap = wb.buildWordMap( wordSource.iterator )
+                val phraseMap = wb.parseSurfaceForms( phraseSource.iterator )
+                
+                val pml = new PhraseMapLookup( wordMap, phraseMap )
+                pml.save( new DataOutputStream( new FileOutputStream( new File( dirName, "disambigTest.bin" ) ) ) )
+            }
             
-            val pml = new PhraseMapLookup( wordMap, phraseMap )
-            pml.save( new DataOutputStream( new FileOutputStream( new File( "disambigTest.bin" ) ) ) )
-        }
-        
-        // Then re-run and check that the phrases exist
-        {
-            val pml = new PhraseMapLookup()
-            pml.load( new DataInputStream( new FileInputStream( new File( "disambigTest.bin" ) ) ) )
-            //pml.dump()
-            
-            assert( pml.getIter().find( "chicken tikka" ) === -1 )
-            assert( pml.getIter().find( "on the first day of christmas bloo" ) === -1 )
-            assert( pml.getIter().find( "bloo on the first day of christmas" ) === -1 )
+            // Then re-run and check that the phrases exist
+            {
+                val pml = new PhraseMapLookup()
+                pml.load( new DataInputStream( new FileInputStream( new File( dirName, "disambigTest.bin" ) ) ) )
+                //pml.dump()
+                
+                assert( pml.getIter().find( "chicken tikka" ) === -1 )
+                assert( pml.getIter().find( "on the first day of christmas bloo" ) === -1 )
+                assert( pml.getIter().find( "bloo on the first day of christmas" ) === -1 )
 
-            assert( pml.phraseByIndex( pml.getIter().find( "on" ) ) === List("on") )
-            assert( pml.phraseByIndex( pml.getIter().find( "on the first" ) ) === List("on", "the", "first") )
-            assert( pml.phraseByIndex( pml.getIter().find( "first day" ) ) === List("first", "day") )
-            assert( pml.phraseByIndex( pml.getIter().find( "on the first day of christmas" ) ) === List("on", "the", "first", "day", "of", "christmas") )
-        }
+                assert( pml.phraseByIndex( pml.getIter().find( "on" ) ) === List("on") )
+                assert( pml.phraseByIndex( pml.getIter().find( "on the first" ) ) === List("on", "the", "first") )
+                assert( pml.phraseByIndex( pml.getIter().find( "first day" ) ) === List("first", "day") )
+                assert( pml.phraseByIndex( pml.getIter().find( "on the first day of christmas" ) ) === List("on", "the", "first", "day", "of", "christmas") )
+            }
+        } )
     }
 }
 
-class DisambiguatorTest extends FunSuite
+class DisambiguatorTest extends FunSuite with Logging
 {
     // NOTE: All categories seem to have a link weight of zero which isn't ideal.
     
     // NOTE: Sad to have 'test suite' and not 'test suites'. Consider stemming.
     
-    test( "Category hierarchy", Tag("DataTests") )
+    test( "Category hierarchy", TestTags.largeDataTests )
     {
         if ( false )
         {
@@ -340,32 +341,9 @@ class DisambiguatorTest extends FunSuite
         }
     }
     
-    test( "New disambiguator test", Tag("DataTests") )
+    test( "New disambiguator test", TestTags.largeDataTests )
     {
-        /*val v = new PriorityQ[Int]()
-        v.add( 12.0, 4 )
-        v.add( 12.0, 5 )
-        v.add( 13.0, 6 )
-        v.add( 13.0, 7 )
-        v.add( 13.0, 8 )
-        
-        assert( v.size === 5 )
-        assert( v.popFirst() == (12.0, 4) )
-        assert( v.popFirst() == (12.0, 5) )
-        assert( v.size == 3 )
-        v.add( 12.0, 6 )
-        assert( v.size == 4 )
-        assert( v.popFirst() == (12.0, 6) )
-        assert( v.size == 3 )
-        assert( v.popFirst() == (13.0, 6) )
-        assert( v.size == 2 )
-        assert( v.popFirst() == (13.0, 7) )
-        assert( v.size == 1 )
-        assert( v.popFirst() == (13.0, 8) )
-        assert( v.size == 0 )
-        assert( v.isEmpty )*/
-        
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             
@@ -398,20 +376,22 @@ class DisambiguatorTest extends FunSuite
             
             val b = new d.Builder(fileText)
             val forest = b.build()
-            forest.dumpDebug( "ambiguitydebug.xml" )
-            forest.output( "ambiguity.html", "resolutions.xml" )
-            forest.dumpGraph( "test.graph", "test.names" )
+            forest.dumpDebug( "tmp/ambiguitydebug.xml" )
+            forest.output( "tmp/ambiguity.html", "tmp/resolutions.xml" )
+            //forest.dumpGraph( "test.graph", "test.names" )
         }
     }
     
-    test( "Disambiguator short phrase test", Tag("DataTests") )
+    test( "Disambiguator short phrase test", TestTags.smallDataTests )
     {
-        if ( false )
+        if ( true )
         {
             val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
             var fail = false
             
             val testData = XML.loadFile("./src/test/scala/data/shortPhrases.xml")
+            
+            val errors = ArrayBuffer[String]()
             for ( test <- testData \\ "test" )
             {
                 val phrase = (test \\ "phrase").text
@@ -419,38 +399,47 @@ class DisambiguatorTest extends FunSuite
 
                 val b = new d.Builder(phrase)
                 val forest = b.build()
-                forest.dumpDebug( "ambiguitydebug.xml" )
-                forest.output( "ambiguity.html", "resolutions.xml" )
+                forest.dumpDebug( "tmp/ambiguitydebug.xml" )
+                forest.output( "tmp/ambiguity.html", "tmp/resolutions.xml" )
                 var dres = forest.disambiguated
                 
                 val dresf = dres.filter( _.weight > 0.0 )
-                println( phrase, dresf.map( x=>x.name) )
+                //info( "Testing: " + phrase + ": " + res + ", " + dresf.map( _.name ) )
+                //println( phrase, res, dresf.map( x=>x.name) )
                 
-                //assert( dresf.length === res.length )
-                if ( dresf.length == res.length )
+                try
                 {
-                    for ( (topicl, expected) <- dresf.zip(res) )
+                    assert( dresf.length === res.length )
+                    if ( dresf.length == res.length )
                     {
-                        val topic = topicl.name
-                        //assert( topic === expected )
-                        if ( topic != expected )
+                        for ( (topicl, expected) <- dresf.zip(res) )
                         {
-                            println( "############## " + topic + " != " + expected )
-                            fail = true
+                            val topic = topicl.name
+                            assert( topic === expected )
                         }
-                        
+                    }
+                    logger.info( "  test passed" )
+                }
+                catch
+                {
+                    case e =>
+                    {
+                        logger.info( "  test failed" )
+                        errors.append( "Phrase failure: " + phrase + ": " + res + ", " + dresf.map( _.name ) + ", " + e.getMessage() )
                     }
                 }
-                else
-                {
-                    println( "################ " )
-                    fail = true
-                }
-                
-                forest.dumpGraph( "test.graph", "test.names" )
+
+                //forest.dumpGraph( "tmp/test.graph", "tmp/test.names" )
             }
             
-            assert( fail === false )
+            if ( !errors.isEmpty )
+            {
+                for ( l <- errors )
+                {
+                    logger.info( l )
+                }
+                assert( errors.isEmpty )
+            }
         }
     }
     
@@ -475,7 +464,7 @@ class DisambiguatorTest extends FunSuite
     
     
     
-    test( "Disambiguation alternative generation", Tag("UnitTests") )
+    test( "Disambiguation alternative generation", TestTags.unitTests )
     {
         //             0            1          2            3           4           5           6            7            8        9      10
         val words = "covent" :: "garden" :: "barack" :: "hussein" :: "obama" :: "design" :: "pattern" :: "language" :: "about" :: "a" :: "boy" :: Nil

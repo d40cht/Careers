@@ -30,10 +30,10 @@ case class LeafNode[T]( val children : ArrayBuffer[T] ) extends CommunityTreeBas
     def size = children.size
 }
 
-class Louvain[T]
+class Louvain[T]( binaryRootPath : File )
 {
-    private var convertPath     = "/home/alexw/AW/optimal/community/convert"
-    private var communityPath   = "/home/alexw/AW/optimal/community/community"
+    private var convertPath     = new File( binaryRootPath, "convert" )
+    private var communityPath   = new File( binaryRootPath, "community" )
     
     private var idMap = HashMap[T, Int]()
     private var nextId = 0

@@ -1,3 +1,5 @@
+package org.seacourt.tests
+
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
@@ -8,6 +10,12 @@ import compat.Platform.currentTime
 
 import org.dbpedia.extraction.wikiparser._
 import org.dbpedia.extraction.sources.WikiPage
+
+import org.apache.lucene.util.Version.LUCENE_30
+import org.apache.lucene.analysis.Token
+import org.apache.lucene.analysis.tokenattributes.{TermAttribute, OffsetAttribute, TypeAttribute}
+import org.apache.lucene.analysis.standard.StandardTokenizer
+import org.apache.lucene.analysis.ASCIIFoldingFilter
 
 import java.io.File
 import java.lang.System
@@ -23,11 +31,85 @@ import scala.util.Sorting._
 import resource._
 
 import java.io.{DataInput, DataOutput, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
+import java.io.{StringReader}
 
+import sbinary._
+import sbinary.Operations._
+
+
+case class TestClass( val a : Int, val b : Double )
+{
+}
+
+
+object MyProtocol extends sbinary.DefaultProtocol
+{
+    implicit object TestClassFormat extends Format[TestClass]
+    {
+        def reads(in : Input) = new TestClass( read[Int](in), read[Double](in) )
+        def writes(out : Output, value : TestClass)
+        {
+            write(out, value.a)
+            write(out, value.b)
+        }
+    }
+}
+
+import MyProtocol._
+
+class SBinarySerializationTest extends FunSuite
+{
+    test( "Simple sbinary serialization tests", TestTags.unitTests )
+    {
+        val a = (1, "2", 3.0)
+        assert( a === fromByteArray[(Int, String, Double)]( toByteArray(a) ) )
+        
+        val b = new TestClass( 12, 13.0 )
+        assert( b === new TestClass( 12, 13.0 ) )
+        
+        assert( b === fromByteArray[TestClass]( toByteArray(b) ) )
+        
+    }
+}
+
+class TokenizerTest extends FunSuite
+{
+    test( "Smarter tokenizer test", TestTags.unitTests )
+    {
+        val s = "On the first day of Christmas my true love sent to me some lovely C++ wrapped in F# and C#"
+        
+        val textSource = new StringReader( s.replace( "+", "Plus" ).replace( "#", "Hash" ) )
+    	
+        val tokenizerBase = new StandardTokenizer( LUCENE_30, textSource )
+        val tokenizer = new ASCIIFoldingFilter( tokenizerBase )
+    
+        var run = true
+        var wordList : List[String] = Nil
+        while ( run )
+        {
+            val offset = tokenizer.getAttribute(classOf[OffsetAttribute])
+            val ta = tokenizer.getAttribute(classOf[TypeAttribute])
+            //println( offset.startOffset() + ", " + offset.endOffset() + ": " + ta.`type`() )
+            
+            val nextTerm = tokenizer.getAttribute(classOf[TermAttribute]).term()
+            if ( nextTerm != "" )
+            {
+                //println( nextTerm )
+                wordList = nextTerm :: wordList
+            }
+            run = tokenizer.incrementToken()
+        }
+        tokenizer.close()
+    }
+}
 
 class DisjointSetTest extends FunSuite
 {
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "Disjoint set", Tag("UnitTests") )
+=======
+    test( "Disjoint set", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         val d1 = new DisjointSet[Int](1)
         val d2 = new DisjointSet[Int](2)
@@ -94,7 +176,11 @@ class DisjointSetTest extends FunSuite
 
 class SizeTests extends FunSuite
 {
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "Efficient array large test", Tag("UnitTests") )
+=======
+    test( "Efficient array large test", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         val count = 50000
         val tarr = new EfficientArray[FixedLengthString](0)
@@ -109,6 +195,7 @@ class SizeTests extends FunSuite
         
         val sorted = data.sortWith( _.value.toInt < _.value.toInt )
         
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
         sorted.save( new DataOutputStream( new FileOutputStream( new File("largeTest.bin" ) ) ) )
         
         val larr = new EfficientArray[FixedLengthString](0)
@@ -116,12 +203,28 @@ class SizeTests extends FunSuite
         
         assert( larr.size === count )
         for ( i <- 0 until count )
+=======
+        Utils.withTemporaryDirectory( dirName =>
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
         {
-            assert( larr(i).value === i.toString )
-        }
+            sorted.save( new DataOutputStream( new FileOutputStream( new File(dirName, "largeTest.bin" ) ) ) )
+            
+            val larr = new EfficientArray[FixedLengthString](0)
+            larr.load( new DataInputStream( new FileInputStream( new File(dirName, "largeTest.bin") ) ) )
+            
+            assert( larr.size === count )
+            for ( i <- 0 until count )
+            {
+                assert( larr(i).value === i.toString )
+            }
+        } )
     }
     
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "Efficient array builder and serialization test", Tag("UnitTests") )
+=======
+    test( "Efficient array builder and serialization test", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         val tarr = new EfficientArray[FixedLengthString](0)
         val builder = tarr.newBuilder
@@ -135,19 +238,26 @@ class SizeTests extends FunSuite
         val arr = builder.result()
         assert( arr.length === 5 )
         
-        arr.save( new DataOutputStream( new FileOutputStream( new File( "testEArr.bin" ) ) ) )
-        
-        val larr = new EfficientArray[FixedLengthString](0)
-        larr.load( new DataInputStream( new FileInputStream( new File( "testEArr.bin" ) ) ) )
-        
-        assert( arr.length === larr.length )
-        for ( i <- 0 until arr.length )
-        {
-            assert( arr(i).value === larr(i).value )
-        }
+        Utils.withTemporaryDirectory( dirName =>
+        { 
+            arr.save( new DataOutputStream( new FileOutputStream( new File( dirName, "testEArr.bin" ) ) ) )
+            
+            val larr = new EfficientArray[FixedLengthString](0)
+            larr.load( new DataInputStream( new FileInputStream( new File( dirName, "testEArr.bin" ) ) ) )
+            
+            assert( arr.length === larr.length )
+            for ( i <- 0 until arr.length )
+            {
+                assert( arr(i).value === larr(i).value )
+            }
+        } )
     }
     
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "Efficient array lower bound test", Tag("UnitTests") )
+=======
+    test( "Efficient array lower bound test", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         def comp( x : EfficientIntPair, y : EfficientIntPair ) =
         {
@@ -207,7 +317,11 @@ class SizeTests extends FunSuite
         }
     }
 
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "Efficient array test 1", Tag("UnitTests") )
+=======
+    test( "Efficient array test 1", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         val arr = new EfficientArray[FixedLengthString]( 5 )
         arr(0) = new FixedLengthString( "57" )
@@ -274,7 +388,11 @@ class SizeTests extends FunSuite
         //arr3(0) = new FixedLengthString("123456789123456789")
     }
 
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "Array size test", Tag("UnitTests") )
+=======
+    test( "Array size test", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         System.gc()
         val before = Runtime.getRuntime().totalMemory()
@@ -302,7 +420,11 @@ class SizeTests extends FunSuite
 
 class BerkeleyDbTests extends FunSuite
 {
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "Simple test", Tag("UnitTests") )
+=======
+    test( "Simple test", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         val envPath = new File( "./bdblocaltest" )
         
@@ -329,7 +451,11 @@ class VariousDbpediaParseTests extends FunSuite
 {
     val markupParser = WikiParser()
     
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "Redirect parsing", Tag("UnitTests") )
+=======
+    test( "Redirect parsing", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         val pageTitle = "Academic Acceleration"
         val pageText = "#REDIRECT [[Academic acceleration]] {{R from other capitalisation}}"
@@ -344,7 +470,11 @@ class VariousDbpediaParseTests extends FunSuite
  
 class ResTupleTestSuite extends FunSuite
 {
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test( "SQLite wrapper test", Tag("UnitTests") )
+=======
+    test( "SQLite wrapper test", TestTags.unitTests )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         val db = new SQLiteWrapper( null )
         db.exec( "BEGIN" )
@@ -377,7 +507,11 @@ class BasicTestSuite1 extends FunSuite
         return markupFiltered
     }
 
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test("A first test", Tag("UnitTests"))
+=======
+    test("A first test", TestTags.unitTests)
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         assert( 3 === 5-2 )
         assert( "a" === "a" )
@@ -389,7 +523,11 @@ class BasicTestSuite1 extends FunSuite
         }
     }
     
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
     test("A simple dbpedia test", Tag("UnitTests"))
+=======
+    test("A simple dbpedia test", TestTags.unitTests)
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     {
         val topicTitle = "Hello_World"
         val topicText = "[[Blah|'''blah blah''']] ''An italicised '''bit''' of text'' <b>Some markup</b>"
@@ -397,6 +535,64 @@ class BasicTestSuite1 extends FunSuite
         val markupParser = WikiParser()
         val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
         val parsed = markupParser( page )
+<<<<<<< HEAD:scala/src/test/scala/simpleUnitTests.scala
+=======
+    }
+    
+    test("Priority Q test", TestTags.unitTests)
+    {
+        val v = new PriorityQ[Int]()
+        v.add( 12.0, 4 )
+        v.add( 12.0, 5 )
+        v.add( 15.0, 6 )
+        v.add( 14.0, 7 )
+        v.add( 13.0, 8 )
+        
+        assert( v.size === 5 )
+        val first = v.popFirst()
+        val second = v.popFirst()
+        assert( first._1 === 12.0 )
+        assert( second._1 == 12.0 )
+        assert( HashSet( 4, 5 ) === HashSet( first._2, second._2 ) )
+        assert( v.size === 3 )
+        v.add( 12.0, 6 )
+        assert( v.size === 4 )
+        assert( v.popFirst() === (12.0, 6) )
+        assert( v.size === 3 )
+        assert( v.popFirst() === (13.0, 8) )
+        assert( v.size === 2 )
+        assert( v.popFirst() === (14.0, 7) )
+        assert( v.size === 1 )
+        assert( v.popFirst() === (15.0, 6) )
+        assert( v.size === 0 )
+        assert( v.isEmpty )
+    }
+    
+    test("N Priority Q test", TestTags.unitTests)
+    {
+        val v = new NPriorityQ[Int]()
+        v.add( 12.0, 4 )
+        v.add( 12.0, 5 )
+        v.add( 13.0, 6 )
+        v.add( 13.0, 7 )
+        v.add( 13.0, 8 )
+        
+        assert( v.size === 5 )
+        assert( v.popFirst() === (12.0, 4) )
+        assert( v.popFirst() === (12.0, 5) )
+        assert( v.size === 3 )
+        v.add( 12.0, 6 )
+        assert( v.size === 4 )
+        assert( v.popFirst() === (12.0, 6) )
+        assert( v.size === 3 )
+        assert( v.popFirst() === (13.0, 6) )
+        assert( v.size === 2 )
+        assert( v.popFirst() === (13.0, 7) )
+        assert( v.size === 1 )
+        assert( v.popFirst() === (13.0, 8) )
+        assert( v.size === 0 )
+        assert( v.isEmpty )
+>>>>>>> origin/master:scala/src/test/scala/simpleUnitTests.scala
     }
 }
 

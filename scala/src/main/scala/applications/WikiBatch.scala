@@ -29,7 +29,7 @@ object WikiBatch
     private def buildWordAndSurfaceFormsMap( conf : Configuration, fs : FileSystem, basePath : String )
     {
         val wordSource = new SeqFilesIterator( conf, fs, basePath, "wordInTopicCount", new WrappedString(), new WrappedInt() )
-        val wpm = new PhraseMapBuilder( "lookup/wordMap", "lookup/phraseMap" )
+        val wpm = new PhraseMapBuilder( new File("lookup/wordMap"), new File("lookup/phraseMap") )
         val wordMap = wpm.buildWordMap( wordSource )
         
         val sfSource = new SeqFilesIterator( conf, fs, basePath, "surfaceForms", new WrappedString(), new WrappedTextArrayCountWritable() )

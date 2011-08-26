@@ -10,6 +10,7 @@ import java.util.regex.Pattern
 import org.apache.commons.math.distribution.NormalDistributionImpl
 
 import scala.xml.XML
+import com.weiglewilczek.slf4s.{Logging}
 
 import scala.util.matching.Regex
 import scala.collection.mutable.{ListBuffer, Queue}
@@ -134,7 +135,6 @@ class AmbiguitySiteBuilder( var start : Int, var end : Int )
             else x.end < y.end
         })
         
-        //println( ordered )
         val asArr = ordered.toArray
         
         
@@ -172,7 +172,6 @@ class AmbiguitySiteBuilder( var start : Int, var end : Int )
                                 {
                                     if ( sf.start >= gapStart && sf.start < gapEnd && sf.end <= gapEnd )
                                     {
-                                        //println( "::: " + stack + ", " + j + ", " + start + ", " + end + ", " + gapStart + ", " + gapEnd )
                                         valid = false
                                     }
                                 }
@@ -183,8 +182,6 @@ class AmbiguitySiteBuilder( var start : Int, var end : Int )
                             found = true
                         }
                     }
-                    
-                    //println( "? " + stack )
                     
                     if ( found && valid )
                     {
@@ -288,7 +285,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
     }
 
         
-    class Builder( val text : String )
+    class Builder( val text : String ) extends Logging
     {
         val wordList = Utils.luceneTextTokenizer( Utils.normalize( text ) )
         
@@ -311,10 +308,10 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             var wordIndex = 0
             var topicSet = TreeSet[Int]()
             
-            println( "Parsing text and building topic and category maps." )
+            logger.debug( "Parsing text and building topic and category maps." )
             for ( word <- wordList )
             {
-                println( "  " + word )
+                logger.debug( "Reading: " + word )
                 val wordLookup = lookup.lookupWord( word )
                         
                 wordLookup match
@@ -457,22 +454,22 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                 wordIndex += 1
             }
             
-            println( "Looking up topic names for " + topicSet.size + " topics." )
+            logger.debug( "Looking up topic names for " + topicSet.size + " topics." )
             //val topicNameQuery = topicDb.prepare( "SELECT t1.name, t2.count FROM topics AS t1 LEFT JOIN numTopicsForWhichThisIsAContext AS t2 on t1.id=t2.topicId WHERE id=?", Col[String]::Col[Int]::HNil )
             val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
            
             if ( false )
             { 
-                println( "Build category graph." )
+                logger.debug( "Build category graph." )
                 val fullGraph = categoryHierarchy.toTop( topicSet, (f, t, w) => w )
-                println( "  complete..." )
+                logger.debug( "  complete..." )
                 
-                println( "Build and run category hierarchy" )
+                logger.debug( "Build and run category hierarchy" )
                 val b = new CHBuilder( topicSet, fullGraph, id => id.toString )
-                println( "  run..." )
+                logger.debug( "  run..." )
                 val maxTopicDistance = 6.0
                 b.run( (x,y) => 1, maxTopicDistance )
-                println( "  complete..." )
+                logger.debug( "  complete..." )
             }
             
             for ( topicId <- topicSet )
@@ -499,7 +496,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                 }
             } )
             
-            println( "Building new ambiguity forest" )
+            logger.debug( "Building new ambiguity forest" )
 
             val f = new AmbiguityForest( wordList, topicNameMap, topicCategoryMap, topicDb, categoryHierarchy )
             f.addTopics( possiblePhrasesSorted )

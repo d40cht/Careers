@@ -7,7 +7,9 @@ import scala.collection.immutable.TreeMap
 
 import scala.collection.Iterator
 
-class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phraseMap : ArrayList[EfficientArray[EfficientIntPair]] )
+import com.weiglewilczek.slf4s.{Logging}
+
+class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phraseMap : ArrayList[EfficientArray[EfficientIntPair]] ) extends Logging
 {
     def this() = this( new EfficientArray[FixedLengthString](0), new ArrayList[EfficientArray[EfficientIntPair]]() )
     
@@ -169,14 +171,14 @@ class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phra
 }
 
 
-class PhraseMapBuilder( wordMapBase : String, phraseMapBase : String )
+class PhraseMapBuilder( wordMapBase : File, phraseMapBase : File ) extends Logging
 {
     val pml = new PhraseMapLookup()
     
     //def buildWordMap( wordSource : KVWritableIterator[Text, IntWritable] ) =
     def buildWordMap( wordSource : Iterator[(String, Int)] ) =
     {
-        println( "Building word dictionary" )
+        logger.debug( "Building word dictionary" )
         val builder = new EfficientArray[FixedLengthString](0).newBuilder
         
         for ( (word, count) <- wordSource )
@@ -190,7 +192,7 @@ class PhraseMapBuilder( wordMapBase : String, phraseMapBase : String )
             }
         }
     
-        println( "Sorting array." )
+        logger.debug( "Sorting array." )
         val sortedWordArray = builder.result().sortWith( _.value < _.value )
         
         var index = 0
@@ -199,8 +201,8 @@ class PhraseMapBuilder( wordMapBase : String, phraseMapBase : String )
             //println( " >> -- " + word.value + ": " + index )
             index += 1
         }
-        println( "Array length: " + sortedWordArray.length )
-        sortedWordArray.save( new DataOutputStream( new FileOutputStream( new File(wordMapBase + ".bin") ) ) )
+        logger.debug( "Array length: " + sortedWordArray.length )
+        sortedWordArray.save( new DataOutputStream( new FileOutputStream( wordMapBase + ".bin" ) ) )
         
         sortedWordArray
     }
@@ -208,10 +210,10 @@ class PhraseMapBuilder( wordMapBase : String, phraseMapBase : String )
     //def parseSurfaceForms( sfSource : KVWritableIterator[Text, TextArrayCountWritable] ) =
     def parseSurfaceForms( sfSource : Iterator[(String, List[(String, Int)])] ) =  
     {
-        println( "Parsing surface forms" )
+        logger.debug( "Parsing surface forms" )
         
         val wordMap = new EfficientArray[FixedLengthString](0)
-        wordMap.load( new DataInputStream( new FileInputStream( new File(wordMapBase + ".bin") ) ) )
+        wordMap.load( new DataInputStream( new FileInputStream( wordMapBase + ".bin" ) ) )
         
         val builder = new EfficientArray[FixedLengthString](0).newBuilder
 
@@ -269,7 +271,7 @@ class PhraseMapBuilder( wordMapBase : String, phraseMapBase : String )
         var arrayData = new ArrayList[EfficientArray[EfficientIntPair]]()
         for ( i <- 0 until phraseData.size )
         {
-            println( "  Phrasedata pass: " + i )
+            logger.debug( "  Phrasedata pass: " + i )
             val treeData = phraseData.get(i)
             var newIdToIndexMap = new TreeMap[Int, Int]()
             
