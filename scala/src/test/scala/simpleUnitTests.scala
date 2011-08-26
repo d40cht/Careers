@@ -1,4 +1,6 @@
 import org.scalatest.FunSuite
+import org.scalatest.Tag
+
 import scala.collection.mutable.{Stack, ArrayBuffer}
 import scala.collection.immutable.{HashSet, HashMap}
 import scala.util.Random
@@ -25,7 +27,7 @@ import java.io.{DataInput, DataOutput, DataInputStream, DataOutputStream, FileIn
 
 class DisjointSetTest extends FunSuite
 {
-    test( "Disjoint set" )
+    test( "Disjoint set", Tag("UnitTests") )
     {
         val d1 = new DisjointSet[Int](1)
         val d2 = new DisjointSet[Int](2)
@@ -82,11 +84,6 @@ class DisjointSetTest extends FunSuite
         assert( d2.size() === 4 )
         assert( d3.size() === 4 )
         assert( d4.size() === 4 )
-        
-        println( d1.members().map( _.value ) )
-        println( d2.members().map( _.value ) )
-        println( d3.members().map( _.value ) )
-        println( d4.members().map( _.value ) )
         assert( d1.members() === List(d1, d3, d4, d2) )
         assert( d2.members() === List(d1, d3, d4, d2) )
         assert( d3.members() === List(d1, d3, d4, d2) )
@@ -97,32 +94,26 @@ class DisjointSetTest extends FunSuite
 
 class SizeTests extends FunSuite
 {
-    test( "Efficient array large test" )
+    test( "Efficient array large test", Tag("UnitTests") )
     {
         val count = 50000
         val tarr = new EfficientArray[FixedLengthString](0)
         val builder = tarr.newBuilder
         
-        println( "Building...")
         for ( i <- 0 until count )
         {
             builder += new FixedLengthString(((count-1)-i).toString)
         }
         
-        println( "Extracting" )
         val data = builder.result()
         
-        println( "Sorting" )
         val sorted = data.sortWith( _.value.toInt < _.value.toInt )
         
-        println( "Saving" )
         sorted.save( new DataOutputStream( new FileOutputStream( new File("largeTest.bin" ) ) ) )
         
-        println( "Loading" )
         val larr = new EfficientArray[FixedLengthString](0)
         larr.load( new DataInputStream( new FileInputStream( new File("largeTest.bin") ) ) )
         
-        println( "Validating" )
         assert( larr.size === count )
         for ( i <- 0 until count )
         {
@@ -130,7 +121,7 @@ class SizeTests extends FunSuite
         }
     }
     
-    test("Efficient array builder and serialization test")
+    test( "Efficient array builder and serialization test", Tag("UnitTests") )
     {
         val tarr = new EfficientArray[FixedLengthString](0)
         val builder = tarr.newBuilder
@@ -156,7 +147,7 @@ class SizeTests extends FunSuite
         }
     }
     
-    test("Efficient array lower bound test")
+    test( "Efficient array lower bound test", Tag("UnitTests") )
     {
         def comp( x : EfficientIntPair, y : EfficientIntPair ) =
         {
@@ -216,7 +207,7 @@ class SizeTests extends FunSuite
         }
     }
 
-    test("Efficient array test 1")
+    test( "Efficient array test 1", Tag("UnitTests") )
     {
         val arr = new EfficientArray[FixedLengthString]( 5 )
         arr(0) = new FixedLengthString( "57" )
@@ -283,7 +274,7 @@ class SizeTests extends FunSuite
         //arr3(0) = new FixedLengthString("123456789123456789")
     }
 
-    test("Array size test")
+    test( "Array size test", Tag("UnitTests") )
     {
         System.gc()
         val before = Runtime.getRuntime().totalMemory()
@@ -311,7 +302,7 @@ class SizeTests extends FunSuite
 
 class BerkeleyDbTests extends FunSuite
 {
-    test("Simple test")
+    test( "Simple test", Tag("UnitTests") )
     {
         val envPath = new File( "./bdblocaltest" )
         
@@ -338,14 +329,13 @@ class VariousDbpediaParseTests extends FunSuite
 {
     val markupParser = WikiParser()
     
-    test("Redirect parsing")
+    test( "Redirect parsing", Tag("UnitTests") )
     {
         val pageTitle = "Academic Acceleration"
         val pageText = "#REDIRECT [[Academic acceleration]] {{R from other capitalisation}}"
         
         val page = new WikiPage( WikiTitle.parse( pageTitle ), 0, 0, pageText )
         val parsed = markupParser( page )
-        println( parsed )
         assert( parsed.isRedirect === true )
     }
     
@@ -354,7 +344,7 @@ class VariousDbpediaParseTests extends FunSuite
  
 class ResTupleTestSuite extends FunSuite
 {
-    test("SQLite wrapper test")
+    test( "SQLite wrapper test", Tag("UnitTests") )
     {
         val db = new SQLiteWrapper( null )
         db.exec( "BEGIN" )
@@ -368,7 +358,6 @@ class ResTupleTestSuite extends FunSuite
         val getStatement = db.prepare( "SELECT * from test ORDER BY NUMBER ASC", Col[Int]::Col[Double]::Col[String]::HNil )
 	    for ( (row, expected) <- getStatement.zip(data.iterator) )
         {
-            println( ":__: " + _1(row).get )
         	assert( expected._1 === _1(row).get )
         	assert( expected._2 === _2(row).get )
         	assert( expected._3 === _3(row).get )
@@ -388,7 +377,7 @@ class BasicTestSuite1 extends FunSuite
         return markupFiltered
     }
 
-    test("A first test")
+    test("A first test", Tag("UnitTests"))
     {
         assert( 3 === 5-2 )
         assert( "a" === "a" )
@@ -400,18 +389,14 @@ class BasicTestSuite1 extends FunSuite
         }
     }
     
-    test("A simple dbpedia test")
+    test("A simple dbpedia test", Tag("UnitTests"))
     {
         val topicTitle = "Hello_World"
         val topicText = "[[Blah|'''blah blah''']] ''An italicised '''bit''' of text'' <b>Some markup</b>"
-        
-        //println( topicText.filter(_ != '\'' ) )
 
         val markupParser = WikiParser()
         val page = new WikiPage( WikiTitle.parse( topicTitle.toString ), 0, 0, topicText.toString )
         val parsed = markupParser( page )
-        
-        //println( parsed.toString() )
     }
 }
 

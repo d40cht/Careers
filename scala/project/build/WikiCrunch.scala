@@ -9,6 +9,7 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
     val commonsMath = "org.apache.commons" % "commons-math" % "2.0"
     val automaticresourcemanagement = "com.github.jsuereth.scala-arm" % "scala-arm_2.8.0" % "0.2"
     val httpclient = "org.apache.httpcomponents" % "httpclient" % "4.1.1"
+    val commonsIo = "org.apache.commons" % "commons-io" % "1.3.2"
     val commonsCollections = "commons-collections" % "commons-collections" % "3.0"
     //val jung2 = "net.sf.jung" % "jung2" % "2.0.1"
     //val jgrapht = "jgrapht" % "jgrapht" % "0.7.3"

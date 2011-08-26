@@ -1,4 +1,6 @@
 import org.scalatest.FunSuite
+import org.scalatest.Tag
+
 import scala.io.Source._
 
 import java.io.{File, BufferedReader, FileReader, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream, FileWriter}
@@ -92,7 +94,7 @@ class CategoryDistanceTests extends FunSuite
 
 class CategoryHierarchyTest extends FunSuite
 {
-    test("Category hierarchy MST")
+    test("Category hierarchy MST", )
     {
         val topicIds = List( 1, 2, 3, 4 )
         val edges = List(
@@ -178,7 +180,7 @@ class CommunityTests extends FunSuite
 class WikiBatchPhraseDictTest extends FunSuite
 {
     
-    test( "Phrase map etc" )
+    test( "Phrase map etc", Tag("UnitTests") )
     {
         // Parse all words from a text
         val wordSource = List[(String, Int)]( ("on", 10), ("the", 10), ("first", 10), ("day", 10), ("of", 10), ("christmas", 10), ("my", 10), ("true", 10), ("love", 10), ("sent", 10), ("to", 10), ("me", 10) )
@@ -218,7 +220,7 @@ class DisambiguatorTest extends FunSuite
     
     // NOTE: Sad to have 'test suite' and not 'test suites'. Consider stemming.
     
-    test( "Category hierarchy" )
+    test( "Category hierarchy", Tag("DataTests") )
     {
         if ( false )
         {
@@ -338,7 +340,7 @@ class DisambiguatorTest extends FunSuite
         }
     }
     
-    test( "New disambiguator test" )
+    test( "New disambiguator test", Tag("DataTests") )
     {
         /*val v = new PriorityQ[Int]()
         v.add( 12.0, 4 )
@@ -402,7 +404,7 @@ class DisambiguatorTest extends FunSuite
         }
     }
     
-    test( "Disambiguator short phrase test" )
+    test( "Disambiguator short phrase test", Tag("DataTests") )
     {
         if ( false )
         {
@@ -473,7 +475,7 @@ class DisambiguatorTest extends FunSuite
     
     
     
-    test( "Disambiguation alternative generation" )
+    test( "Disambiguation alternative generation", Tag("UnitTests") )
     {
         //             0            1          2            3           4           5           6            7            8        9      10
         val words = "covent" :: "garden" :: "barack" :: "hussein" :: "obama" :: "design" :: "pattern" :: "language" :: "about" :: "a" :: "boy" :: Nil
