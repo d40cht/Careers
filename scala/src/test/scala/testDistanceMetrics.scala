@@ -10,67 +10,10 @@ import scala.math.{log}
 import scala.xml._
 import scala.io.Source._
 import org.seacourt.utility._
-import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering}
+import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering, TopicVector}
 
 
-class TopicVector( val id : Int )
-{
-    type TopicId = Int
-    type TopicWeight = Double
-
-    class TopicElement( val weight : TopicWeight, val name : String, val groupId : Int, val primaryTopic : Boolean )
-    {
-    }
-    
-    private var topics = HashMap[TopicId, TopicElement]()
-    
-    def addTopic( id : TopicId, weight : TopicWeight, name : String, groupId : Int, primaryTopic : Boolean )
-    {
-        topics = topics.updated( id, new TopicElement( weight, name, groupId, primaryTopic ) )
-    }
-    
-    def distance( other : TopicVector ) =
-    {
-        var AB = 0.0
-        var AA = 0.0
-        var BB = 0.0
-        
-        // Weight, name, groupId
-        var weightedMatches = List[(Double, String, Boolean, Int)]()
-        
-        // Choose top N from each
-        val topTopics = topics
-        val topOtherTopics = other.topics
-        for ( (id, te) <- topTopics )
-        {
-            if ( topOtherTopics.contains(id) )
-            {
-                val otherte = topOtherTopics(id)
-                
-                if ( true )//te.primaryTopic || otherte.primaryTopic )
-                {
-                val combinedWeight = te.weight * otherte.weight
-                val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
-                
-                
-                weightedMatches = (priorityWeight, te.name, te.primaryTopic, te.groupId) :: weightedMatches
-                
-                AB += combinedWeight
-            }
-            }
-            AA += (te.weight*te.weight)
-        }
-        
-        for ( (id, te) <- other.topics )
-        {
-            BB += (te.weight*te.weight)
-        }
-        
-        val cosineDist = AB / (math.sqrt(AA) * math.sqrt(BB))
-        
-        ( cosineDist, weightedMatches.sortWith( _._1 > _._1 ) )
-    }
-}
+import org.seacourt.serialization.SerializationProtocol._
 
 class DistanceMetricTest extends FunSuite
 {
@@ -96,6 +39,7 @@ class DistanceMetricTest extends FunSuite
         var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
         val topicClustering = new AgglomClustering[WrappedTopicId]()
         
+        var linkWeights = new AutoMap[(Int, Int), Double]( x => 0.0 )
         val topicWeightings = new AutoMap[Int, Double]( x => 0.0 )
         for ( site <- data \ "sites" \ "site" )
         {
@@ -108,10 +52,14 @@ class DistanceMetricTest extends FunSuite
                 val peerId = (peer \\ "id").text.toInt
                 val weightings = (peer \\ "component").foldLeft( List[(Int, Double)]() )( (l, el) => ( (el \\ "contextTopicId").text.toInt, (el \\ "weight").text.toDouble) :: l )
                 
-                for ( (id, weight) <- weightings )
+                for ( (contextId, weight) <- weightings )
                 {
-                    topicClustering.update( topicMap(topicId), topicMap(id), weight )
-                    topicWeightings.set( id, topicWeightings(id) + weight )
+                    val key = if (topicId < contextId) (topicId, contextId) else (contextId, topicId)
+                    linkWeights.set( key, linkWeights(key) + weight )
+                    
+                    topicClustering.update( topicMap(topicId), topicMap(contextId), weight )
+                    topicWeightings.set( contextId, topicWeightings(contextId) + weight )
+                    topicWeightings.set( topicId, topicWeightings(topicId) + weight )
                 }
             }
         }
@@ -146,6 +94,7 @@ class DistanceMetricTest extends FunSuite
                 }
             }                
         }
+        topicVector.topicLinks = linkWeights.map( x => (x._1._1, x._1._2, x._2) ).toList
         
         topicVector
     }
@@ -158,6 +107,8 @@ class DistanceMetricTest extends FunSuite
             
             
             val tvs = (1 until 34).map( i => makeTopicVector( "./ambiguityresolution%d.xml".format(i), i ) )
+            
+            tvs.zipWithIndex.foreach( tv => sbinary.Operations.toFile( tv._1)( new java.io.File( "./tv%d.bin".format(tv._2) ) ) )
             
             def wikiLink( topicName : String ) =
             {
@@ -188,7 +139,7 @@ class DistanceMetricTest extends FunSuite
 
                                                 {
                                                     var rankBuilder = new AutoMap[Int, List[(Int, String, Boolean, Double)]]( x => Nil )
-                                                for ( ((weight, name, primaryTopic, groupId), index) <- why.slice(0, 100).zipWithIndex )
+                                                    for ( ((weight, name, primaryTopic, groupId), index) <- why.slice(0, 100).zipWithIndex )
                                                     {
                                                         val rank = index + 1
                                                         rankBuilder.set( groupId, (rank, name, primaryTopic, weight) :: rankBuilder(groupId) )

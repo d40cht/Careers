@@ -33,7 +33,44 @@ import resource._
 import java.io.{DataInput, DataOutput, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream}
 import java.io.{StringReader}
 
+import sbinary._
+import sbinary.Operations._
 
+
+case class TestClass( val a : Int, val b : Double )
+{
+}
+
+
+object MyProtocol extends sbinary.DefaultProtocol
+{
+    implicit object TestClassFormat extends Format[TestClass]
+    {
+        def reads(in : Input) = new TestClass( read[Int](in), read[Double](in) )
+        def writes(out : Output, value : TestClass)
+        {
+            write(out, value.a)
+            write(out, value.b)
+        }
+    }
+}
+
+import MyProtocol._
+
+class SBinarySerializationTest extends FunSuite
+{
+    test( "Simple sbinary serialization tests", TestTags.unitTests )
+    {
+        val a = (1, "2", 3.0)
+        assert( a === fromByteArray[(Int, String, Double)]( toByteArray(a) ) )
+        
+        val b = new TestClass( 12, 13.0 )
+        assert( b === new TestClass( 12, 13.0 ) )
+        
+        assert( b === fromByteArray[TestClass]( toByteArray(b) ) )
+        
+    }
+}
 
 class TokenizerTest extends FunSuite
 {

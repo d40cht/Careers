@@ -17,9 +17,9 @@ class WikiCrunchProject(info : ProjectInfo) extends DefaultProject(info) with Pr
     //val jungAlgorithms = "net.sf.jung" % "jung-algorithms" % "2.0.1"
     val h2 = "com.h2database" % "h2" % "1.3.158"
     val scalaQuery = "org.scalaquery" %% "scalaquery" % "0.9.4"
-    val dependency = "net.databinder.spde" % "processing-core" % "1.0.3__0.1.3"
     val slf4jLog4j12 = "org.slf4j" % "slf4j-log4j12" % "1.6.0"
     val slf4s = "com.weiglewilczek.slf4s" %% "slf4s" % "1.0.6"
+    val sbinary_2_8_1 = "org.scala-tools.sbinary" % "sbinary_2.8.1" % "0.4.0"
 
 
     

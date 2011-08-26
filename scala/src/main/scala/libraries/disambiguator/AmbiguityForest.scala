@@ -301,7 +301,7 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]] extends Logging
     var clusterDistances = HashMap[(NodeType, NodeType), Double]()
     var sets = HashMap[NodeType, DJSet]()
     
-    private def keyPair( from : NodeType, to : NodeType ) =
+    def keyPair( from : NodeType, to : NodeType ) =
     {
         val asIs = from < to
         var a = if (asIs) from else to
