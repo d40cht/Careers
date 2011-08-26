@@ -10,11 +10,9 @@ import scala.math.{log, pow}
 import scala.xml._
 import scala.io.Source._
 import org.seacourt.utility._
-import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering, TopicVector}
+import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering, TopicVector, TopicElement}
 
-class TopicElement( val weight : Double, val name : String, val groupId : Int, val primaryTopic : Boolean )
-{
-}
+
 
 import org.seacourt.serialization.SerializationProtocol._
 
@@ -57,18 +55,12 @@ class DistanceMetricTest extends FunSuite
                 
                 for ( (contextId, weight) <- weightings )
                 {
-<<<<<<< HEAD
-                    val reweight = weight//pow( weight, 0.7 )
-                    topicClustering.update( topicMap(topicId), topicMap(id), reweight )
-                    topicWeightings.set( id, topicWeightings(id) + reweight )
-=======
                     val key = if (topicId < contextId) (topicId, contextId) else (contextId, topicId)
                     linkWeights.set( key, linkWeights(key) + weight )
                     
                     topicClustering.update( topicMap(topicId), topicMap(contextId), weight )
                     topicWeightings.set( contextId, topicWeightings(contextId) + weight )
                     topicWeightings.set( topicId, topicWeightings(topicId) + weight )
->>>>>>> origin/master
                 }
             }
         }
@@ -109,24 +101,10 @@ class DistanceMetricTest extends FunSuite
         topicVector
     }
 
-<<<<<<< HEAD
-    test( "DistanceMetricTest", Tag("DataTest") )
-    {
-        if ( true )
-        {
-=======
     test( "DistanceMetricTest", TestTags.largeDataTests )
     {
         if ( true )
         {
-            val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)" )
-            
-            
-            val tvs = (1 until 34).map( i => makeTopicVector( "./ambiguityresolution%d.xml".format(i), i ) )
-            
-            tvs.zipWithIndex.foreach( tv => sbinary.Operations.toFile( tv._1)( new java.io.File( "./tv%d.bin".format(tv._2) ) ) )
-            
->>>>>>> origin/master
             def wikiLink( topicName : String ) =
             {
                 val wikiBase = "http://en.wikipedia.org/wiki/"
@@ -137,14 +115,14 @@ class DistanceMetricTest extends FunSuite
             
             
             val tvs = (1 until 34).map( i => makeTopicVector( "/home/alexw/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i ) )
+            tvs.zipWithIndex.foreach( tv => sbinary.Operations.toFile( tv._1)( new java.io.File( "./tv%d.bin".format(tv._2) ) ) )
 
             val res =
                 <html>
                     <head></head>
                     <body style="font-family:sans-serif">
-                                    {
+                    {
                         for ( tv1 <- tvs ) yield
-<<<<<<< HEAD
                         {
                             val rankedTopics = tv1.topics.map( _._2 ).filter( _.primaryTopic ).toList.sortWith( _.weight > _.weight ).zipWithIndex
                             var grouped = new AutoMap[Int, List[(Int, TopicElement)]]( x => Nil )
@@ -210,18 +188,6 @@ class DistanceMetricTest extends FunSuite
                                     
                                     for ( (tv2, (dist, why)) <- dists.sortWith( _._2._1 > _._2._1 ) ) yield
                                     {
-=======
-                                        {
-                            <div style="text-align:justify">
-                            <h1>{names(tv1.id-1)}</h1>
-                                            
-                            <table>
-                                        {
-                                val dists = for ( tv2 <- tvs if tv1.id != tv2.id ) yield (tv2, tv1.distance(tv2))
-                                    
-                                    for ( (tv2, (dist, why)) <- dists.sortWith( _._2._1 > _._2._1 ) ) yield
-                                    {
->>>>>>> origin/master
                                         if ( dist > 0.01 )
                                         {
                                             <tr>
@@ -229,11 +195,7 @@ class DistanceMetricTest extends FunSuite
 
                                                 {
                                                     var rankBuilder = new AutoMap[Int, List[(Int, String, Boolean, Double)]]( x => Nil )
-<<<<<<< HEAD
                                                     for ( ((weight, name, primaryTopic, groupId), index) <- why.slice(0, 200).zipWithIndex )
-=======
-                                                    for ( ((weight, name, primaryTopic, groupId), index) <- why.slice(0, 100).zipWithIndex )
->>>>>>> origin/master
                                                     {
                                                         val rank = index + 1
                                                         rankBuilder.set( groupId, (rank, name, primaryTopic, weight) :: rankBuilder(groupId) )

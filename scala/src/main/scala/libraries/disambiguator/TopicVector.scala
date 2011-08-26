@@ -14,15 +14,34 @@ class TopicVector( val id : Int )
     var topics = HashMap[TopicId, TopicElement]()
     var topicLinks = List[(TopicId, TopicId, Double)]()
     
+    def size = topics.size
+    
     def addTopic( id : TopicId, weight : TopicWeight, name : String, groupId : Int, primaryTopic : Boolean )
     {
         topics = topics.updated( id, new TopicElement( weight, name, groupId, primaryTopic ) )
     }
     
-    def addTopic( id : TopicId, te : TopicElement )
+    def addTopic( id : TopicId, te : TopicElement ) =
     {
         topics = topics.updated( id, te )
+        this
     }
+    
+     def prunedToTop( N : Int ) =
+     {
+         val prunedSortedList = topics.toList.sortWith( _._2.weight > _._2.weight ).slice( 0, N )
+         
+         prunedSortedList.foldLeft( new TopicVector( id ) )( (tv, idte) => tv.addTopic( idte._1, idte._2 ) )
+     }
+    
+     def pruneSolitaryContexts( other : TopicVector, strict : Boolean )
+     {
+         topics = topics.filter( el =>
+         {
+             val (id, te) = el
+             te.primaryTopic || (!strict && (other.topics.contains(id) && other.topics(id).primaryTopic))
+         } )
+     }    
     
     def distance( other : TopicVector ) =
     {
