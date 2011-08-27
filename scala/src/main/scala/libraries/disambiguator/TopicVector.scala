@@ -6,13 +6,12 @@ class TopicElement( val weight : Double, val name : String, val groupId : Int, v
 {
 }
 
-class TopicVector( val id : Int )
+class TopicVector()
 {
     type TopicId = Int
     type TopicWeight = Double
     
     var topics = HashMap[TopicId, TopicElement]()
-    var topicLinks = List[(TopicId, TopicId, Double)]()
     
     def size = topics.size
     
@@ -31,7 +30,7 @@ class TopicVector( val id : Int )
      {
          val prunedSortedList = topics.toList.sortWith( _._2.weight > _._2.weight ).slice( 0, N )
          
-         prunedSortedList.foldLeft( new TopicVector( id ) )( (tv, idte) => tv.addTopic( idte._1, idte._2 ) )
+         prunedSortedList.foldLeft( new TopicVector() )( (tv, idte) => tv.addTopic( idte._1, idte._2 ) )
      }
     
      def pruneSolitaryContexts( other : TopicVector, strict : Boolean )
@@ -85,3 +84,10 @@ class TopicVector( val id : Int )
         ( cosineDist, weightedMatches.sortWith( _._1 > _._1 ) )
     }
 }
+
+class DocumentDigest( val id : Int, val topicVector : TopicVector, val topicLinks : List[(Int, Int, Double)] )
+{
+    type LinksType = List[(Int, Int, Double)]
+}
+
+

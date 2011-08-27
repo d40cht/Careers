@@ -3,7 +3,7 @@ package org.seacourt.serialization
 import sbinary._
 import sbinary.Operations._
 
-import org.seacourt.disambiguator.{TopicElement, TopicVector}
+import org.seacourt.disambiguator.{TopicElement, TopicVector, DocumentDigest}
 
 object SerializationProtocol extends sbinary.DefaultProtocol
 {
@@ -23,8 +23,7 @@ object SerializationProtocol extends sbinary.DefaultProtocol
     {
         def reads(in : Input) =
         {
-            val id = read[Int](in)
-            val tv = new TopicVector( id )
+            val tv = new TopicVector()
             
             val size = read[Int](in)
             for ( i <- 0 until size )
@@ -33,19 +32,35 @@ object SerializationProtocol extends sbinary.DefaultProtocol
                 val te = read[TopicElement](in)
                 tv.addTopic( teid, te )
             }
-            tv.topicLinks = read[List[(Int, Int, Double)]](in)
             tv
         }
         def writes(out : Output, tv : TopicVector)
         {
-            write(out, tv.id)
             write(out, tv.topics.size)
             for ( (teid, te) <- tv.topics )
             {
                 write(out, teid)
                 write(out, te)
             }
-            write(out, tv.topicLinks)
+        }
+    }
+    
+    implicit object DocumentDigestFormat extends Format[DocumentDigest]
+    {
+        def reads( in : Input ) =
+        {
+            val id = read[Int](in)
+            val tv = read[TopicVector](in)
+            val links = read[DocumentDigest#LinksType](in)
+            
+            new DocumentDigest(id, tv, links)
+        }
+        def writes( out : Output, dd : DocumentDigest )
+        {
+            write( out, dd.id )
+            write( out, dd.topicVector )
+            write( out, dd.topicLinks )
         }
     }
 }
+

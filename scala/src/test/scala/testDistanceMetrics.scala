@@ -10,7 +10,7 @@ import scala.math.{log, pow}
 import scala.xml._
 import scala.io.Source._
 import org.seacourt.utility._
-import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering, TopicVector, TopicElement}
+import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering, TopicVector, TopicElement, DocumentDigest}
 
 
 
@@ -18,7 +18,7 @@ import org.seacourt.serialization.SerializationProtocol._
 
 class DistanceMetricTest extends FunSuite
 {
-    def makeTopicVector( fileName : String, documentId : Int ) =
+    def makeDocumentDigest( fileName : String, documentId : Int ) =
     {
         val data = XML.loadFile( fileName )
         
@@ -38,6 +38,8 @@ class DistanceMetricTest extends FunSuite
         }*/
         
         val idMap = (data \\ "site").foldLeft(HashMap[Int, Int]())( (m, s) => m.updated((s \ "id").text.toInt, (s \ "topicId").text.toInt) )
+        
+        println( "Id map size: " + idMap.size )
         
         var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
         val topicClustering = new AgglomClustering[WrappedTopicId]()
@@ -83,7 +85,7 @@ class DistanceMetricTest extends FunSuite
         } )
 
         
-        val topicVector = new TopicVector(documentId)
+        val topicVector = new TopicVector()
         for ( (id, weight) <- topicWeightings )
         {
             val (name, primaryTopic) = nameMap(id)
@@ -101,9 +103,8 @@ class DistanceMetricTest extends FunSuite
                 }
             }                
         }
-        topicVector.topicLinks = linkWeights.map( x => (x._1._1, x._1._2, x._2) ).toList
         
-        topicVector
+        new DocumentDigest( documentId, topicVector, linkWeights.map( x => (x._1._1, x._1._2, x._2) ).toList )
     }
 
     test( "DistanceMetricTest", TestTags.largeDataTests )
@@ -118,17 +119,21 @@ class DistanceMetricTest extends FunSuite
             
             val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)" )
             
+            //val range = 1 until 34
+            val range = 1 until 7
+            val dds = range.map( i => makeDocumentDigest( "./ambiguityresolution%d.xml".format(i), i ) )
+            dds.zipWithIndex.foreach( el => sbinary.Operations.toFile( el._1 )( new java.io.File( "./dd%d.bin".format(el._2) ) ) )
             
-            val tvs = (1 until 34).map( i => makeTopicVector( "./ambiguityresolution%d.xml".format(i), i ) )
-            tvs.zipWithIndex.foreach( tv => sbinary.Operations.toFile( tv._1)( new java.io.File( "./tv%d.bin".format(tv._2) ) ) )
+            //val dds = range.map( i => sbinary.Operations.fromFile[DocumentDigest]( new java.io.File( "./dd%d.bin".format(i) ) ) )
 
             val res =
                 <html>
                     <head></head>
                     <body style="font-family:sans-serif">
                     {
-                        for ( tv1 <- tvs ) yield
+                        for ( dd1 <- dds ) yield
                         {
+                            val tv1 = dd1.topicVector
                             val rankedTopics = tv1.topics.map( _._2 ).filter( _.primaryTopic ).toList.sortWith( _.weight > _.weight ).zipWithIndex
                             var grouped = new AutoMap[Int, List[(Int, TopicElement)]]( x => Nil )
                             for ( (te, rank) <- rankedTopics )
@@ -153,7 +158,7 @@ class DistanceMetricTest extends FunSuite
                             
                             
                             <div style="text-align:justify">
-                                <h1>{names(tv1.id-1)}</h1>
+                                <h1>{names(dd1.id-1)}</h1>
                                 
                                 <ul>
                                 {
@@ -170,8 +175,9 @@ class DistanceMetricTest extends FunSuite
                                 
                                 <table>
                                 {
-                                    val dists = for ( tv2 <- tvs if tv1.id != tv2.id ) yield
+                                    val dists = for ( dd2 <- dds if dd1.id != dd2.id ) yield
                                     {
+                                        val tv2 = dd2.topicVector
                                         if ( true )
                                         {
                                             val minSize = (tv1.size min tv2.size)
@@ -183,20 +189,21 @@ class DistanceMetricTest extends FunSuite
                                             
                                             assert( tv1cp.size <= minSize )
                                             assert( tv2cp.size <= minSize )
-                                            (tv2cp, tv1cp.distance(tv2cp))
+                                            (dd2, tv1cp.distance(tv2cp))
                                         }
                                         else
                                         {
-                                            (tv2, tv1.distance(tv2))
+                                            (dd2, tv1.distance(tv2))
                                         }
                                     }
                                     
-                                    for ( (tv2, (dist, why)) <- dists.sortWith( _._2._1 > _._2._1 ) ) yield
+                                    for ( (dd2, (dist, why)) <- dists.sortWith( _._2._1 > _._2._1 ) ) yield
                                     {
+                                        val tv2 = dd2.topicVector
                                         if ( dist > 0.01 )
                                         {
                                             <tr>
-                                                <td><h3>{names(tv2.id-1)}:&nbsp;{"%.2f".format(dist)}</h3></td>
+                                                <td><h3>{names(dd2.id-1)}:&nbsp;{"%.2f".format(dist)}</h3></td>
 
                                                 {
                                                     var rankBuilder = new AutoMap[Int, List[(Int, String, Boolean, Double)]]( x => Nil )

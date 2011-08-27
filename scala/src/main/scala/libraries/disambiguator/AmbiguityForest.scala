@@ -1083,6 +1083,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         logger.debug( "Dumping resolutions." )
         dumpResolutions()
         
+        var allTopics = HashSet[TopicDetailLink]()
         for ( site <- sites )
         {
             assert( site.combs.size <= 1 )
@@ -1091,8 +1092,18 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                 for ( altSite <- alternative.sites )
                 {
                     assert( altSite.sf.topics.size <= 1 )
+                    
+                    if ( altSite.sf.topics.size == 1 )
+                    {
+                        allTopics += altSite.sf.topics.head
+                    }
                 }
             }
+        }
+        
+        for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites; peer <- altSite.sf.topics.head.peers )
+        {
+            assert( allTopics.contains( peer._1 ) )
         }
        
         // Use top-level aggregate clustering to prune 
@@ -1546,6 +1557,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                     {
                         allTopicIds += topic.topicId
                         
+                        assert( topic.active )
                         <site>
                             <id>{topicDetailIds(topic)}</id>
                             <topicId>{topic.topicId}</topicId>
@@ -1556,6 +1568,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                             {
                                 for ( (toTopic, peerLink) <- topic.peers ) yield
                                 {
+                                    assert( toTopic.active )
                                     <peer>
                                         <id>{topicDetailIds(toTopic)}</id>
                                         {
