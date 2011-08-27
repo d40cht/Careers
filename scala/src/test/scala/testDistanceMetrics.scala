@@ -37,6 +37,8 @@ class DistanceMetricTest extends FunSuite
             }
         }*/
         
+        val idMap = (data \\ "site").foldLeft(HashMap[Int, Int]())( (m, s) => m.updated((s \ "id").text.toInt, (s \ "topicId").text.toInt) )
+        
         var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
         val topicClustering = new AgglomClustering[WrappedTopicId]()
         
@@ -53,15 +55,18 @@ class DistanceMetricTest extends FunSuite
                 val peerId = (peer \\ "id").text.toInt
                 val weightings = (peer \\ "component").foldLeft( List[(Int, Double)]() )( (l, el) => ( (el \\ "contextTopicId").text.toInt, (el \\ "weight").text.toDouble) :: l )
                 
+                var totalWeight = 0.0
                 for ( (contextId, weight) <- weightings )
                 {
                     val key = if (topicId < contextId) (topicId, contextId) else (contextId, topicId)
                     linkWeights.set( key, linkWeights(key) + weight )
                     
-                    topicClustering.update( topicMap(topicId), topicMap(contextId), weight )
+                    //topicClustering.update( topicMap(topicId), topicMap(contextId), weight )
                     topicWeightings.set( contextId, topicWeightings(contextId) + weight )
                     topicWeightings.set( topicId, topicWeightings(topicId) + weight )
+                    totalWeight += 0.0
                 }
+                topicClustering.update( topicMap(idMap(id)), topicMap(idMap(peerId)), totalWeight )
             }
         }
         
@@ -114,7 +119,7 @@ class DistanceMetricTest extends FunSuite
             val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)" )
             
             
-            val tvs = (1 until 34).map( i => makeTopicVector( "/home/alexw/AW/optimal/scala/ambiguityresolution%d.xml".format(i), i ) )
+            val tvs = (1 until 34).map( i => makeTopicVector( "./ambiguityresolution%d.xml".format(i), i ) )
             tvs.zipWithIndex.foreach( tv => sbinary.Operations.toFile( tv._1)( new java.io.File( "./tv%d.bin".format(tv._2) ) ) )
 
             val res =

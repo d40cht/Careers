@@ -549,7 +549,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
     {
         debugData = entryFn() :: debugData
     }
-    def debug = true
+    def debug = false
     
     def addTopics( sortedPhrases : List[AmbiguityForest.SurfaceFormDetails] )
     {
