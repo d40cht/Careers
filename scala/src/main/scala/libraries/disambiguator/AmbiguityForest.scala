@@ -214,13 +214,13 @@ class AmbiguitySite( val start : Int, val end : Int )
                         }
                     }
                     
-                    def downWeightPeers( q : PriorityQ[TopicDetailLink], topicNameMap : HashMap[Int, String] )
+                    def downWeightPeers( enqueueFn : (Double, TopicDetailLink) => Unit, dequeueFn : (Double, TopicDetailLink) => Unit )
                     {
                         for ( (peer, linkWeight) <- peers )
                         {
                             if ( !peer.processed )
                             {
-                                q.remove( peer.algoWeight, peer )
+                                dequeueFn( peer.algoWeight, peer )
                             }
                             
                             peer.algoWeight -= linkWeight.totalWeight
@@ -237,7 +237,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                             // and then the ambiguity alternative to decide whether to cull either
                             if ( !peer.processed )
                             {
-                                q.add( peer.algoWeight, peer )
+                                enqueueFn( peer.algoWeight, peer )
                             }
                         }
                     }
@@ -247,16 +247,16 @@ class AmbiguitySite( val start : Int, val end : Int )
             }
         }
         
-        def remove( q : PriorityQ[TopicDetailLink], topicNameMap : HashMap[Int, String] )
+        def remove( enqueueFn : (Double, TopicDetailLink) => Unit, dequeueFn : (Double, TopicDetailLink) => Unit )
         {
             for ( site <- sites )
             {
                 for( td <- site.sf.topics )
                 {
-                    q.remove( td.algoWeight, td )
+                    dequeueFn( td.algoWeight, td )
                     td.processed = true
                     td.active = false
-                    td.downWeightPeers( q, topicNameMap )
+                    td.downWeightPeers( enqueueFn, dequeueFn )
                 }
                 
                 // Clear the topics out
@@ -265,7 +265,7 @@ class AmbiguitySite( val start : Int, val end : Int )
             combs = combs - this
         }
         
-        def cullUpwards( q : PriorityQ[TopicDetailLink], topicNameMap : HashMap[Int, String] )
+        def cullUpwards( enqueueFn : (Double, TopicDetailLink) => Unit, dequeueFn : (Double, TopicDetailLink) => Unit )
         {
             activeSiteCount -= 1
          
@@ -278,7 +278,7 @@ class AmbiguitySite( val start : Int, val end : Int )
                     assert( td.processed )
                     assert( td.active )
                     td.active = false
-                    td.downWeightPeers( q, topicNameMap )
+                    td.downWeightPeers( enqueueFn, dequeueFn )
                 }
                 combs = combs - this
             }
@@ -624,6 +624,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             //weightings.set(peer, weightings(peer) + peerLink.totalWeight)
         }
         
+        var allTopics = HashSet[TopicDetailLink]()
         for
         (
             site <- sites;
@@ -634,6 +635,13 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         {
             //println( weightings(topicDetail), topicDetail.algoWeight )
             require( close( weightings(topicDetail), topicDetail.algoWeight ) )
+            allTopics += topicDetail
+        }
+        
+        for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites; peer <- altSite.sf.topics.head.peers )
+        {
+            if ( !allTopics.contains( peer._1 ) ) println( "Missing topic: " + topicNameMap(peer._1.topicId) )
+            require( allTopics.contains( peer._1 ) )
         }
     }
     
@@ -886,7 +894,18 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             
             for ( site <- sites )
             {
-                for ( c <- site.combs ) c.sites = c.sites.filter( _.complete )
+                for ( c <- site.combs )
+                {
+                    for ( altSite <- c.sites if !altSite.complete )
+                    {
+                        for ( td <- altSite.sf.topics )
+                        {
+                            td.removeTopic()
+                            td.downWeightPeers( (x, y) => Unit, (x, y) => Unit )
+                        }
+                    }
+                    c.sites = c.sites.filter( _.complete )
+                }
                 site.combs = site.combs.filter( _.sites.size > 0 )
             }
             sites = sites.filter( _.combs.size > 0 )
@@ -923,7 +942,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                         val allAlternatives = for ( site <- prunableSites; alt <- site.combs.toList ) yield alt
                         val leastWeight = allAlternatives.reduceLeft( (x, y) => if (x.altAlgoWeight < y.altAlgoWeight) x else y )
                         
-                        leastWeight.remove( q, topicNameMap )
+                        leastWeight.remove( (w, p) => q.add(w, p), (w, p) => q.remove(w, p) )
                     }
                     else
                     {
@@ -934,8 +953,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                 sites.map( x =>assert( x.combs.size == 1 ) )
             }
             
-            
-            
+            validate()
             
             logger.debug( "Pruning down to one topic per site." )
             while ( !q.isEmpty )
@@ -951,13 +969,13 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                 if ( topicRemoved )
                 {
                     //println( "Downweighting: " + topicNameMap(td.topicId) + " " + td.algoWeight )
-                    td.downWeightPeers( q, topicNameMap )
+                    td.downWeightPeers( (weight, peer) => q.add(weight, peer), (weight, peer) => q.remove(weight, peer) )
                     td.active = false
                 }
                 else
                 {
                     //println( "Culling upwards: " + topicNameMap(td.topicId) + " " + td.algoWeight )
-                    td.alternative.cullUpwards( q, topicNameMap )
+                    td.alternative.cullUpwards( (weight, peer) => q.add(weight, peer), (weight, peer) => q.remove(weight, peer) )
                 }
             }
             
@@ -1101,10 +1119,6 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             }
         }
         
-        for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites; peer <- altSite.sf.topics.head.peers )
-        {
-            assert( allTopics.contains( peer._1 ) )
-        }
        
         // Use top-level aggregate clustering to prune 
         if ( true )
