@@ -57,8 +57,10 @@ class DistanceMetricTest extends FunSuite
                 val peerId = (peer \\ "id").text.toInt
                 val weightings = (peer \\ "component").foldLeft( List[(Int, Double)]() )( (l, el) => ( (el \\ "contextTopicId").text.toInt, (el \\ "weight").text.toDouble) :: l )
                 
-                var totalWeight = 0.0
-                for ( (contextId, weight) <- weightings )
+                
+                val peerTopicId = idMap( peerId )
+                val totalWeight = weightings.foldLeft(0.0)( _ + _._2 )
+                /*for ( (contextId, weight) <- weightings )
                 {
                     val key = if (topicId < contextId) (topicId, contextId) else (contextId, topicId)
                     linkWeights.set( key, linkWeights(key) + weight )
@@ -67,12 +69,17 @@ class DistanceMetricTest extends FunSuite
                     topicWeightings.set( contextId, topicWeightings(contextId) + weight )
                     topicWeightings.set( topicId, topicWeightings(topicId) + weight )
                     totalWeight += 0.0
-                }
-                topicClustering.update( topicMap(idMap(id)), topicMap(idMap(peerId)), totalWeight )
+                }*/
+                topicClustering.update( topicMap(topicId), topicMap(peerTopicId), totalWeight )
+                
+                val key = if (topicId < peerTopicId) (topicId, peerTopicId) else (peerTopicId, topicId)
+                linkWeights.set( key, linkWeights(key) + totalWeight )
+                topicWeightings.set( topicId, topicWeightings(topicId) + totalWeight )
+                topicWeightings.set( peerTopicId, topicWeightings(peerTopicId) + totalWeight )
             }
         }
         
-        val groupings = topicClustering.run( 0.2, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, false )
+        val groupings = topicClustering.run( 0.5, x => false, () => Unit, (x, y) => true, x => nameMap(x.id)._1, false )
         var groupMembership = HashMap[Int, Int]()
         groupings.zipWithIndex.foreach( x => {
             val members = x._1
@@ -119,8 +126,8 @@ class DistanceMetricTest extends FunSuite
             
             val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)" )
             
-            //val range = 1 until 34
-            val range = 1 until 7
+            val range = 1 until 34
+            //val range = 1 until 7
             val dds = range.map( i => makeDocumentDigest( "./ambiguityresolution%d.xml".format(i), i ) )
             dds.zipWithIndex.foreach( el => sbinary.Operations.toFile( el._1 )( new java.io.File( "./dd%d.bin".format(el._2) ) ) )
             
