@@ -43,9 +43,10 @@ object WebCVProcess
         val cvs = XML.loadString(res)
         
         val minId = args(0).toInt
+        val maxId = args(1).toInt
         
         val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
-        for ( id <- (cvs \\ "id") if (id.text.trim.toInt >= minId) )
+        for ( id <- (cvs \\ "id") if (id.text.trim.toInt >= minId && id.text.trim.toInt <= maxId) )
         {
             val trimmedId = id.text.trim
             println( "Fetching: " + trimmedId )

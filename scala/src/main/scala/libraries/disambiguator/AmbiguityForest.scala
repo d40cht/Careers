@@ -606,23 +606,32 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             diff < 1e-10 || diff <= (0.0001 * (a max b))
         }
         
+        var tdlCount = 0
+        var peerCount = 0
         val weightings = new AutoMap[TopicDetailLink, Double]( x => 0.0 )
         for
         (
             site <- sites;
             alternative <- site.combs;
             altSite <- alternative.sites;
-            topicDetail <- altSite.sf.topics;
-            peerL <- topicDetail.peers
+            topicDetail <- altSite.sf.topics
         )
         {
-            val (peer, peerLink) = peerL
-            
-            require( close( peerLink.totalWeight, peerLink.componentWeights.toList.foldLeft(0.0)(_ + _._2) ) )
-            
-            weightings.set(topicDetail, weightings(topicDetail) + peerLink.totalWeight)
-            //weightings.set(peer, weightings(peer) + peerLink.totalWeight)
+            for ( peerL <- topicDetail.peers )
+            {
+                val (peer, peerLink) = peerL
+                
+                require( close( peerLink.totalWeight, peerLink.componentWeights.toList.foldLeft(0.0)(_ + _._2) ) )
+                
+                weightings.set(topicDetail, weightings(topicDetail) + peerLink.totalWeight)
+                //weightings.set(peer, weightings(peer) + peerLink.totalWeight)
+                
+                peerCount += 1
+            }
+            tdlCount += 1
         }
+        
+        println( "Peer count: %d, tdl count: %d".format( peerCount, tdlCount ) )
         
         var allTopics = HashSet[TopicDetailLink]()
         for
@@ -699,34 +708,38 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         
         // Link via contexts
         var idToTopicMap = new AutoMap[Int, HashSet[TopicDetailLink]]( x => HashSet[TopicDetailLink]())
-        for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites )
+        def buildContextWeightMap() =
         {
-            val altWeight = alternative.altWeight
-            for ( topicDetail <- altSite.sf.topics )
+            for ( site <- sites; alternative <- site.combs; altSite <- alternative.sites )
             {
-                allTds = topicDetail :: allTds
-                
-                idToTopicMap.set( topicDetail.topicId, idToTopicMap(topicDetail.topicId) + topicDetail )
-                
-                val contexts = topicCategoryMap(topicDetail.topicId)
-                for ( (contextId, contextWeight) <- contexts )
-                {       
-                    val weight = altWeight * topicDetail.topicWeight * contextWeight
+                val altWeight = alternative.altWeight
+                for ( topicDetail <- altSite.sf.topics )
+                {
+                    allTds = topicDetail :: allTds
                     
-                    if ( weight > AmbiguityForest.minContextEdgeWeight )
-                    {
-                        val updatedList = (topicDetail, weight) :: reverseContextMap.getOrElse(contextId, List[(TopicDetailLink, Double)]() )
-                        reverseContextMap = reverseContextMap.updated(contextId, updatedList)
+                    idToTopicMap.set( topicDetail.topicId, idToTopicMap(topicDetail.topicId) + topicDetail )
+                    
+                    val contexts = topicCategoryMap(topicDetail.topicId)
+                    for ( (contextId, contextWeight) <- contexts )
+                    {       
+                        val weight = altWeight * topicDetail.topicWeight * contextWeight
                         
-                        contextWeightMap = contextWeightMap.updated( contextId, contextWeightMap.getOrElse( contextId, 0.0 ) + weight )
+                        if ( weight > AmbiguityForest.minContextEdgeWeight )
+                        {
+                            val updatedList = (topicDetail, weight) :: reverseContextMap.getOrElse(contextId, List[(TopicDetailLink, Double)]() )
+                            reverseContextMap = reverseContextMap.updated(contextId, updatedList)
+                            
+                            contextWeightMap = contextWeightMap.updated( contextId, contextWeightMap.getOrElse( contextId, 0.0 ) + weight )
+                        }
                     }
+                    
+                    
+                    
+                    allTds = topicDetail :: allTds
                 }
-                
-                
-                
-                allTds = topicDetail :: allTds
             }
         }
+        buildContextWeightMap()
         
         // Shouldn't allow links from one alternative in an
         // SF to another alternative in the same SF. Also, within an alternative SHOULD allow
@@ -796,95 +809,53 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             }
         }
         
-        
-        
-        
-        // Topics linked to each other
-        /*if ( false )
+        // Topics linked via contexts
+        def buildContextLinks() =
         {
-            logger.debug( "Direct topic links" )
-            if ( AmbiguityForest.topicDirectLinks )
+            logger.debug( "Links via contexts" )
+            for ( (contextId, alternatives) <- reverseContextMap )
             {
-                for ( site1 <- sites; alternative1 <- site1.combs; altSite1 <- alternative1.sites; topicDetail1 <- altSite1.sf.topics )
+                if ( idToTopicMap.contains( contextId ) )
                 {
-                    val contexts = topicCategoryMap(topicDetail1.topicId)
+                    // Direct link
+                    val directLinks = idToTopicMap(contextId)
                     
-                    idToTopicMap.set( topicDetail1.topicId, idToTopicMap(topicDetail1.topicId) + topicDetail1 )
-                    
-                    assert( contexts.size <= AmbiguityForest.numAllowedContexts )
-                    for ( site2 <- sites; alternative2 <- site2.combs; altSite2 <- alternative2.sites; topicDetail2 <- altSite2.sf.topics )
+                    for ( (topicDetail1, weight1) <- alternatives )
                     {
-                        if ( contexts.contains( topicDetail2.topicId ) )
+                        for ( topicDetail2 <- directLinks )
                         {
-                            //val contexts2 = topicCategoryMap( topicDetail2.topicId )
-                            //val bidirectional = contexts2.contains( topicDetail1.topicId )
-                            
-                            val linkWeight = contexts( topicDetail2.topicId ) 
-                            val altWeight1 = alternative1.altWeight * topicDetail1.topicWeight
-                            val altWeight2 = alternative2.altWeight * topicDetail2.topicWeight
-                            
-                            
-                            //println( "Direct link: " + topicNameMap( topicDetail1.topicId ) + " to " + topicNameMap( topicDetail2.topicId ) + " weight: " + altWeight1 * altWeight2 * linkWeight )
-                            //println( linkWeight + ", " + altWeight1 + ", " + altWeight2 + ", " + topicDetail1.topicWeight + ", " + topicDetail2.topicWeight )
-                            
-                            
+                            val combinedWeight = topicDetail2.alternative.altWeight * topicDetail2.topicWeight * weight1
                             if ( compatibleForLink( topicDetail1, topicDetail2 ) )
                             {
-                                val directWeight = altWeight1 * altWeight2 * linkWeight
                                 if ( topicDetail1.topicId != topicDetail2.topicId )
                                 {
-                                    buildLinks( topicDetail1, topicDetail2, directWeight, None )
+                                    buildLinks( topicDetail1, topicDetail2, combinedWeight, None )
                                 }
-                                //topicClustering.update( topicDetail1, topicDetail2, directWeight )
                             }
                         }
                     }
                 }
-            }
-        }*/
-        
-        // Topics linked via contexts
-        logger.debug( "Links via contexts" )
-        for ( (contextId, alternatives) <- reverseContextMap )
-        {
-            if ( idToTopicMap.contains( contextId ) )
-            {
-                // Direct link
-                val directLinks = idToTopicMap(contextId)
                 
-                for ( (topicDetail1, weight1) <- alternatives )
+                for ( (topicDetail1, weight1) <- alternatives; (topicDetail2, weight2) <- alternatives )
                 {
-                    for ( topicDetail2 <- directLinks )
+                    if ( compatibleForLink( topicDetail1, topicDetail2 ) )
                     {
-                        val combinedWeight = topicDetail2.alternative.altWeight * topicDetail2.topicWeight * weight1
-                        if ( compatibleForLink( topicDetail1, topicDetail2 ) )
+                        if ( topicDetail1.topicId != topicDetail2.topicId )
                         {
-                            if ( topicDetail1.topicId != topicDetail2.topicId )
-                            {
-                                buildLinks( topicDetail1, topicDetail2, combinedWeight, None )
-                            }
+                            buildLinks( topicDetail1, topicDetail2, weight1 * weight2, Some(contextId) )
                         }
+                        //topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
                     }
                 }
             }
             
-            for ( (topicDetail1, weight1) <- alternatives; (topicDetail2, weight2) <- alternatives )
-            {
-                if ( compatibleForLink( topicDetail1, topicDetail2 ) )
-                {
-                    if ( topicDetail1.topicId != topicDetail2.topicId )
-                    {
-                        buildLinks( topicDetail1, topicDetail2, weight1 * weight2, Some(contextId) )
-                    }
-                    //topicClustering.update( topicDetail1, topicDetail2, weight1 * weight2 )
-                }
-            }
+            validate()
         }
         
-        validate()
+        buildContextLinks()
         
         // Use top-level aggregate clustering to prune 
-        if ( true )
+        def runAggregateClusterPruning() =
         {
             logger.debug( "Using aggregate clustering to prune network" )
             def completeCoverage(numAlternatives : Int) = sites.foldLeft(true)( (x, y) => x && y.complete(numAlternatives) )
@@ -910,7 +881,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             }
             sites = sites.filter( _.combs.size > 0 )
         }
-        
+        runAggregateClusterPruning()
         validate()
         
         logger.debug( "Links in play: " + linkCount )
@@ -918,7 +889,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         dumpResolutions()
         
         // Prune out alternatives
-        if ( true )
+        def pruneOutAlternatives() =
         {
             logger.debug( "Running new algo framework" )
             
@@ -981,122 +952,14 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             
             validate()
             
-            if ( false )
-            {
-                // De-novo topic and context weight calculation
-                var idToTopicMap = TreeMap[Int, TopicGraphNode]()
-                
-                val allTopicIds = (for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics ) yield topic.topicId).foldLeft(HashSet[Int]())( _ + _ )
-                
-                for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; topic <- alt.sf.topics )
-                {
-                    val fromId = topic.topicId
-                    val contexts = topicCategoryMap(fromId)
-                    
-                    val weightOrderedContexts = contexts.toList.sortWith( _._2 > _._2 )
-                    val totalWeight = weightOrderedContexts.foldLeft(0.0)( _ + _._2 )
-                    
-                    var runningWeight = 0.0
-                    for ( (toId, weight) <- contexts.toList.sortWith( _._2 > _._2 ) )
-                    {
-                        if ( runningWeight < totalWeight * 0.80 )
-                        {
-                            val fromNode = idToTopicMap.getOrElse( fromId, new TopicGraphNode( fromId ) )
-                            val toNode = idToTopicMap.getOrElse( toId, new TopicGraphNode( toId ) )
-                            idToTopicMap = idToTopicMap.updated( fromId, fromNode )
-                            idToTopicMap = idToTopicMap.updated( toId, toNode )
-                            
-                            fromNode.addLink(toNode, weight)
-                            
-                            val destIsContext = !allTopicIds.contains( toNode.topicId )
-                            toNode.addLink(fromNode, weight * (if ( destIsContext ) 0.1 else 1.0) )
-                            
-                            runningWeight += weight
-                        }
-                    }
-                }
-                
-                var count = 0
-                val v = new Louvain[TopicGraphNode]( new File( "./community" ) )
-                for ( (id, fromNode) <- idToTopicMap )
-                {
-                    for ( (toNode, weight) <- fromNode.peers )
-                    {
-                        if ( fromNode.numPeers > 3 && toNode.numPeers > 3 )
-                        {
-                            assert( allTopicIds.contains(fromNode.topicId) || allTopicIds.contains(toNode.topicId) )
-                            v.addEdge( fromNode, toNode, weight )
-                            count += 1
-                        }
-                    }
-                }
-                logger.debug( "NUM EDGES: " + count )
-                communities = v.run()
-            }
-            
             sites = sites.filter( _.combs.size > 0 )
             
             for ( site <- sites; alternative <- site.combs; alt <- alternative.sites )
             {
                 assert( alt.sf.topics.size == 1 )
             }
-            
-            /*if ( false )
-            {
-                // Direct topic-topic community graph
-                //val v = new Louvain()
-                for ( site <- sites )
-                {
-                    assert( site.combs.size == 1 )
-                    
-                    val alternative = site.combs.head
-                    
-                    // No weights should be less than zero (modulo double precision rounding issues).
-                    
-                    //println( words.slice(site.start, site.end+1) + ": " + alternative.altAlgoWeight )
-                    for ( alt <- alternative.sites )
-                    {
-                        assert( alt.sf.topics.size <= 1 )
-                        //println( "  " + alt.sf.topics.head.algoWeight + " " + topicNameMap(alt.sf.topics.head.topicId) )
-                        
-                        val fromTopic = alt.sf.topics.head
-                        
-                        // Re-weight the topic peer links and trim down to the percentile
-                        var totalWeight = 0.0
-                        val reweighted = fromTopic.peers.filter( _._1.active ).map
-                        { x =>
-                            val toTopic = x._1
-                            val weight = x._2 / ( fromTopic.topicWeight * toTopic.topicWeight * fromTopic.sf.phraseWeight * toTopic.sf.phraseWeight )
-                            totalWeight += weight
-                            (toTopic, weight )
-                        }
-                        
-                        var runningWeight = 0.0
-                        fromTopic.peers = fromTopic.peers.empty
-                        for ( (toTopic, weight) <- reweighted.toList.sortWith( _._2 > _._2 ) )
-                        {
-                            if ( runningWeight < (totalWeight * AmbiguityForest.linkPercentileFilter) )
-                            {
-                                fromTopic.peers = fromTopic.peers.updated( toTopic, weight )
-                                runningWeight += weight
-                            }
-                        }
-                        
-                        
-                        for ( (toTopic, weight) <- fromTopic.peers.toList.sortWith( _._2 > _._2 ) )
-                        {
-                            //v.addEdge( fromTopic.topicId, toTopic.topicId, 1.0 )
-                            //v.addEdge( fromTopic.topicId, toTopic.topicId, log( weight / AmbiguityForest.minContextEdgeWeight ) )
-                            //v.addEdge( fromTopic.topicId, toTopic.topicId, weight )
-                        }
-                    }
-                    
-                    assert( alternative.altAlgoWeight > -1e-10 )
-                }
-                
-                //communities = v.run()
-            }*/
         }
+        pruneOutAlternatives()
         
         logger.debug( "Dumping resolutions." )
         dumpResolutions()
