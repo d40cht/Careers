@@ -3,6 +3,7 @@ package org.seacourt.tests
 import org.scalatest.FunSuite
 import org.scalatest.Tag
 
+import math.sqrt
 import scala.io.Source._
 
 import java.io.{File, BufferedReader, FileReader, DataInputStream, DataOutputStream, FileInputStream, FileOutputStream, FileWriter}
@@ -65,6 +66,106 @@ import math.{log}
         println( "   complete..." )
     }
 }*/
+
+class BuildMemoryResidentDbFiles extends FunSuite
+{
+    test( "Build all memory resident db files" )
+    {
+        
+        val db = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
+        
+        // Link weight file
+        {
+            val qSize = _1(db.prepare( "SELECT COUNT(*) FROM linkWeights", Col[Int]::HNil ).toList(0)).get
+            val q = db.prepare( "SELECT t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2), t2.name FROM linkWeights AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id ORDER BY t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2) DESC", Col[Int]::Col[Int]::Col[Double]::Col[String]::HNil )
+            
+            // if ( Disambiguator.allowedContext(name) ) val isCategory = name.startsWith( "Category:")
+            val linkDb = new EfficientArray[EfficientIntIntDouble](qSize)
+            val theVal = new EfficientIntIntDouble()
+            var i = 0
+            var lastTopicId = -1
+            var lastTopicCount = 0
+            for ( row <- q )
+            {
+                val name = _4(row).get
+
+                val isCategory = name.startsWith( "Category:")
+                
+                theVal.first = _1(row).get
+                theVal.second = _2(row).get
+                
+                // Upweight categories
+                val rawWeight = _3(row).get
+                theVal.third = if ( isCategory ) sqrt( rawWeight) else rawWeight
+                
+                if ( Disambiguator.allowedContext(name) && lastTopicCount < 30 )
+                {
+                    linkDb(i) = theVal
+                    i += 1
+                    if ( (i % 1000000) == 0 ) println( "%d/%d (%.2f%%)".format(i, qSize, (100.0*i.toDouble) / qSize.toDouble) )
+                }
+                
+                if ( lastTopicId == theVal.first ) lastTopicCount += 1
+                else lastTopicCount = 0
+                lastTopicId = theVal.first
+            }
+            println( "Saving data" )
+            linkDb.truncate(i)
+            linkDb.save( new DataOutputStream( new FileOutputStream( new File( "./DisambigData/linkWeights.bin" ) ) ) )
+            println( "  complete..." )
+        }
+        
+        // Phrase topics file
+        {
+            val qSize = _1(db.prepare( "SELECT COUNT(*) FROM phraseTopics", Col[Int]::HNil ).toList(0)).get
+            val q = db.prepare( "SELECT t1.phraseTreeNodeId, t1.topicId, t1.count, t2.name FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id ORDER BY t1.phraseTreeNodeId, topicId, count DESC", Col[Int]::Col[Int]::Col[Int]::Col[String]::HNil )
+            
+            val topicsDb = new EfficientArray[EfficientIntIntInt](qSize)
+            val theVal = new EfficientIntIntInt()
+            var i = 0
+            for ( row <- q )
+            {
+                val name = _4(row).get
+                
+                if ( Disambiguator.allowedTopic(name) )
+                {
+                    theVal.first = _1(row).get
+                    theVal.second = _2(row).get
+                    theVal.third = _3(row).get
+                    
+                    topicsDb(i) = theVal
+                    i += 1
+                    
+                    if ( (i % 100000) == 0 ) println( "%d/%d (%.2f%%)".format(i, qSize, (100.0*i.toDouble) / qSize.toDouble) )
+                }
+            }
+            println( "Saving data" )
+            topicsDb.truncate( i )
+            topicsDb.save( new DataOutputStream( new FileOutputStream( new File( "./DisambigData/phraseTopics.bin" ) ) ) )
+            println( "  complete..." )
+        }
+        
+        {
+            val qSize = _1(db.prepare("SELECT COUNT(*) FROM phraseCounts", Col[Int]::HNil ).toList(0)).get
+            val q = db.prepare( "SELECT phraseId, phraseCount FROM phraseCounts", Col[Int]::Col[Int]::HNil )
+            
+            val pCountDb = new EfficientArray[EfficientIntPair](qSize)
+            val theVal = new EfficientIntPair()
+            for ( (row, i) <- q.zipWithIndex )
+            {
+                theVal.first = _1(row).get
+                theVal.second = _2(row).get
+                
+                pCountDb(i) = theVal
+                
+                if ( (i % 100000) == 0 ) println( "%d/%d (%.2f%%)".format(i, qSize, (100.0*i.toDouble) / qSize.toDouble) )
+            }
+            println( "Saving data" )
+            pCountDb.save( new DataOutputStream( new FileOutputStream( new File( "./DisambigData/phraseCounts.bin" ) ) ) )
+            println( "  complete..." )
+        }
+    }
+}
 
 class CategoryDistanceTests extends FunSuite
 {

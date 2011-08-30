@@ -854,7 +854,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         
         buildContextLinks()
         
-        // Use top-level aggregate clustering to prune 
+        // Use top-level aggregate clustering to prune. TODO: Evaluate how neccessary this is after all algo. bug fixes.
         def runAggregateClusterPruning() =
         {
             logger.debug( "Using aggregate clustering to prune network" )

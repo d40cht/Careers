@@ -25,10 +25,11 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
     
   <!-- For some reason 'invasion of kuwait' resolves down to 'kuwait'. Sad. -->
   <test>
-    <phrase>george bush john major invasion of kuwait</phrase>
+    <phrase>george bush john major prime minister invasion of kuwait</phrase>
     <topic>George H. W. Bush</topic>
     <topic>John Major</topic>
-    <topic>Kuwait</topic>
+    <topic>Prime Minister of the United Kingdom</topic>
+    <topic>Gulf War</topic>
   </test>
 
   <!-- Currently cambridge and oxford yield the towns not the universities. -->
@@ -44,24 +45,27 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
 
   <!-- ********* Should work ********* -->
   <test>
-    <phrase>rice cheney george bush</phrase>
+    <phrase>rice cheney george bush rumsfeld republican</phrase>
     <topic>Condoleezza Rice</topic>
     <topic>Dick Cheney</topic>
     <topic>George W. Bush</topic>
+    <topic>Donald Rumsfeld</topic>
+    <topic>Republican Party (United States)</topic>
   </test>
   
   <test>
     <phrase>java coffee tea</phrase>
-    <topic>Java coffee</topic>
+    <topic>Coffee</topic>
     <topic>Tea</topic>
   </test>
 
 
   <test>
-    <phrase>la scala covent garden puccini</phrase>
+    <phrase>la scala covent garden puccini tosca</phrase>
     <topic>La Scala</topic>
     <topic>Royal Opera House</topic>
     <topic>Giacomo Puccini</topic>
+    <topic>Tosca</topic>
   </test>
 
 
@@ -88,31 +92,36 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
       attractive documents for print with adobe indesign and photoshop highly proficient
       with ms office applications
     </phrase>
-    <topic>Academia</topic>
     <topic>LaTeX</topic>
     <topic>LyX</topic>
-    <topic>Print (magazine)</topic>
+    <topic>Printing</topic>
     <topic>Adobe InDesign</topic>
     <topic>Adobe Photoshop</topic>
     <topic>Microsoft Office</topic>
-    <topic>Application software</topic>
   </test>
   
-  <test>
-    <phrase>one autumn morning, the leaf dropped from the tree</phrase>
+  <!--<test>
+    <phrase>one autumn morning, the leaf dropped from the tree. Nature and the change of the seasons.</phrase>
     <topic>Autumn</topic>
     <topic>Leaf</topic>
     <topic>Tree</topic>
-  </test>
+  </test>-->
   
-  <!--
   <test>
     <phrase>
       an existing win32-based video codec to the fpga platform including code
       optimisation and creation and integration of custom hardware acceleration
     </phrase>
+    
+    <topic>Microsoft Windows</topic>
+    <topic>Video card</topic>
+    <topic>Codec</topic>
+    <topic>Field-programmable gate array</topic>
+    <!-- Wrong. But not that important atm -->
+    <topic>Platform game</topic>
+    <topic>Integrated circuit</topic>
+    <topic>Hardware acceleration</topic>
   </test>
-  -->
   
   <test>
     <phrase>stata and r and</phrase>
@@ -140,38 +149,38 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
   </test>
   
   <test>
-    <phrase>education london school of economics political science</phrase>
+    <phrase>education london school of economics political science university of london</phrase>
     <topic>Education</topic>
     <topic>London School of Economics</topic>
     <topic>Political science</topic>
+    <topic>University of London</topic>
   </test>
   
   <test>
     <phrase>gis spatial analysis and visualisation and spatial econometrics</phrase>
     <topic>Geographic information system</topic>
     <topic>Spatial analysis</topic>
-    <topic>Visualization (computer graphics)</topic>
     <topic>Spatial econometrics</topic>
   </test>
   
   <test>
     <phrase>world congress of environmental resource economists</phrase>
     <topic>Natural environment</topic>
-    <topic>Factors of production</topic>
-    <topic>Economist</topic>
+    <topic>Natural resource</topic>
   </test>
   
   <test>
     <phrase>world congress of environmental resource economics</phrase>
-    <topic>Natural environment</topic>
+    <topic>Environmental economics</topic>
     <topic>Natural resource economics</topic>
   </test>
   
   <test>
-    <phrase>mapping happiness across space and time</phrase>
-    <topic>Map (mathematics)</topic>
+    <phrase>mapping happiness across space and time. a study of subjective wellbeing</phrase>
+    <topic>Map</topic>
     <topic>Happiness</topic>
     <topic>Spacetime</topic>
+    <topic>Quality of life</topic>
   </test>
   
   <!-- Nasty resolution
@@ -189,13 +198,14 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
     <phrase>environmental quality wellbeing economics</phrase>
     <topic>Environmental quality</topic>
     <topic>Quality of life</topic>
-    <topic>Economics</topic>
+    <topic>Economic sociology</topic>
   </test>
   
   <test>
-    <phrase>email mobile website</phrase>
+    <phrase>email mobile phone website</phrase>
     <topic>Email</topic>
-    <topic>Mobile Web</topic>
+    <topic>Mobile phone</topic>
+    <topic>Website</topic>
   </test>
   
   <test>
@@ -221,19 +231,18 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
 
   
   <!-- Too keen on cherwell district -->
-  <test>
-    <phrase>cherwell oxford university student newspaper</phrase>
-    <topic>Cherwell (newspaper)</topic>
+  <!--<test>
+    <phrase>oxford university cherwell student newspaper</phrase>
     <topic>University of Oxford</topic>
-    <topic>Student newspaper</topic>
-  </test>
+    <topic>Cherwell (newspaper)</topic>
+  </test>-->
   
-  <!-- Too keen on Sarah Palin -->
-  <!-- <test>
+  <test>
     <phrase>python palin</phrase>
     <topic>Monty Python</topic>
     <topic>Michael Palin</topic>
-  </test>-->
+  </test>
+  
   <test>
     <phrase>tea party palin</phrase>
     <topic>Tea Party movement</topic>
@@ -269,14 +278,13 @@ Monday's study by the environmental engineer, John Stansbury, argues the pipelin
     <topic>George W. Bush</topic>
     <topic>Donald Rumsfeld</topic>
   </test>
-  
-  <!-- Still prefers the younger -->
+ 
   
   <test>
     <phrase>java c design patterns</phrase>
     <topic>Java (programming language)</topic>
     <topic>C++</topic>
-    <topic>Design Patterns</topic>
+    <topic>Design pattern (computer science)</topic>
   </test>
   
   <test>

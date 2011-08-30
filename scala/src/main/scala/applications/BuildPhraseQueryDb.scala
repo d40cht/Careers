@@ -480,6 +480,9 @@ object PhraseMap
             count += 1
             sql.manageTransactions()
         }*/
+        
+        // CREATE TABLE phraseDetails( phraseId INTEGER, topicId INTEGER, weight DOUBLE, FOREIGN KEY(topicId) REFERENCES topics(id), UNIQUE(phraseId, topicId) );
+        // INSERT INTO phraseDetails SELECT t1.phraseTreeNodeId, t1.topicId, CAST(t1.count AS DOUBLE)/CAST(t2.phraseCount AS DOUBLE) FROM phraseTopics AS t1 INNER JOIN phraseCounts AS t2 ON t1.phraseTreeNodeId=t2.phraseId;
 
         sql.close()
         println( "*** Parse complete ***" )

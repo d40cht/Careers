@@ -24,7 +24,7 @@ import java.io.{DataInput, DataOutput, FileInputStream, FileOutputStream, File}
 
 import java.io.{DataOutput, DataOutputStream, DataInput, DataInputStream, ByteArrayInputStream}
 import java.util.{ArrayList, Arrays}
-import java.util.{TreeMap => JTreeMap, LinkedHashSet => JLinkedHashSet}
+import java.util.{TreeMap => JTreeMap, LinkedHashSet => JLinkedHashSet, HashMap => JHashMap}
 
 import org.apache.commons.io.FileUtils.{deleteDirectory}
 
@@ -162,6 +162,34 @@ final class EfficientIntIntDouble( var first : Int, var second : Int, var third 
     }
 }
 
+final class EfficientIntIntInt( var first : Int, var second : Int, var third : Int ) extends FixedLengthSerializable
+{
+    def size = 12
+    
+    def this() = this(0, 0, 0)
+    
+    override def saveImpl( out : DataOutput )
+    {
+        out.writeInt( first )
+        out.writeInt( second )
+        out.writeInt( third )
+    }
+    
+    override def loadImpl( in : DataInput )
+    {
+        first = in.readInt()
+        second = in.readInt()
+        third = in.readInt()
+    }
+    
+    def less( other : EfficientIntIntDouble ) : Boolean =
+    {
+        if ( first != other.first ) first < other.first
+        else if ( second != other.second ) second < other.second
+        else third < other.third
+    }
+}
+
 
 object FixedLengthString
 {
@@ -241,6 +269,12 @@ class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length
             data
         }
     }
+    
+    def truncate( newLength : Int )
+    {
+        assert( newLength <= length )
+        _length = newLength
+    }
 
     override def newBuilder = new ArrayBuilder()
     
@@ -278,7 +312,7 @@ class EfficientArray[Element <: FixedLengthSerializable : Manifest]( var _length
     
     def save( outStream : DataOutputStream )
     {
-        outStream.writeInt( buffer.length )
+        outStream.writeInt( _length * elementSize )
         outStream.write( buffer )
     }
     
