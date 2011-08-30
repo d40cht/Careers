@@ -77,14 +77,12 @@ class BuildMemoryResidentDbFiles extends FunSuite
         // Link weight file
         {
             val qSize = _1(db.prepare( "SELECT COUNT(*) FROM linkWeights", Col[Int]::HNil ).toList(0)).get
-            val q = db.prepare( "SELECT t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2), t2.name FROM linkWeights AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id ORDER BY t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2) DESC", Col[Int]::Col[Int]::Col[Double]::Col[String]::HNil )
+            val q = db.prepare( "SELECT t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2), t2.name FROM linkWeights AS t1 INNER JOIN topics AS t2 ON t1.contextTopicId=t2.id ORDER BY t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2) DESC", Col[Int]::Col[Int]::Col[Double]::Col[String]::HNil )
             
             // if ( Disambiguator.allowedContext(name) ) val isCategory = name.startsWith( "Category:")
             val linkDb = new EfficientArray[EfficientIntIntDouble](qSize)
             val theVal = new EfficientIntIntDouble()
             var i = 0
-            var lastTopicId = -1
-            var lastTopicCount = 0
             for ( row <- q )
             {
                 val name = _4(row).get
@@ -98,16 +96,13 @@ class BuildMemoryResidentDbFiles extends FunSuite
                 val rawWeight = _3(row).get
                 theVal.third = if ( isCategory ) sqrt( rawWeight) else rawWeight
                 
-                if ( Disambiguator.allowedContext(name) && lastTopicCount < 30 )
+                if ( Disambiguator.allowedContext(name) )
                 {
                     linkDb(i) = theVal
                     i += 1
                     if ( (i % 1000000) == 0 ) println( "%d/%d (%.2f%%)".format(i, qSize, (100.0*i.toDouble) / qSize.toDouble) )
                 }
                 
-                if ( lastTopicId == theVal.first ) lastTopicCount += 1
-                else lastTopicCount = 0
-                lastTopicId = theVal.first
             }
             println( "Saving data" )
             linkDb.truncate(i)
@@ -116,7 +111,7 @@ class BuildMemoryResidentDbFiles extends FunSuite
         }
         
         // Phrase topics file
-        {
+        /*{
             val qSize = _1(db.prepare( "SELECT COUNT(*) FROM phraseTopics", Col[Int]::HNil ).toList(0)).get
             val q = db.prepare( "SELECT t1.phraseTreeNodeId, t1.topicId, t1.count, t2.name FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id ORDER BY t1.phraseTreeNodeId, topicId, count DESC", Col[Int]::Col[Int]::Col[Int]::Col[String]::HNil )
             
@@ -147,7 +142,7 @@ class BuildMemoryResidentDbFiles extends FunSuite
         
         {
             val qSize = _1(db.prepare("SELECT COUNT(*) FROM phraseCounts", Col[Int]::HNil ).toList(0)).get
-            val q = db.prepare( "SELECT phraseId, phraseCount FROM phraseCounts", Col[Int]::Col[Int]::HNil )
+            val q = db.prepare( "SELECT phraseId, phraseCount FROM phraseCounts ORDER BY phraseId", Col[Int]::Col[Int]::HNil )
             
             val pCountDb = new EfficientArray[EfficientIntPair](qSize)
             val theVal = new EfficientIntPair()
@@ -163,7 +158,7 @@ class BuildMemoryResidentDbFiles extends FunSuite
             println( "Saving data" )
             pCountDb.save( new DataOutputStream( new FileOutputStream( new File( "./DisambigData/phraseCounts.bin" ) ) ) )
             println( "  complete..." )
-        }
+        }*/
     }
 }
 

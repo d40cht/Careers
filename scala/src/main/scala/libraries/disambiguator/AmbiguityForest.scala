@@ -73,7 +73,6 @@ object AmbiguityForest
     // Quite sensitive. Drop to 10 but beware Cambridge Ontario
     val secondOrderKickin               = 10
     val secondOrderContextDownWeight    = 0.1
-    val secondOrderExcludeCategories    = false
     
     // Reversed contexts run slowly and seem to perform badly
     //val reversedContexts                = false

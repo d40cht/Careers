@@ -216,7 +216,15 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
     val topicDb = new SQLiteWrapper( new File(topicFileName) )
     topicDb.exec( "PRAGMA cache_size=2000000" )
 
+    val phraseTopicsDb = new EfficientArray[EfficientIntIntInt](0)
+    val phraseCountsDb = new EfficientArray[EfficientIntPair](0)
+    val linkWeightDb = new EfficientArray[EfficientIntIntDouble](0)
     
+    println( "Loading all data in..." )
+    phraseTopicsDb.load( new DataInputStream( new FileInputStream( new File( "./DisambigData/phraseTopics.bin" ) ) ) )
+    phraseCountsDb.load( new DataInputStream( new FileInputStream( new File( "./DisambigData/phraseCounts.bin" ) ) ) )
+    linkWeightDb.load( new DataInputStream( new FileInputStream( new File( "./DisambigData/linkWeights.bin" ) ) ) )
+    println( "   complete." )    
     
     val categoryHierarchy = new CategoryHierarchy( categoryHierarchyFileName, topicDb )
     
@@ -294,14 +302,73 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         var contextWeightMap = HashMap[Int, Double]()
         
         
+        private val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
+        private val topicQuery = topicDb.prepare( "SELECT t1.topicId, t1.count, t2.name FROM phraseTopics AS t1 INNER JOIN topics AS t2 on t1.topicId=t2.id WHERE phraseTreeNodeId=? ORDER BY count DESC LIMIT 50", Col[Int]::Col[Int]::Col[String]::HNil )
+        private val topicCategoryQuery = topicDb.prepare( "SELECT t1.contextTopicId, MIN(t1.weight1, t1.weight2) AS weight, t2.name FROM linkWeights AS t1 INNER JOIN topics AS t2 ON t1.contextTopicId=t2.id WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::Col[String]::HNil )
         
+        private def getPhraseTopics( phraseId : Int ) =
+        {
+            if ( false )
+            {
+                topicQuery.bind(phraseId)
+                val sfTopics = topicQuery.toList.filter( x => Disambiguator.allowedTopic(_3(x).get) )
+                sfTopics.toList.map( row => (_1(row).get, _2(row).get ) )
+            }
+            else
+            {
+                var index = Utils.lowerBound( new EfficientIntIntInt( phraseId, 0, 0 ), phraseTopicsDb, (x:EfficientIntIntInt, y:EfficientIntIntInt) => x.less(y) )
+                var res = ListBuffer[(Int, Int)]()
+                while ( phraseTopicsDb(index).first == phraseId )
+                {
+                    val row = phraseTopicsDb(index)
+                    res.append( (row.second, row.third) )
+                    index += 1
+                }
+                
+                res.toList
+            }
+        }
+        
+        private def getPhraseCount( phraseId : Int ) =
+        {
+            if ( false )
+            {
+                phraseCountQuery.bind(phraseId)
+                _1(phraseCountQuery.onlyRow).get
+            }
+            else
+            {
+                var index = Utils.lowerBound( new EfficientIntPair( phraseId, 0 ), phraseCountsDb, (x:EfficientIntPair, y:EfficientIntPair) => x.less(y) )
+                val res = phraseCountsDb(index)
+                assert( res.first == phraseId )
+                res.second
+            }
+        }
+        
+        private def getTopicContexts( topicId : Int ) =
+        {
+            if ( false )
+            {
+                topicCategoryQuery.bind( topicId )
+                topicCategoryQuery.toList.map( row => (_1(row).get, _2(row).get, _3(row).get) )
+            }
+            else
+            {
+                var index = Utils.lowerBound( new EfficientIntIntDouble( topicId, 0, 0.0 ), linkWeightDb, (x:EfficientIntIntDouble, y:EfficientIntIntDouble) => x.less(y) )
+                var res = ListBuffer[(Int, Double, String)]()
+                while ( linkWeightDb(index).first == topicId )
+                {
+                    val row = linkWeightDb(index)
+                    res.append( (row.second, row.third, "") )
+                    index += 1
+                }
+                
+                res.toList
+            }
+        }
         
         def build() : AmbiguityForest =
         {
-            val phraseCountQuery = topicDb.prepare( "SELECT phraseCount FROM phraseCounts WHERE phraseId=?", Col[Int]::HNil )
-            val topicQuery = topicDb.prepare( "SELECT t1.topicId, t1.count, t2.name FROM phraseTopics AS t1 INNER JOIN topics AS t2 on t1.topicId=t2.id WHERE phraseTreeNodeId=? ORDER BY count DESC LIMIT 50", Col[Int]::Col[Int]::Col[String]::HNil )
-            val topicCategoryQuery = topicDb.prepare( "SELECT t1.contextTopicId, MIN(t1.weight1, t1.weight2) AS weight, t2.name FROM linkWeights AS t1 INNER JOIN topics AS t2 ON t1.contextTopicId=t2.id WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::Col[String]::HNil )
-            
             var possiblePhrases = List[AmbiguityForest.SurfaceFormDetails]()
             var activePhrases = List[(Int, PhraseMapLookup#PhraseMapIter)]()
             
@@ -328,21 +395,18 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                             val phraseId = phrase.update(wordId)
                             if ( phraseId != -1 )
                             {
-                                topicQuery.bind(phraseId)
-                                val sfTopics = topicQuery.toList.filter( x => Disambiguator.allowedTopic(_3(x).get) )
+                                val sfTopics = getPhraseTopics(phraseId)
                                 val toIndex = wordIndex
                                 
                                 //println( ":: " + phraseId)
                                 if ( sfTopics != Nil && Disambiguator.allowedPhrase(wordList.slice(fromIndex, toIndex+1)) ) 
                                 {
                                     // This surface form has topics. Query phrase relevance and push back details
-                                    phraseCountQuery.bind(phraseId)
-                                    
-                                    val phraseCount = _1(phraseCountQuery.onlyRow).get
+                                    val phraseCount = getPhraseCount(phraseId)
                                     
                                     // TODO: Do something with this result
                                     //(fromIndex, toIndex, phraseCount, [(TopicId, TopicCount])
-                                    val topicDetails = for ( td <- sfTopics.toList ) yield (_1(td).get, _2(td).get)
+                                    val topicDetails = for ( td <- sfTopics.toList ) yield (td._1, td._2)
                                     
                                     
                                     
@@ -364,21 +428,18 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                         
                                         if ( !topicCategoryMap.contains(topicId) )
                                         {
-                                            topicCategoryQuery.bind( topicId )
+                                            
 
                                             // First order contexts
                                             var contextWeights = TreeMap[Int, Double]()
-                                            
-                                            var categorySet = HashSet[Int]()
-                                            
+
                                             // Love closures
                                             def addContext( cid : Int, _weight : Double, name : String )
                                             {
                                                 var weight = _weight
-                                                if ( Disambiguator.allowedContext(name) )
+                                                /*if ( Disambiguator.allowedContext(name) )
                                                 {
                                                     val isCategory = name.startsWith( "Category:")
-                                                    if ( isCategory ) categorySet += cid
                                                     if ( AmbiguityForest.upweightCategories && isCategory )
                                                     {
                                                         
@@ -390,13 +451,15 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                                     {
                                                         contextWeights = contextWeights.updated( cid, weight )
                                                     }
+                                                }*/
+                                                
+                                                if ( cid != topicId )
+                                                {
+                                                    contextWeights = contextWeights.updated( cid, weight )
                                                 }
                                             }
-                                            
-                                            for ( row <- topicCategoryQuery )
-                                            {
-                                                addContext( _1(row).get, _2(row).get, _3(row).get )
-                                            }
+                                                                                        
+                                            getTopicContexts( topicId ).foreach( x => addContext( x._1, x._2, x._3 ) )
                                             
                                             // Second order contexts
                                             if ( AmbiguityForest.secondOrderContexts && contextWeights.size < AmbiguityForest.secondOrderKickin )
@@ -405,24 +468,19 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                                 for ( (contextId, contextWeight) <- contextWeights.toList )
                                                 {
                                                     // Don't follow categories for second order contexts. They generalise too quickly.
-                                                    if ( !AmbiguityForest.secondOrderExcludeCategories || !categorySet.contains( contextId ) )
+                                                    getTopicContexts( contextId ).foreach( row =>
                                                     {
-                                                        topicCategoryQuery.bind( contextId )
+                                                        val cid = row._1
+                                                        val rawWeight = row._2
+                                                        val name = row._3
                                                         
-                                                        for ( row <- topicCategoryQuery )
+                                                        // Second order contexts cannot be categories
+                                                        if ( !contextWeights.contains(cid) )//&& !name.startsWith("Category:") )
                                                         {
-                                                            val cid = _1(row).get
-                                                            val rawWeight = _2(row).get
-                                                            val name = _3(row).get
-                                                            
-                                                            // Second order contexts cannot be categories
-                                                            if ( !contextWeights.contains(cid) )//&& !name.startsWith("Category:") )
-                                                            {
-                                                                val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
-                                                                addContext( cid, weight, name )
-                                                            }
+                                                            val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
+                                                            addContext( cid, weight, name )
                                                         }
-                                                    }
+                                                    } )
                                                 }
                                             }
                                             

@@ -182,7 +182,7 @@ final class EfficientIntIntInt( var first : Int, var second : Int, var third : I
         third = in.readInt()
     }
     
-    def less( other : EfficientIntIntDouble ) : Boolean =
+    def less( other : EfficientIntIntInt ) : Boolean =
     {
         if ( first != other.first ) first < other.first
         else if ( second != other.second ) second < other.second
