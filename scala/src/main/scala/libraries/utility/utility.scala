@@ -729,6 +729,7 @@ class NPriorityQ[V]()
             if ( !old.contains(v) )
             {
                 old.add(v)
+                numElements += 1
             }
         }
         else
@@ -736,9 +737,10 @@ class NPriorityQ[V]()
             val next = new JLinkedHashSet[V]()
             next.add(v)
             container.put( k, next )
+            numElements += 1
         }
-        numElements += 1
     }
+    
     def remove( k : K, v : V )
     {
         assert( container.containsKey(k) )

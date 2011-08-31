@@ -500,7 +500,7 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]] extends Logging
             }
         }
         
-        logger.debug( "Total: " + clusterList.size + ", used: " + used )
+        logger.info( "Total: " + clusterList.size + ", used: " + used )
         
         val groupings = clusterList.map( x => x._1.members().map( y => y.value ) )
         
@@ -593,7 +593,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             asbs.head.extend( sf )
         }
         
-        logger.debug( "Building site alternatives." )
+        logger.info( "Building site alternatives." )
         sites = asbs.reverse.map( _.buildSite() ).filter( _.combs.size >= 1 )
     }
     
@@ -698,7 +698,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         type ContextId = Int
         type SiteCentre = Double
                 
-        logger.debug( "Building weighted context edges." )
+        logger.info( "Building weighted context edges." )
         var allTds = List[TopicDetailLink]()
         var reverseContextMap = TreeMap[ContextId, List[(TopicDetailLink, Double)]]()
         
@@ -745,7 +745,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         // links between sites in that alternative
 
         // Weight each topic based on shared contexts (and distances to those contexts)
-        logger.debug( "Building weighted topic edges." )
+        logger.info( "Building weighted topic edges." )
         val distWeighting1 = new NormalDistributionImpl( 0.0, 5.0 )
         val distWeighting2 = new NormalDistributionImpl( 0.0, 10.0 )
         
@@ -811,7 +811,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         // Topics linked via contexts
         def buildContextLinks() =
         {
-            logger.debug( "Links via contexts" )
+            logger.info( "Links via contexts" )
             for ( (contextId, alternatives) <- reverseContextMap )
             {
                 if ( idToTopicMap.contains( contextId ) )
@@ -856,7 +856,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         // Use top-level aggregate clustering to prune. TODO: Evaluate how neccessary this is after all algo. bug fixes.
         def runAggregateClusterPruning() =
         {
-            logger.debug( "Using aggregate clustering to prune network" )
+            logger.info( "Using aggregate clustering to prune network" )
             def completeCoverage(numAlternatives : Int) = sites.foldLeft(true)( (x, y) => x && y.complete(numAlternatives) )
             def resetCoverage() = sites.foreach( _.resetMarkings() )
             
@@ -883,23 +883,23 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         runAggregateClusterPruning()
         validate()
         
-        logger.debug( "Links in play: " + linkCount )
+        logger.info( "Links in play: " + linkCount )
         
         dumpResolutions()
         
         // Prune out alternatives
         def pruneOutAlternatives() =
         {
-            logger.debug( "Running new algo framework" )
+            logger.info( "Running new algo framework" )
             
             // Add all interesting elements to the queue.
-            val q = new PriorityQ[TopicDetailLink]()
+            val q = new NPriorityQ[TopicDetailLink]()
             for ( td <- allTds ) q.add( td.algoWeight, td )
             
             // Prune alternatives before topics
             if ( AmbiguityForest.pruneAlternativesBeforeTopics )
             {
-                logger.debug( "Pruning down to one alternative per site." )
+                logger.info( "Pruning down to one alternative per site." )
                 var done = false
                 
                 sites.map( x => assert( x.combs.size >= 1 ) )
@@ -925,7 +925,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             
             validate()
             
-            logger.debug( "Pruning down to one topic per site." )
+            logger.info( "Pruning down to one topic per site." )
             while ( !q.isEmpty )
             {
                 val (weight, td) = q.first
@@ -960,7 +960,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         }
         pruneOutAlternatives()
         
-        logger.debug( "Dumping resolutions." )
+        logger.info( "Dumping resolutions." )
         dumpResolutions()
         
         var allTopics = HashSet[TopicDetailLink]()
@@ -980,10 +980,10 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                 }
             }
         }
-        
+        validate()
        
         // Use top-level aggregate clustering to prune 
-        if ( true )
+        if ( false )
         {
             var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
             val linkMap = new AutoMap[(WrappedTopicId, WrappedTopicId), Double]( x => 0.0 )
@@ -999,7 +999,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             for ( ((from, to), weight) <- linkMap ) topicClustering2.update( from, to, weight )
             for ( site <- sites; c <- site.combs; alt <- c.sites; t <- alt.sf.topics; (p, w) <- t.peers ) topicClustering2.update( topicMap(t.topicId), topicMap(p.topicId), w.totalWeight )
             
-            logger.debug( "Using aggregate clustering to prune network" )
+            logger.info( "Using aggregate clustering to prune network" )
             
             
             if ( false )
@@ -1040,7 +1040,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                     nextId += 1
                 }
                 
-                logger.debug( "Inserting " + catEdges.length + " edges into hierarchy builder with " + allTopicIds.size + " topic ids" )
+                logger.info( "Inserting " + catEdges.length + " edges into hierarchy builder with " + allTopicIds.size + " topic ids" )
                 
                 {
                     val hb = new CategoryHierarchy.Builder( allTopicIds, catEdges, x => topicNameMap(x) )
@@ -1066,11 +1066,12 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
                 }
             }
         }
+        logger.info( "Finished running alternative based resolution." )
     }
     
-    def dumpGraphOld( linkFile : String, nameFile : String )
+    /*def dumpGraphOld( linkFile : String, nameFile : String )
     {
-        logger.debug( "Building topic and context association graph." )
+        logger.info( "Building topic and context association graph." )
      
         var topicWeights = disambiguated.foldLeft( TreeMap[Int, Double]() )( (x, y) => x.updated( y.topicId, y.weight ) )
         
@@ -1137,9 +1138,9 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             }
         }
         p.close()
-    }
+    }*/
     
-    def dumpGraph( linkFile : String, nameFile : String )
+    /*def dumpGraph( linkFile : String, nameFile : String )
     {
         var count = 0
         var idMap = TreeMap[Int, Int]()
@@ -1201,7 +1202,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         }
         
         p.close()
-    }
+    }*/
     
     
     def dumpResolutions()

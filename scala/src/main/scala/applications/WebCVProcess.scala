@@ -59,7 +59,7 @@ object WebCVProcess
             forest.dumpDebug( "ambiguitydebug" + trimmedId + ".xml" )
             forest.output( "ambiguity" + trimmedId + ".html", "ambiguityresolution" + trimmedId + ".xml" )
             
-            Thread.sleep( 10000 )
+            //Thread.sleep( 10000 )
         }
     }
 }

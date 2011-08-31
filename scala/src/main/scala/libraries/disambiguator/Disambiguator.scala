@@ -350,16 +350,36 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             if ( false )
             {
                 topicCategoryQuery.bind( topicId )
-                topicCategoryQuery.toList.map( row => (_1(row).get, _2(row).get, _3(row).get) )
+                
+                val res = ListBuffer[(Int, Double)]()
+                for ( row <- topicCategoryQuery )
+                {
+                    val contextId = _1(row).get
+                    var weight = _2(row).get
+                    val name = _3(row).get
+                    
+                    if ( Disambiguator.allowedContext(name) )
+                    {
+                        val isCategory = name.startsWith( "Category:")
+                        if ( AmbiguityForest.upweightCategories && isCategory )
+                        {
+                            weight = sqrt( weight )
+                        }
+                        
+                        res.append( (contextId, weight) )
+                    }
+                }
+                
+                res.toList
             }
             else
             {
                 var index = Utils.lowerBound( new EfficientIntIntDouble( topicId, 0, 0.0 ), linkWeightDb, (x:EfficientIntIntDouble, y:EfficientIntIntDouble) => x.less(y) )
-                var res = ListBuffer[(Int, Double, String)]()
+                var res = ListBuffer[(Int, Double)]()
                 while ( linkWeightDb(index).first == topicId )
                 {
                     val row = linkWeightDb(index)
-                    res.append( (row.second, row.third, "") )
+                    res.append( (row.second, row.third) )
                     index += 1
                 }
                 
@@ -375,10 +395,10 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             var wordIndex = 0
             var topicSet = TreeSet[Int]()
             
-            logger.debug( "Parsing text and building topic and category maps." )
+            logger.info( "Parsing text and building topic and category maps." )
             for ( word <- wordList )
             {
-                logger.debug( "Reading: " + word )
+                //logger.info( "Reading: " + word )
                 val wordLookup = lookup.lookupWord( word )
                         
                 wordLookup match
@@ -434,24 +454,9 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                             var contextWeights = TreeMap[Int, Double]()
 
                                             // Love closures
-                                            def addContext( cid : Int, _weight : Double, name : String )
+                                            def addContext( cid : Int, _weight : Double )
                                             {
                                                 var weight = _weight
-                                                /*if ( Disambiguator.allowedContext(name) )
-                                                {
-                                                    val isCategory = name.startsWith( "Category:")
-                                                    if ( AmbiguityForest.upweightCategories && isCategory )
-                                                    {
-                                                        
-                                                        //weight = 1.0
-                                                        weight = sqrt( weight )
-                                                    }
-                                                    
-                                                    if ( cid != topicId )
-                                                    {
-                                                        contextWeights = contextWeights.updated( cid, weight )
-                                                    }
-                                                }*/
                                                 
                                                 if ( cid != topicId )
                                                 {
@@ -459,7 +464,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                                 }
                                             }
                                                                                         
-                                            getTopicContexts( topicId ).foreach( x => addContext( x._1, x._2, x._3 ) )
+                                            getTopicContexts( topicId ).foreach( x => addContext( x._1, x._2 ) )
                                             
                                             // Second order contexts
                                             if ( AmbiguityForest.secondOrderContexts && contextWeights.size < AmbiguityForest.secondOrderKickin )
@@ -472,13 +477,13 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                                                     {
                                                         val cid = row._1
                                                         val rawWeight = row._2
-                                                        val name = row._3
+                                                        //val name = row._3
                                                         
                                                         // Second order contexts cannot be categories
                                                         if ( !contextWeights.contains(cid) )//&& !name.startsWith("Category:") )
                                                         {
                                                             val weight = AmbiguityForest.secondOrderContextDownWeight * contextWeight * rawWeight
-                                                            addContext( cid, weight, name )
+                                                            addContext( cid, weight )
                                                         }
                                                     } )
                                                 }
@@ -512,22 +517,22 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                 wordIndex += 1
             }
             
-            logger.debug( "Looking up topic names for " + topicSet.size + " topics." )
+            logger.info( "Looking up topic names for " + topicSet.size + " topics." )
             //val topicNameQuery = topicDb.prepare( "SELECT t1.name, t2.count FROM topics AS t1 LEFT JOIN numTopicsForWhichThisIsAContext AS t2 on t1.id=t2.topicId WHERE id=?", Col[String]::Col[Int]::HNil )
             val topicNameQuery = topicDb.prepare( "SELECT name FROM topics WHERE id=?", Col[String]::HNil )
            
             if ( false )
             { 
-                logger.debug( "Build category graph." )
+                logger.info( "Build category graph." )
                 val fullGraph = categoryHierarchy.toTop( topicSet, (f, t, w) => w )
-                logger.debug( "  complete..." )
+                logger.info( "  complete..." )
                 
-                logger.debug( "Build and run category hierarchy" )
+                logger.info( "Build and run category hierarchy" )
                 val b = new CHBuilder( topicSet, fullGraph, id => id.toString )
-                logger.debug( "  run..." )
+                logger.info( "  run..." )
                 val maxTopicDistance = 6.0
                 b.run( (x,y) => 1, maxTopicDistance )
-                logger.debug( "  complete..." )
+                logger.info( "  complete..." )
             }
             
             for ( topicId <- topicSet )
@@ -554,7 +559,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
                 }
             } )
             
-            logger.debug( "Building new ambiguity forest" )
+            logger.info( "Building new ambiguity forest" )
 
             val f = new AmbiguityForest( wordList, topicNameMap, topicCategoryMap, topicDb, categoryHierarchy )
             f.addTopics( possiblePhrasesSorted )
