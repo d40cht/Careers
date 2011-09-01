@@ -1181,7 +1181,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             primaryTopicSet += fromTopic.topicId
         }
         
-        val groupMembership = topicClustering.runGrouped( 0.5, x => false, () => Unit, (x, y) => true, x => topicNameMap(x.id), false )
+        val groupMembership = topicClustering.runGrouped( 0.7, x => false, () => Unit, (x, y) => true, x => topicNameMap(x.id), false )
         
         
         println( primaryTopicSet.size, groupMembership.size )
