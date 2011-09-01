@@ -49,7 +49,7 @@ class TopicVector()
         var BB = 0.0
         
         // Weight, name, groupId
-        var weightedMatches = List[(Double, String, Boolean, Int)]()
+        var weightedMatches = List[(Double, Int, TopicElement)]()
         
         // Choose top N from each
         val topTopics = topics
@@ -60,16 +60,13 @@ class TopicVector()
             {
                 val otherte = topOtherTopics(id)
                 
-                if ( true )//te.primaryTopic || otherte.primaryTopic )
-                {
-                    val combinedWeight = te.weight * otherte.weight
-                    val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
-                    
-                    
-                    weightedMatches = (priorityWeight, te.name, te.primaryTopic, te.groupId) :: weightedMatches
-                    
-                    AB += combinedWeight
-                }
+                val combinedWeight = te.weight * otherte.weight
+                val priorityWeight = combinedWeight / math.sqrt( (te.weight*te.weight) + (otherte.weight*otherte.weight) )
+                
+                
+                weightedMatches = (priorityWeight, id, te) :: weightedMatches
+                
+                AB += combinedWeight
             }
             AA += (te.weight*te.weight)
         }

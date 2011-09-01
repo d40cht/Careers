@@ -20,6 +20,7 @@ import org.seacourt.utility._
 import org.seacourt.disambiguator.Community._
 import org.seacourt.disambiguator.CategoryHierarchy._
 
+import org.seacourt.serialization.SerializationProtocol._
 
 import org.seacourt.utility.{Graph, PriorityQ, AutoMap}
 
@@ -100,6 +101,8 @@ object AmbiguityForest
     val pruneAlternativesBeforeTopics   = true
     
     val minClusterCoherence             = 1e-9
+    
+    val maxNumberOfWords                = 3000
     
 }
 
@@ -500,11 +503,28 @@ class AgglomClustering[NodeType <% Clusterable[NodeType]] extends Logging
             }
         }
         
-        logger.info( "Total: " + clusterList.size + ", used: " + used )
+        logger.debug( "Total: " + clusterList.size + ", used: " + used )
         
         val groupings = clusterList.map( x => x._1.members().map( y => y.value ) )
         
         groupings
+    }
+    
+    def runGrouped( strictness : Double, completeCoverage: (Int) => Boolean, resetCoverage : () => Unit, compatibleForLink : (NodeType, NodeType) => Boolean, getName : NodeType => String, mopupOutliers : Boolean ) =
+    {
+        val groupings = run( strictness, completeCoverage, resetCoverage, compatibleForLink, getName, mopupOutliers )
+        var groupMembership = HashMap[NodeType, Int]()
+        groupings.zipWithIndex.foreach( x => {
+            val members = x._1
+            val gid = x._2
+            
+            members.foreach( wid =>
+            {
+                groupMembership = groupMembership.updated( wid, gid )
+            } )
+        } )
+        
+        groupMembership
     }
 }
 
@@ -1069,142 +1089,6 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         logger.info( "Finished running alternative based resolution." )
     }
     
-    /*def dumpGraphOld( linkFile : String, nameFile : String )
-    {
-        logger.info( "Building topic and context association graph." )
-     
-        var topicWeights = disambiguated.foldLeft( TreeMap[Int, Double]() )( (x, y) => x.updated( y.topicId, y.weight ) )
-        
-        
-        var topicLinkCount = TreeMap[Int, Int]()
-        var els = TreeMap[Int, Int]()
-        var contextWeights = TreeMap[Int, Double]()
-        var count = 0
-        for ( ss <- disambiguated )
-        {
-            if ( !els.contains( ss.topicId ) )
-            {
-                els = els.updated( ss.topicId, count )
-                count += 1
-            }
-            topicLinkCount = topicLinkCount.updated( ss.topicId, 1 + topicLinkCount.getOrElse( ss.topicId, 0 ) )
-            
-            for ( (contextId, weight) <- topicCategoryMap(ss.topicId) )
-            {
-                if ( !topicWeights.contains( contextId ) )
-                {
-                    val oldWeight = contextWeights.getOrElse( contextId, 0.0 )
-                    contextWeights = contextWeights.updated( contextId, oldWeight max (ss.weight * weight) )
-                    if ( !els.contains( contextId ) )
-                    {
-                        els = els.updated( contextId, count )
-                        count += 1
-                    }
-                }
-                topicLinkCount = topicLinkCount.updated( contextId, 1 + topicLinkCount.getOrElse( contextId, 0 ) )
-            }
-        }
-        
-        
-        val n = new java.io.PrintWriter( new File(nameFile) )
-        for ( (id, cid) <- els )
-        {
-            if ( topicWeights.contains( id ) )
-            {
-                n.println( cid + " " + topicWeights(id) + " " + topicNameMap(id) )
-            }
-            else
-            {
-                n.println( cid + " " + contextWeights(id) + " " + topicNameMap(id) )
-            }
-        }
-        n.close()
-        
-        val p = new java.io.PrintWriter( new File(linkFile) )
-        val topicCategoryQuery = topicDb.prepare( "SELECT contextTopicId, weight FROM linkWeights2 WHERE topicId=? ORDER BY weight DESC LIMIT 50", Col[Int]::Col[Double]::HNil )
-        for ( (id, cid) <- els )
-        {
-            topicCategoryQuery.bind( id )
-            for ( v <- topicCategoryQuery )
-            {
-                val targetId = _1(v).get
-                val weight = _2(v).get
-                
-                if ( id != targetId && els.contains( targetId ) )
-                {    
-                    val targetCid = els( targetId )
-                    p.println( cid + " " + targetCid + " " + weight )
-                }
-            }
-        }
-        p.close()
-    }*/
-    
-    /*def dumpGraph( linkFile : String, nameFile : String )
-    {
-        var count = 0
-        var idMap = TreeMap[Int, Int]()
-        for ( ss <- disambiguated )
-        {
-            if ( !idMap.contains(ss.topicId) )
-            {
-                idMap = idMap.updated( ss.topicId, count )
-                count += 1
-            }
-        }
-        
-        val n = new java.io.PrintWriter( new File(nameFile) )
-        
-        // A map from context ids to topic ids with weights
-        var connections = TreeMap[Int, List[(Int, Double)]]()
-        for ( ss <- disambiguated )
-        {
-            for ( (contextId, weight) <- topicCategoryMap(ss.topicId) )
-            {
-                val oldList = connections.getOrElse( contextId, List[(Int, Double)]() )
-                connections = connections.updated( contextId, (ss.topicId, weight) :: oldList )
-            }
-            
-            n.println( idMap(ss.topicId) + " " + ss.weight + " " + topicNameMap(ss.topicId) )
-        }
-        n.close()
-        
-        var localWeights = TreeMap[(Int, Int), Double]()
-        for ( ss <- disambiguated )
-        {
-            for ( (contextId, weight1) <- topicCategoryMap(ss.topicId) )
-            {
-                for ( (topicId, weight2) <- connections( contextId ) )
-                {
-                    if ( contextId != topicId )
-                    {
-                        val fromId = idMap(ss.topicId)
-                        val toId = idMap(topicId)
-                        
-                        if ( fromId != toId )
-                        {
-                            val minId = fromId min toId
-                            val maxId = fromId max toId
-                            
-                            val weight = weight1 * weight2
-                            val oldWeight = localWeights.getOrElse( (minId, maxId), 0.0 )
-                            localWeights = localWeights.updated( (minId, maxId), oldWeight + weight )
-                        }
-                    }
-                }
-            }
-        }
-        
-        val p = new java.io.PrintWriter( new File(linkFile) )
-        for ( ((fromId, toId), weight) <- localWeights )
-        {
-            p.println( fromId + " " + toId + " " + weight )
-        }
-        
-        p.close()
-    }*/
-    
-    
     def dumpResolutions()
     {
         addDebug( () =>
@@ -1267,6 +1151,54 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
 
             XML.save( fileName, fullDebug, "utf8" )
         }            
+    }
+    
+    def saveDocumentDigest( id : Int, fileName : String )
+    {
+        val topicWeights = new AutoMap[Int, Double]( x => 0.0 )
+        var primaryTopicSet = new HashSet[Int]()
+        val linkWeights = new AutoMap[(Int, Int), Double]( x => 0.0 )
+        
+        var topicMap = new AutoMap[Int, WrappedTopicId]( id => new WrappedTopicId(id) )
+        val topicClustering = new AgglomClustering[WrappedTopicId]()
+        for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; fromTopic <- alt.sf.topics; link <- fromTopic.peers )
+        {
+            val (toTopic, peerLink) = link
+            
+            /*for ( (contextId, weight) <- peerLink.componentWeights )
+            {
+                topicWeights.set( contextId, topicWeights(contextId) + weight )
+            }*/
+            
+            topicWeights.set( fromTopic.topicId, topicWeights(fromTopic.topicId) + peerLink.totalWeight )
+            topicWeights.set( toTopic.topicId, topicWeights(toTopic.topicId) + peerLink.totalWeight )
+            
+            val key = if ( fromTopic.topicId < toTopic.topicId ) (fromTopic.topicId, toTopic.topicId) else (toTopic.topicId, fromTopic.topicId)
+            linkWeights.set(key, linkWeights(key) + peerLink.totalWeight)
+            
+            topicClustering.update( topicMap(fromTopic.topicId), topicMap(toTopic.topicId), peerLink.totalWeight )
+            
+            primaryTopicSet += fromTopic.topicId
+        }
+        
+        val groupMembership = topicClustering.runGrouped( 0.5, x => false, () => Unit, (x, y) => true, x => topicNameMap(x.id), false )
+        
+        
+        println( primaryTopicSet.size, groupMembership.size )
+        
+        val tv = new TopicVector()
+        for ( (topicId, weight) <- topicWeights.toList )
+        {
+            val isPrimaryTopic = primaryTopicSet.contains(topicId)
+            val wid = topicMap(topicId)
+            val groupId = if (isPrimaryTopic && groupMembership.contains(wid)) groupMembership(wid) else -1
+            
+            tv.addTopic( topicId, weight, topicNameMap(topicId), groupId, isPrimaryTopic )
+        }
+        
+        val dd = new DocumentDigest( id, tv, linkWeights.toList.map( x => (x._1._1, x._1._2, x._2) ) )
+        
+        sbinary.Operations.toFile( dd )( new java.io.File( fileName ) )
     }
     
     def output( htmlFileName : String, resolutionFileName : String )

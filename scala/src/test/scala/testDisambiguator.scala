@@ -75,7 +75,7 @@ class BuildMemoryResidentDbFiles extends FunSuite
         val db = new SQLiteWrapper( new File("./DisambigData/dbout.sqlite") )
         
         // Link weight file
-        {
+        /*{
             val qSize = _1(db.prepare( "SELECT COUNT(*) FROM linkWeights", Col[Int]::HNil ).toList(0)).get
             val q = db.prepare( "SELECT t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2), t2.name FROM linkWeights AS t1 INNER JOIN topics AS t2 ON t1.contextTopicId=t2.id ORDER BY t1.topicId, t1.contextTopicId, MIN(t1.weight1, t1.weight2) DESC", Col[Int]::Col[Int]::Col[Double]::Col[String]::HNil )
             
@@ -108,10 +108,10 @@ class BuildMemoryResidentDbFiles extends FunSuite
             linkDb.truncate(i)
             linkDb.save( new DataOutputStream( new FileOutputStream( new File( "./DisambigData/linkWeights.bin" ) ) ) )
             println( "  complete..." )
-        }
+        }*/
         
         // Phrase topics file
-        /*{
+        {
             val qSize = _1(db.prepare( "SELECT COUNT(*) FROM phraseTopics", Col[Int]::HNil ).toList(0)).get
             val q = db.prepare( "SELECT t1.phraseTreeNodeId, t1.topicId, t1.count, t2.name FROM phraseTopics AS t1 INNER JOIN topics AS t2 ON t1.topicId=t2.id ORDER BY t1.phraseTreeNodeId, topicId, count DESC", Col[Int]::Col[Int]::Col[Int]::Col[String]::HNil )
             
@@ -158,7 +158,7 @@ class BuildMemoryResidentDbFiles extends FunSuite
             println( "Saving data" )
             pCountDb.save( new DataOutputStream( new FileOutputStream( new File( "./DisambigData/phraseCounts.bin" ) ) ) )
             println( "  complete..." )
-        }*/
+        }
     }
 }
 

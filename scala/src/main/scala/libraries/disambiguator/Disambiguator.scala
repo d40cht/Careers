@@ -396,7 +396,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
             var topicSet = TreeSet[Int]()
             
             logger.info( "Parsing text and building topic and category maps." )
-            for ( word <- wordList.slice(0, 2000) )
+            for ( word <- wordList.slice(0, AmbiguityForest.maxNumberOfWords) )
             {
                 //logger.info( "Reading: " + word )
                 val wordLookup = lookup.lookupWord( word )

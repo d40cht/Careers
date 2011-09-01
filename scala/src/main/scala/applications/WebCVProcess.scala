@@ -58,6 +58,7 @@ object WebCVProcess
             val forest = b.build()
             forest.dumpDebug( "ambiguitydebug" + trimmedId + ".xml" )
             forest.output( "ambiguity" + trimmedId + ".html", "ambiguityresolution" + trimmedId + ".xml" )
+            forest.saveDocumentDigest( trimmedId.toInt, "documentDigest" + trimmedId + ".bin" )
             
             //Thread.sleep( 10000 )
         }
