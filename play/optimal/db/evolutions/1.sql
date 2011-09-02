@@ -38,3 +38,4 @@ CREATE TABLE "CVMetaData" (
  
 # --- !Downs
  
+DROP TABLE "Users";
