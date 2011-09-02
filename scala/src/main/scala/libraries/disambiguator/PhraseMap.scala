@@ -137,7 +137,7 @@ class PhraseMapLookup( val wordMap : EfficientArray[FixedLengthString], val phra
         
         def find( phrase : String ) : Int =
         {
-            val wordList = Utils.luceneTextTokenizer( phrase )
+            val wordList = TextUtils.luceneTextTokenizer( phrase )
 
             var wordIds = wordList.map( (x: String) => Utils.binarySearch( new FixedLengthString(x), wordMap, comp ) )
                         
@@ -228,7 +228,7 @@ class PhraseMapBuilder( wordMapBase : File, phraseMapBase : File ) extends Loggi
         {*/
         for ( (surfaceForm, targets) <- sfSource )
         {
-            val wordList = Utils.luceneTextTokenizer( surfaceForm )
+            val wordList = TextUtils.luceneTextTokenizer( surfaceForm )
             val numWords = wordList.length
             
             while ( phraseData.size < numWords )

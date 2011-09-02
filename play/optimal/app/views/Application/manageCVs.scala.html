@@ -1,4 +1,4 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(java.sql.Timestamp, String)])
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(Long, java.sql.Timestamp, String, Boolean, Boolean)])
 
 @main(title="Home", session=session, flash=flash) {
     <h1>Manage your existing CVs</h1>
@@ -8,10 +8,20 @@
     
         @cvs.map { (row) =>
             <tr>
-                <td>@row._1</td>
                 <td>@row._2</td>
-                <td>No pdf</td>
-                <td>No plain text</td>
+                <td>@row._3</td>
+                <td>@if(row._4) {
+                    <a href="@action(controllers.Application.cvPdf)?id=@row._1">View</a>
+                } else {
+                    <span/>
+                }
+                </td>
+                <td>@if(row._5) {
+                    <a href="@action(controllers.Application.cvText)?id=@row._1">View</a>
+                } else {
+                    <span/>
+                }
+                </td>
                 <td>No analysis</td>
             </tr>
         }

@@ -17,17 +17,17 @@ object RedirectParser extends MapReduceJob[Text, Text, Text, Text, Text, Text]
         {
             try
             {
-                val parsed = Utils.wikiParse( topicTitle, topicText )
+                val parsed = TextUtils.wikiParse( topicTitle, topicText )
                 
                 if ( parsed.isRedirect )
                 {
-                    Utils.traverseWikiTree( parsed, element =>
+                    TextUtils.traverseWikiTree( parsed, element =>
                     {
                         element match
                         {
                             case InternalLinkNode(destination, children, line) =>
                             {
-                                output( Utils.normalizeTopicTitle( topicTitle ), Utils.normalizeLink( destination ) )
+                                output( TextUtils.normalizeTopicTitle( topicTitle ), TextUtils.normalizeLink( destination ) )
                             }
                             case _ =>
                         }

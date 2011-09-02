@@ -25,14 +25,14 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
             {
                 try
                 {
-                    val parsed = Utils.wikiParse( topicTitle, topicText )
+                    val parsed = TextUtils.wikiParse( topicTitle, topicText )
                  
                     // Don't bother with list-of and table-of links atm because it's hard to work
                     // out which links in the page are part of the list and which are context
                     val linkRegex = new Regex( "[=]+[^=]+[=]+" )
                     
                     var linkSet = new TreeSet[String]
-                    Utils.foldlWikiTree( parsed, true, (element : Node, inFirstSection : Boolean) =>
+                    TextUtils.foldlWikiTree( parsed, true, (element : Node, inFirstSection : Boolean) =>
                     {
                         var newInFirstSection = inFirstSection
                         
@@ -45,7 +45,7 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                                 val namespace = destination.namespace.toString
                                 if ( namespace == "Category" || (namespace == "Main" && inFirstSection) )
                                 {
-                                    linkSet = linkSet + Utils.normalizeLink( destination )
+                                    linkSet = linkSet + TextUtils.normalizeLink( destination )
                                 }
                             }
                             // One wouldn't expect to need both of these, but I'm seeing
@@ -69,7 +69,7 @@ object CategoriesAndContexts extends MapReduceJob[Text, Text, Text, Text, Text, 
                         newInFirstSection
                     } )
                     
-                    for ( linkTo <- linkSet ) output( Utils.normalizeTopicTitle( topicTitle ), linkTo )
+                    for ( linkTo <- linkSet ) output( TextUtils.normalizeTopicTitle( topicTitle ), linkTo )
                 }
                 catch
                 {

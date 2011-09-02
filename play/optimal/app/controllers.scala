@@ -12,6 +12,8 @@ import java.sql.{Timestamp, Blob}
 import javax.sql.rowset.serial.SerialBlob
 import java.security.MessageDigest
 
+import org.apache.commons.io.FileUtils.copyFile
+
 import org.scalaquery.session._
 import org.scalaquery.ql.basic.{BasicTable => Table}
 
@@ -25,6 +27,8 @@ import org.scalaquery.ql._
 import org.scalaquery.ql.TypeMapper._
 
 import sbt.Process._
+
+import org.seacourt.utility._
 
 // To interrogate the H2 DB: java -jar ../../../play-1.2.2RC2/framework/lib/h2-1.3.149.jar
 package models
@@ -109,16 +113,24 @@ object Application extends Controller {
             
             // Pdf data can be null but if so text data must exist
             println( pdfArg )
+            
+            
             var pdfData = if ( pdfArg == null ) null else readFileToBytes(pdfArg)
             
             var textData : Array[Byte] = null
             if ( textArg == null )
             {
-                val pdfToTextCmd = "pdftotext " + pdfArg.toString + " tmp.txt"
-                
-                val res = pdfToTextCmd !
-                
-                textData = readFileToBytes( new File("tmp.txt") )
+                Utils.withTemporaryDirectory( dirName =>
+                {
+                    copyFile( pdfArg, new File( "./%s/tmp.pdf".format( dirName ) ) )
+                    val pdfToTextCmd = "pdftotext ./%s/tmp.pdf ./%s/tmp.txt".format( dirName, dirName )
+                    
+                    println( pdfToTextCmd )
+                    
+                    val res = pdfToTextCmd !
+                    
+                    textData = readFileToBytes( new File(dirName, "tmp.txt") )
+                } )
             }
             else
             {
@@ -171,7 +183,22 @@ object Application extends Controller {
             val blob = text.head
             val data = blob.getBytes(1, blob.length().toInt)
             
-            new String(data)
+            Text( new String(data) )
+        }
+    }
+    
+    def cvPdf =
+    {
+        val cvId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.pdf ).list
+            val blob = text.head
+            val data = blob.getBytes(1, blob.length().toInt)
+            
+            Text( new String(data) )
         }
     }
     
@@ -182,12 +209,7 @@ object Application extends Controller {
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.added ~ u.description ).list
-            
-            for ( (added, description) <- cvs )
-            {
-                println( "::: " + added + ", " + description )
-            }
+            val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.id ~ u.added ~ u.description ~ !u.pdf.isNull ~ !u.text.isNull ).list
             
             html.manageCVs( session, flash, cvs )
         }

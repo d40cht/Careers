@@ -41,10 +41,10 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
         {
             try
             {
-                val parsed = Utils.wikiParse( topicTitle, topicText )
+                val parsed = TextUtils.wikiParse( topicTitle, topicText )
                 
                 var resSet = new TreeSet[(String, String)]
-                Utils.traverseWikiTree( parsed, element =>
+                TextUtils.traverseWikiTree( parsed, element =>
                 {
                     element match
                     {
@@ -58,8 +58,8 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                                 {
                                     case TextNode( surfaceForm, line ) =>
                                     {
-                                        val sf = Utils.normalizeSF( surfaceForm )
-                                        val dest = Utils.normalizeLink( destination )
+                                        val sf = TextUtils.normalizeSF( surfaceForm )
+                                        val dest = TextUtils.normalizeLink( destination )
                                         val newSF = (sf, dest)
                                         resSet = resSet + newSF
                                     }
@@ -72,7 +72,7 @@ object SurfaceFormsGleaner extends MapReduceJob[Text, Text, Text, Text, Text, Te
                 } )
 
                 
-                output( Utils.normalizeSF( topicTitle ), Utils.normalizeLink( WikiTitle.parse(topicTitle) ) )
+                output( TextUtils.normalizeSF( topicTitle ), TextUtils.normalizeLink( WikiTitle.parse(topicTitle) ) )
                 
                 for ( (sf, dest) <- resSet )
                 {

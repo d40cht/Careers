@@ -58,9 +58,9 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
         {
             try
             {
-                val parsed = Utils.wikiParse( topicTitle, topicText )
+                val parsed = TextUtils.wikiParse( topicTitle, topicText )
                 
-                val text = Utils.foldlWikiTree( parsed, List[String](), (element : Node, stringList : List[String] ) =>
+                val text = TextUtils.foldlWikiTree( parsed, List[String](), (element : Node, stringList : List[String] ) =>
                 {
                     element match
                     {
@@ -69,7 +69,7 @@ object PhraseCounter extends MapReduceJob[Text, Text, IntWritable, IntWritable, 
                     }
                 } )
                 
-                val words = Utils.luceneTextTokenizer( Utils.normalize( text.mkString( " " ) ) )
+                val words = TextUtils.luceneTextTokenizer( TextUtils.normalize( text.mkString( " " ) ) )
                 
                 var activePhrases = List[PhraseMapLookup#PhraseMapIter]()
                 

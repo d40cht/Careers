@@ -388,7 +388,7 @@ class TextArrayCountWritable extends Writable
     }
 }
 
-object Utils
+object TextUtils
 {
     def normalize( raw : String ) : String =
     {
@@ -408,8 +408,11 @@ object Utils
         namespace + ":" + destWithoutAnchor
     }
         
-    def luceneTextTokenizer( page : String ) : List[String] =
+    def luceneTextTokenizer( _page : String ) : List[String] =
     {
+        var page = normalize(_page)
+        
+        page = page.replace( "c++", "cplusplus" ).replace( ".net", "dotnet" )
     	val textSource = new StringReader( page )
     	
     	// Consider using org.apache.lucene.analysis.standard.StandardAnalyzer instead as it filters out 's, moves to lower case, removes stop words.
@@ -499,7 +502,10 @@ object Utils
             case _ =>
         }
     }
-    
+}
+
+object Utils
+{
     // Be great if this were more generic
     def binarySearch[T <: FixedLengthSerializable](x: T, xs: EfficientArray[T], comp : (T, T)=> Boolean): Option[Int] =
     {
@@ -601,7 +607,7 @@ class LinkExtractor
                     {
                         case TextNode( surfaceForm, line ) =>
                         {
-                            val normalizedText = Utils.normalize( surfaceForm )
+                            val normalizedText = TextUtils.normalize( surfaceForm )
 
                             // TODO: Annotate if in first paragraph. If redirect only take first
                             contextAddFn( normalizedText, destination.namespace.toString, destination.decoded.toString, inFirstSection )
@@ -626,7 +632,7 @@ class LinkExtractor
     
     def run( element : Node, contextAddFn : (String, String, String, Boolean) => Unit )
     {
-        Utils.traverseWikiTree( element, node => visitNode(node, contextAddFn) )
+        TextUtils.traverseWikiTree( element, node => visitNode(node, contextAddFn) )
     }
 }
 

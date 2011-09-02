@@ -295,7 +295,7 @@ class Disambiguator( phraseMapFileName : String, topicFileName : String, categor
         
     class Builder( val text : String ) extends Logging
     {
-        val wordList = Utils.luceneTextTokenizer( Utils.normalize( text ) )
+        val wordList = TextUtils.luceneTextTokenizer( TextUtils.normalize( text ) )
         
         var topicCategoryMap = HashMap[Int, HashMap[Int, Double]]()
         var topicNameMap = HashMap[Int, String]()

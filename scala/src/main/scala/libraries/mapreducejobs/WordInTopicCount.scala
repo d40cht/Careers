@@ -28,9 +28,9 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
         {
             try
             {
-                val parsed = Utils.wikiParse( topicTitle, topicText )
+                val parsed = TextUtils.wikiParse( topicTitle, topicText )
                 
-                val text = Utils.foldlWikiTree( parsed, List[String](), (element : Node, stringList : List[String] ) =>
+                val text = TextUtils.foldlWikiTree( parsed, List[String](), (element : Node, stringList : List[String] ) =>
                 {
                     element match
                     {
@@ -39,7 +39,7 @@ object WordInTopicCounter extends MapReduceJob[Text, Text, Text, IntWritable, Te
                     }
                 } )
                 
-                val words = Utils.luceneTextTokenizer( Utils.normalize( text.mkString( " " ) ) )
+                val words = TextUtils.luceneTextTokenizer( TextUtils.normalize( text.mkString( " " ) ) )
                 var seenSet = TreeSet[String]()
                 for (word <- words )
                 {   

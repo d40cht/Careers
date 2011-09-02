@@ -103,6 +103,7 @@ object AmbiguityForest
     val minClusterCoherence             = 1e-9
     
     val maxNumberOfWords                = 3000
+    val topicVectorMaxSize              = 100
     
 }
 
@@ -1155,7 +1156,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
     
     def saveDocumentDigest( id : Int, fileName : String )
     {
-        val topicWeights = new AutoMap[Int, Double]( x => 0.0 )
+        var topicWeights = new AutoMap[Int, Double]( x => 0.0 )
         var primaryTopicSet = new HashSet[Int]()
         val linkWeights = new AutoMap[(Int, Int), Double]( x => 0.0 )
         
@@ -1172,13 +1173,22 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             
             topicWeights.set( fromTopic.topicId, topicWeights(fromTopic.topicId) + peerLink.totalWeight )
             topicWeights.set( toTopic.topicId, topicWeights(toTopic.topicId) + peerLink.totalWeight )
+        }
             
-            val key = if ( fromTopic.topicId < toTopic.topicId ) (fromTopic.topicId, toTopic.topicId) else (toTopic.topicId, fromTopic.topicId)
-            linkWeights.set(key, linkWeights(key) + peerLink.totalWeight)
+        val topNTopics = topicWeights.toList.sortWith( _._2 > _._2 ).slice(0, AmbiguityForest.topicVectorMaxSize).foldLeft(HashSet[Int]())( _ + _._1 )
+        for ( site <- sites; alternative <- site.combs; alt <- alternative.sites; fromTopic <- alt.sf.topics; link <- fromTopic.peers )
+        {
+            val (toTopic, peerLink) = link
             
-            topicClustering.update( topicMap(fromTopic.topicId), topicMap(toTopic.topicId), peerLink.totalWeight )
-            
-            primaryTopicSet += fromTopic.topicId
+            if ( topNTopics.contains(toTopic.topicId) && topNTopics.contains(fromTopic.topicId) )
+            {
+                val key = if ( fromTopic.topicId < toTopic.topicId ) (fromTopic.topicId, toTopic.topicId) else (toTopic.topicId, fromTopic.topicId)
+                linkWeights.set(key, linkWeights(key) + peerLink.totalWeight)
+                
+                topicClustering.update( topicMap(fromTopic.topicId), topicMap(toTopic.topicId), peerLink.totalWeight )
+                
+                primaryTopicSet += fromTopic.topicId
+            }
         }
         
         val groupMembership = topicClustering.runGrouped( 0.7, x => false, () => Unit, (x, y) => true, x => topicNameMap(x.id), false )
@@ -1187,7 +1197,8 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         println( primaryTopicSet.size, groupMembership.size )
         
         val tv = new TopicVector()
-        for ( (topicId, weight) <- topicWeights.toList )
+        val prunedTopics = topNTopics.toList.map( x => (x, topicWeights(x)) )
+        for ( (topicId, weight) <- prunedTopics )
         {
             val isPrimaryTopic = primaryTopicSet.contains(topicId)
             val wid = topicMap(topicId)
