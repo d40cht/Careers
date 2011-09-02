@@ -45,16 +45,17 @@ package models
         def * = id ~ added ~ email ~ password ~ fullName ~ isAdmin
     }
     
-    object CVs extends Table[(Long, Timestamp, String, Long, Blob, Blob)]("CVs")
+    object CVs extends Table[(Long, Timestamp, String, Long, Blob, Blob, Blob)]("CVs")
     {
-        def id          = column[Long]("id")
-        def added       = column[Timestamp]("added")
-        def description = column[String]("description")
-        def userId      = column[Long]("userId")
-        def pdf         = column[Blob]("pdf")
-        def text        = column[Blob]("text")
+        def id              = column[Long]("id")
+        def added           = column[Timestamp]("added")
+        def description     = column[String]("description")
+        def userId          = column[Long]("userId")
+        def pdf             = column[Blob]("pdf")
+        def text            = column[Blob]("text")
+        def documentDigest  = column[Blob]("documentDigest")
         
-        def * = id ~ added ~ description ~ userId ~ pdf ~ text
+        def * = id ~ added ~ description ~ userId ~ pdf ~ text ~ documentDigest
     }
     
     object CVMetaData extends Table[(Long, Timestamp, Blob, Blob)]("CVMetaData")
