@@ -198,8 +198,8 @@ object Application extends Controller {
             val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.pdf ).list
             val blob = text.head
             val data = blob.getBytes(1, blob.length().toInt)
-            
-            Text( new String(data) )
+            val stream = new java.io.ByteArrayInputStream(data)
+            new play.mvc.results.RenderBinary(stream, "cv.pdf", "application/pdf", false )
         }
     }
     
