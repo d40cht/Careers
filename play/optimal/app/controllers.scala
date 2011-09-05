@@ -7,11 +7,12 @@ import play.cache._
 
 import scala.io.Source._
 
-import java.io.{File, FileInputStream}
+import java.io.{File, FileInputStream, BufferedInputStream}
 import java.sql.{Timestamp, Blob}
 import javax.sql.rowset.serial.SerialBlob
 import java.security.MessageDigest
 
+import org.apache.commons.io.IOUtils
 import org.apache.commons.io.FileUtils.copyFile
 
 import org.scalaquery.session._
@@ -26,9 +27,13 @@ import org.scalaquery.ql._
 // Import the standard SQL types
 import org.scalaquery.ql.TypeMapper._
 
+import sbinary.Operations._
 import sbt.Process._
 
+import org.seacourt.htmlrender._
 import org.seacourt.utility._
+import org.seacourt.disambiguator.{DocumentDigest}
+import org.seacourt.serialization.SerializationProtocol._
 
 // To interrogate the H2 DB: java -jar ../../../play-1.2.2RC2/framework/lib/h2-1.3.149.jar
 package models
@@ -56,16 +61,6 @@ package models
         def documentDigest  = column[Blob]("documentDigest")
         
         def * = id ~ added ~ description ~ userId ~ pdf ~ text ~ documentDigest
-    }
-    
-    object CVMetaData extends Table[(Long, Timestamp, Blob, Blob)]("CVMetaData")
-    {
-        def cvId            = column[Long]("cvId")
-        def added           = column[Timestamp]("added")
-        def topicWeights    = column[Blob]("topicWeights")
-        def wordCloud       = column[Blob]("wordCloud")
-        
-        def * = cvId ~ added ~ topicWeights ~ wordCloud
     }
 }
 
@@ -155,21 +150,67 @@ object Application extends Controller {
         }
     }
     
+    private def authRequired[T]( handler : => T ) =
+    {
+        if ( params.get("magic") == Utils.magic )
+        {
+            handler
+        }
+        else
+        {
+            NoContent
+        }
+    }
+    
+    def uploadDocumentDigest = authRequired
+    {
+        val reqType = request.contentType
+        // Should be an input stream?
+        val id = params.get("id").toLong
+        println( "Upload for %d".format(id) )
+        val data = IOUtils.toByteArray( request.body )
+        val dd = fromByteArray[DocumentDigest](data)
+        println( "Document id: " + dd.id )
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val toUpdate = for ( cv <- models.CVs if cv.id === id ) yield cv.documentDigest
+            toUpdate.update( new SerialBlob(data) )
+        }
+    }
+    
     // TODO: Add validation to these data classes. Encryption? IP address restrictions?
-    def listCVs =
+    def listCVs = authRequired
     {
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val unprocessedCVs = for {
+            /*val unprocessedCVs = for {
                 Join(cv, md) <- models.CVs leftJoin models.CVMetaData on (_.id is _.cvId)
-            } yield cv.id ~ md.added.?
+            } yield cv.id ~ cv.added.?*/
+            val unprocessedCVs = for ( cv <- models.CVs ) yield cv.id ~ cv.documentDigest.isNull
             
             <cvs>
             {
-                for ( (id, added) <- unprocessedCVs.list.filter( _._2.isEmpty ) ) yield <id>{id}</id>
+                for ( (id, dd) <- unprocessedCVs.list.filter( _._2 ) ) yield <id>{id}</id>
             }
             </cvs>
+        }
+    }
+    
+    def rpcCVText = authRequired
+    {
+        val cvId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.text ).list
+            val blob = text.head
+            val data = blob.getBytes(1, blob.length().toInt)
+            
+            Text( new String(data) )
         }
     }
     
@@ -191,7 +232,7 @@ object Application extends Controller {
     def cvPdf =
     {
         val cvId = params.get("id").toLong
-        
+            
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
@@ -203,6 +244,24 @@ object Application extends Controller {
         }
     }
     
+    def cvAnalysis =
+    {
+        val cvId = params.get("id").toLong
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val query = ( for ( u <-models.CVs if u.id === cvId ) yield u.documentDigest ).list
+            val blob = query.head
+            val data = blob.getBytes(1, blob.length().toInt)
+            val dd = fromByteArray[DocumentDigest](data)
+            
+            val groupedSkills = dd.topicVector.rankedAndGrouped
+            
+            val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
+            html.cvAnalysis( session, flash, theTable )
+        }
+    }
+    
     def manageCVs =
     {
         val userId = session("userId").get.toLong
@@ -210,11 +269,12 @@ object Application extends Controller {
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.id ~ u.added ~ u.description ~ !u.pdf.isNull ~ !u.text.isNull ).list
+            val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.id ~ u.added ~ u.description ~ !u.pdf.isNull ~ !u.text.isNull ~ !u.documentDigest.isNull ).list
             
             html.manageCVs( session, flash, cvs )
         }
     }
+    
     def manageSearches = html.manageSearches( session, flash )
     def about = html.about( session, flash )
     def help = html.help( session, flash )

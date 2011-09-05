@@ -506,6 +506,9 @@ object TextUtils
 
 object Utils
 {
+    // This, of course, needs to be swapped out for proper authentication
+    def magic = "cPPftsUp4TzZZdXyCmmpNpfT"
+    
     // Be great if this were more generic
     def binarySearch[T <: FixedLengthSerializable](x: T, xs: EfficientArray[T], comp : (T, T)=> Boolean): Option[Int] =
     {

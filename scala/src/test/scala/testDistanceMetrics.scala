@@ -11,6 +11,7 @@ import scala.xml._
 import scala.io.Source._
 import org.seacourt.utility._
 import org.seacourt.disambiguator.{WrappedTopicId, AgglomClustering, TopicVector, TopicElement, DocumentDigest}
+import org.seacourt.htmlrender._
 
 
 
@@ -20,45 +21,10 @@ class DistanceMetricTest extends FunSuite
 {
     test( "DistanceMetricTest", TestTags.largeDataTests )
     {
-        def wikiLink( topicName : String ) =
-        {
-            val wikiBase = "http://en.wikipedia.org/wiki/"
-            wikiBase + (if (topicName.startsWith("Main:")) topicName.drop(5) else topicName)
-        }
-        
         val names = ArrayBuffer( "Alex", "Gav", "Steve", "Sem", "George", "George", "Alistair", "Chris", "Sarah", "Rob", "Croxford", "EJ", "Nils", "Zen", "Susanna", "Karel", "Tjark", "Jasbir", "Jasbir", "Pippo", "Olly", "Margot", "Sarah T", "Charlene Watson", "Nick Hill", "Jojo", "Matthew Schumaker", "Some quant dude off the web", "A second quant dude off the web", "Pete Williams web dev", "Jackie Lee web dev", "Katie McGregor", "David Green (env consultant)", "Mark Tarrant", "Mike Pepler" )
         
         val range = 1 until 3//(names.size+1)
         val dds = range.map( i => sbinary.Operations.fromFile[DocumentDigest]( new java.io.File( "./documentDigest%d.bin".format(i) ) ) )
-        
-        
-        def renderGroup( rootId : String, groupMembership : List[(Int, String, Boolean, Double)], klass : String ) =
-        {
-            <div style="padding:6px" class={klass} id={rootId}>
-            {
-                var colours = List( "#a0a040", "#40a0a0" )
-                var greys = List( "#606060", "#a0a0a0" )
-                for ( ((rank, name, primaryTopic, weight), i) <- groupMembership.sortWith( _._4 > _._4 ).zipWithIndex ) yield
-                {
-                    //val fontSize = (17 + log(weight).toInt) min 10
-                    val reweight = (log(weight*10000.0) max 0.0)
-                    var styles = "text-decoration:none" :: "font-size: %.2f%%".format( 100.0 * (0.7 + reweight/15.0) ) :: Nil
-                    if ( primaryTopic )
-                    {
-                        styles = "color: %s; font-weight: bold".format(colours.head) :: styles
-                        colours = colours.tail ++ List(colours.head)
-                    }
-                    else
-                    {
-                        styles = "color: %s".format(greys.head) :: styles
-                        greys = greys.tail ++ List(greys.head)
-                    }
-                    
-                    <span class={klass} id={"%s_%d".format(rootId, i)}><a href={wikiLink(name)} style={styles.mkString(";")}>{ name.replace( "Main:", "" ) }</a></span><span> </span>
-                }
-            }
-            </div>
-        }
         
         val res =
             <html>
@@ -72,66 +38,13 @@ class DistanceMetricTest extends FunSuite
                     for ( (dd1, ddIndex) <- dds.zipWithIndex ) yield
                     {
                         val tv1 = dd1.topicVector
-                        val rankedTopics = tv1.topics.map( _._2 ).filter( _.primaryTopic ).toList.sortWith( _.weight > _.weight ).zipWithIndex
-                        var grouped = new AutoMap[Int, List[(Int, TopicElement)]]( x => Nil )
-                        for ( (te, rank) <- rankedTopics )
-                        {
-                            grouped.set( te.groupId, (rank, te) :: grouped(te.groupId) )
-                        }
                         
-                        val groupsByRank = grouped.map( el =>
-                        {
-                            val (gid, tes) = el
-                            
-                            var sum = 0.0
-                            var count = 0
-                            for ( (rank, te) <- tes )
-                            {
-                                sum += rank
-                                count += 1
-                            }
-
-                            (sum/count.toDouble, tes )
-                        } ).toList.sortWith( _._1 < _._1 ).map( _._2 )
-                        
+                        val groupsByRank = tv1.rankedAndGrouped
                         
                         <div style="text-align:justify">
                             <h1>{names(dd1.id-1)}</h1>
                             
-                            <table>
-                            {
-                                val asArr = groupsByRank.toArray
-                                val numCells = asArr.size
-                                val numCols = 6
-                                val numRows = ceil(numCells.toDouble / numCols.toDouble).toInt
-                                var i = 0
-                                for ( r <- 0 until numRows ) yield
-                                {
-                                    <tr>
-                                    {
-                                        for ( c <- 0 until numCols ) yield
-                                        {
-                                            val cell = if ( i < asArr.size )
-                                            {
-                                                val tes = asArr(i)
-                                                
-                                                renderGroup( "g_%d_%d".format(ddIndex, i), tes.zipWithIndex.map( x => {
-                                                    val rank = x._2
-                                                    val te = x._1._2
-                                                    
-                                                    (rank, te.name, te.primaryTopic, te.weight)
-                                                } ), "selectable" )
-                                            }
-                                            else <span/>
-                                            
-                                            i += 1
-                                            <td>{cell}</td>
-                                        }
-                                    }
-                                    </tr>
-                                }
-                            }
-                            </table>
+                            val skillsTable = HTMLRender.skillsTable( groupsByRank )
                             
                             <table>
                             {

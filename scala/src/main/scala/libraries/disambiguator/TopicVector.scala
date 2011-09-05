@@ -2,6 +2,8 @@ package org.seacourt.disambiguator
 
 import scala.collection.immutable.{HashMap}
 
+import org.seacourt.utility._
+
 class TopicElement( val weight : Double, val name : String, val groupId : Int, val primaryTopic : Boolean )
 {
 }
@@ -79,6 +81,31 @@ class TopicVector()
         val cosineDist = AB / (math.sqrt(AA) * math.sqrt(BB))
         
         ( cosineDist, weightedMatches.sortWith( _._1 > _._1 ) )
+    }
+    
+    def rankedAndGrouped =
+    {
+        val rankedTopics = topics.map( _._2 ).filter( _.primaryTopic ).toList.sortWith( _.weight > _.weight ).zipWithIndex
+        var grouped = new AutoMap[Int, List[(Int, TopicElement)]]( x => Nil )
+        for ( (te, rank) <- rankedTopics )
+        {
+            grouped.set( te.groupId, (rank, te) :: grouped(te.groupId) )
+        }
+        
+        grouped.map( el =>
+        {
+            val (gid, tes) = el
+            
+            var sum = 0.0
+            var count = 0
+            for ( (rank, te) <- tes )
+            {
+                sum += rank
+                count += 1
+            }
+
+            (sum/count.toDouble, tes )
+        } ).toList.sortWith( _._1 < _._1 ).map( _._2 )
     }
 }
 

@@ -1,4 +1,4 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(Long, java.sql.Timestamp, String, Boolean, Boolean)])
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(Long, java.sql.Timestamp, String, Boolean, Boolean, Boolean)])
 
 @main(title="Home", session=session, flash=flash) {
     <h1>Manage your existing CVs</h1>
@@ -22,7 +22,12 @@
                     <span/>
                 }
                 </td>
-                <td>No analysis</td>
+                <td>@if(row._6) {
+                    <a href="@action(controllers.Application.cvAnalysis)?id=@row._1">View</a>
+                } else {
+                    <span/>
+                }
+                </td>
             </tr>
         }
     </table>
