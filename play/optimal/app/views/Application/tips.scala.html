@@ -26,22 +26,25 @@
         </div>
     </div>
     <script>
-        var state = $.cookie('hide_tips');
-        if ( state == 'true' ) $('#tips').hide();
-        
-        $('#hideTips').click( function()
+        $(document).ready( function()
         {
-            var hidden = $.cookie("hide_tips");
-            if ( hidden == 'false' )
+            var state = $.cookie('hide_tips');
+            if ( state == 'true' ) $('#tips').hide();
+        
+            $('#hideTips').click( function()
             {
-                $('#tips').hide( 'slow' );
-                $.cookie('hide_tips', 'true');
-            }
-            else
-            {
-                $('#tips').show( 'slow' );
-                $.cookie('hide_tips', 'false');
-            }
+                var hidden = $.cookie("hide_tips");
+                if ( hidden == 'false' )
+                {
+                    $('#tips').hide( 'slow' );
+                    $.cookie('hide_tips', 'true');
+                }
+                else
+                {
+                    $('#tips').show( 'slow' );
+                    $.cookie('hide_tips', 'false');
+                }
+            } );
         } );
     </script>
 }
