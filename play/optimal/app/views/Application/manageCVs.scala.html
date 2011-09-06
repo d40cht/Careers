@@ -11,19 +11,19 @@
                 <td>@row._2</td>
                 <td>@row._3</td>
                 <td>@if(row._4) {
-                    <a href="@action(controllers.Application.cvPdf)?id=@row._1">View</a>
+                    <a href="@action(controllers.Authenticated.cvPdf)?id=@row._1">View</a>
                 } else {
                     <span/>
                 }
                 </td>
                 <td>@if(row._5) {
-                    <a href="@action(controllers.Application.cvText)?id=@row._1">View</a>
+                    <a href="@action(controllers.Authenticated.cvText)?id=@row._1">View</a>
                 } else {
                     <span/>
                 }
                 </td>
                 <td>@if(row._6) {
-                    <a href="@action(controllers.Application.cvAnalysis)?id=@row._1">View</a>
+                    <a href="@action(controllers.Authenticated.cvAnalysis)?id=@row._1">View</a>
                 } else {
                     <span/>
                 }

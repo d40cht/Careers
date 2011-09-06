@@ -2,7 +2,7 @@
 
 @main(title="Home", session=session, flash=flash) {
     <h1>Registration page</h1>
-    <form action="@action(controllers.Application.register)" method="POST">
+    <form action="@action(controllers.PublicSite.register)" method="POST">
         <input type="hidden" name="uid" value="@uid"/>
         
         <table>
@@ -10,7 +10,7 @@
             <tr><td>Full name:</td> <td><input type="text" name="username"/></td></tr>
             <tr><td>Password:</td> <td><input type="password" name="password1"/></td></tr>
             <tr><td>Password (repeat):</td> <td><input type="password" name="password2"/></td></tr>
-            <tr><td><img src="@action(controllers.Application.captcha(uid))"></td> <td><input type="text" name="captcha"/></td></tr>
+            <tr><td><img src="@action(controllers.PublicSite.captcha(uid))"></td> <td><input type="text" name="captcha"/></td></tr>
             <tr><td></td> <td><input type="submit" value="Login!"/></td></tr>
         </table>
     </form>

@@ -2,7 +2,7 @@
 
 @main(title="Home", session=session, flash=flash) {
     <h1>Sign-in page</h1>
-    <form action="@action(controllers.Application.login)" method="POST">
+    <form action="@action(controllers.PublicSite.login)" method="POST">
         <table>
             <tr><td>Email address:</td> <td><input type="text" name="email"/></td></tr>
             <tr><td>Password:</td> <td><input type="password" name="password"/></td></tr>

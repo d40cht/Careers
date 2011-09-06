@@ -32,7 +32,7 @@ import sbt.Process._
 
 import org.seacourt.htmlrender._
 import org.seacourt.utility._
-import org.seacourt.disambiguator.{DocumentDigest}
+import org.seacourt.disambiguator.{DocumentDigest, TopicVector}
 import org.seacourt.serialization.SerializationProtocol._
 
 // To interrogate the H2 DB: java -jar ../../../play-1.2.2RC2/framework/lib/h2-1.3.149.jar
@@ -62,15 +62,220 @@ package models
         
         def * = id ~ added ~ description ~ userId ~ pdf ~ text ~ documentDigest
     }
+    
+    object CVMatches extends Table[(Long, Long, Long, Double, Blob)]("CVMatches")
+    {
+        def id              = column[Long]("id")
+        def fromCVId        = column[Long]("fromCVId")
+        def toCVId          = column[Long]("toCVId")
+        def distance        = column[Double]("distance")
+        def matchVector     = column[Blob]("matchVector")
+        
+        def * = id ~ fromCVId ~ toCVId ~ distance ~ matchVector
+    }
 }
 
-object Application extends Controller {
-    
+object PublicSite extends Controller
+{    
     import views.Application._
     
     private def passwordHash( x : String) = MessageDigest.getInstance("SHA").digest(x.getBytes).map( 0xff & _ ).map( {"%02x".format(_)} ).mkString
     
     def index = html.index( session, flash )
+    def about = html.about( session, flash )
+    def help = html.help( session, flash )
+    def contact = html.contact( session, flash )
+    
+    def login =
+    {
+        val email = params.get("email")
+
+        if ( email == null )
+        {
+            html.login( session, flash )
+        }
+        else
+        {
+            val db = Database.forDataSource(play.db.DB.datasource)
+            
+            val hashedpw = passwordHash( params.get("password") )
+            db withSession
+            {
+                val res = (for ( u <- models.Users if u.email === email && u.password === hashedpw ) yield u.id ~ u.fullName ).list
+                
+                if ( res != Nil )
+                {
+                    val userId = res.head._1
+                    val name = res.head._2
+                    
+                    flash += ("info" -> ("Welcome " + name ))
+                    session += ("user" -> name)
+                    session += ("userId" -> userId.toString)
+                    Action(index)
+                }
+                else
+                {
+                    flash += ("error" -> ("Unknown user " + email))
+                    html.login(session, flash)
+                }
+            }
+        }
+    }
+    
+    def captcha(id:String) = {
+        val captcha = Images.captcha
+        val code = captcha.getText("#E4EAFD")
+        Cache.set(id, code, "10mn")
+        captcha
+    }
+    
+    def register = 
+    {
+        val uid = Codec.UUID
+        val email = params.get("email")
+        if ( email != null )
+        {
+            val name = params.get("username")
+            val password1 = params.get("password1")
+            val password2 = params.get("password2")
+            val captchauid = params.get("uid")
+            val captcha = params.get("captcha")
+            
+            if ( password1 != password2 )
+            {
+                flash += ("error" -> "Passwords do not match. Please try again.")
+                html.register(session, flash, uid)
+            }
+            else
+            {
+                val stored = Cache.get(captchauid)
+                if ( stored.isEmpty || stored.get != captcha )
+                {
+                    flash += ("error" -> "Captcha text does not match. Please try again.")
+                    html.register(session, flash, uid)
+                }
+                else
+                {
+                    val db = Database.forDataSource(play.db.DB.datasource)
+                    db withSession
+                    {
+                        val res = (for ( u <- models.Users if u.email === name ) yield u.id).list
+                        if ( res != Nil )
+                        {
+                            flash += ("error" -> "Email address already taken. Please try again.")
+                            html.register(session, flash, uid)
+                        }
+                        else
+                        {
+                            val cols = models.Users.email ~ models.Users.password ~ models.Users.fullName ~ models.Users.isAdmin
+                            cols.insert( email, passwordHash( password1 ), name, false )
+                            
+                            flash += ("info" -> ("Thanks for registering " + name + ". Please login." ))
+                            Action(login)
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            html.register( session, flash, uid )
+        }
+    }
+}
+
+
+object Batch extends Controller
+{
+    import views.Application._
+    
+    private def authRequired[T]( handler : => T ) =
+    {
+        if ( params.get("magic") == Utils.magic )
+        {
+            handler
+        }
+        else
+        {
+            Forbidden
+        }
+    }
+    
+    def uploadDocumentDigest = authRequired
+    {
+        val id = params.get("id").toLong
+        
+        val reqType = request.contentType
+        val data = IOUtils.toByteArray( request.body )
+        val dd = fromByteArray[DocumentDigest](data)
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val toUpdate = for ( cv <- models.CVs if cv.id === id ) yield cv.documentDigest
+            toUpdate.update( new SerialBlob(data) )
+        }
+    }
+    
+    def uploadCVDistance = authRequired
+    {
+        val fromId = params.get("fromId").toLong
+        val toId = params.get("toId").toLong
+        val distance = params.get("distance").toLong
+        
+        val reqType = request.contentType
+        val data = IOUtils.toByteArray( request.body )
+        val dd = fromByteArray[TopicVector](data)
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            // For both the from id and the to id we need to get the existing min 
+            // SELECT MIN(matchMetric) AS minMatch, SUM(1) AS count FROM CVMatches WHERE fromId=?
+            // Then if count < 10 OR matchMetric > minMatch add/replace
+        }
+    }
+    
+    // TODO: Add validation to these data classes. Encryption? IP address restrictions?
+    def listCVs = authRequired
+    {
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            /*val unprocessedCVs = for {
+                Join(cv, md) <- models.CVs leftJoin models.CVMetaData on (_.id is _.cvId)
+            } yield cv.id ~ cv.added.?*/
+            val unprocessedCVs = for ( cv <- models.CVs ) yield cv.id ~ cv.documentDigest.isNull
+            
+            <cvs>
+            {
+                for ( (id, dd) <- unprocessedCVs.list.filter( _._2 ) ) yield <id>{id}</id>
+            }
+            </cvs>
+        }
+    }
+    
+    def rpcCVText = authRequired
+    {
+        val cvId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.text ).list
+            val blob = text.head
+            val data = blob.getBytes(1, blob.length().toInt)
+            
+            Text( new String(data) )
+        }
+    }
+}
+
+
+object Authenticated extends Controller
+{
+    import views.Application._
+    
     def addPosition =
     {
         val userId = session("userId").get.toLong
@@ -150,116 +355,12 @@ object Application extends Controller {
         }
     }
     
-    private def authRequired[T]( handler : => T ) =
+    def logout =
     {
-        if ( params.get("magic") == Utils.magic )
-        {
-            handler
-        }
-        else
-        {
-            NoContent
-        }
-    }
-    
-    def uploadDocumentDigest = authRequired
-    {
-        val reqType = request.contentType
-        // Should be an input stream?
-        val id = params.get("id").toLong
-        println( "Upload for %d".format(id) )
-        val data = IOUtils.toByteArray( request.body )
-        val dd = fromByteArray[DocumentDigest](data)
-        println( "Document id: " + dd.id )
-        
-        val db = Database.forDataSource(play.db.DB.datasource)
-        db withSession
-        {
-            val toUpdate = for ( cv <- models.CVs if cv.id === id ) yield cv.documentDigest
-            toUpdate.update( new SerialBlob(data) )
-        }
-    }
-    
-    // TODO: Add validation to these data classes. Encryption? IP address restrictions?
-    def listCVs = authRequired
-    {
-        val db = Database.forDataSource(play.db.DB.datasource)
-        db withSession
-        {
-            /*val unprocessedCVs = for {
-                Join(cv, md) <- models.CVs leftJoin models.CVMetaData on (_.id is _.cvId)
-            } yield cv.id ~ cv.added.?*/
-            val unprocessedCVs = for ( cv <- models.CVs ) yield cv.id ~ cv.documentDigest.isNull
-            
-            <cvs>
-            {
-                for ( (id, dd) <- unprocessedCVs.list.filter( _._2 ) ) yield <id>{id}</id>
-            }
-            </cvs>
-        }
-    }
-    
-    def rpcCVText = authRequired
-    {
-        val cvId = params.get("id").toLong
-        
-        val db = Database.forDataSource(play.db.DB.datasource)
-        db withSession
-        {
-            val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.text ).list
-            val blob = text.head
-            val data = blob.getBytes(1, blob.length().toInt)
-            
-            Text( new String(data) )
-        }
-    }
-    
-    def cvText =
-    {
-        val cvId = params.get("id").toLong
-        
-        val db = Database.forDataSource(play.db.DB.datasource)
-        db withSession
-        {
-            val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.text ).list
-            val blob = text.head
-            val data = blob.getBytes(1, blob.length().toInt)
-            
-            Text( new String(data) )
-        }
-    }
-    
-    def cvPdf =
-    {
-        val cvId = params.get("id").toLong
-            
-        val db = Database.forDataSource(play.db.DB.datasource)
-        db withSession
-        {
-            val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.pdf ).list
-            val blob = text.head
-            val data = blob.getBytes(1, blob.length().toInt)
-            val stream = new java.io.ByteArrayInputStream(data)
-            new play.mvc.results.RenderBinary(stream, "cv.pdf", "application/pdf", false )
-        }
-    }
-    
-    def cvAnalysis =
-    {
-        val cvId = params.get("id").toLong
-        val db = Database.forDataSource(play.db.DB.datasource)
-        db withSession
-        {
-            val query = ( for ( u <-models.CVs if u.id === cvId ) yield u.documentDigest ).list
-            val blob = query.head
-            val data = blob.getBytes(1, blob.length().toInt)
-            val dd = fromByteArray[DocumentDigest](data)
-            
-            val groupedSkills = dd.topicVector.rankedAndGrouped
-            
-            val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
-            html.cvAnalysis( session, flash, theTable )
-        }
+        val name = session.get("user")
+        session.remove("user")
+        flash += ("info" -> ("Goodbye: " + name) )
+        Action(PublicSite.index)
     }
     
     def manageCVs =
@@ -276,113 +377,72 @@ object Application extends Controller {
     }
     
     def manageSearches = html.manageSearches( session, flash )
-    def about = html.about( session, flash )
-    def help = html.help( session, flash )
-    def contact = html.contact( session, flash )
     
-    def login =
+    def cvPdf =
     {
-        val email = params.get("email")
-
-        if ( email == null )
+        val userId = session("userId").get.toLong
+        val cvId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
         {
-            html.login( session, flash )
-        }
-        else
-        {
-            val db = Database.forDataSource(play.db.DB.datasource)
+            val text = ( for ( u <- models.CVs if u.id === cvId && u.userId === userId ) yield u.pdf ).list
             
-            val hashedpw = passwordHash( params.get("password") )
-            db withSession
+            if ( text != Nil )
             {
-                val res = (for ( u <- models.Users if u.email === email && u.password === hashedpw ) yield u.id ~ u.fullName ).list
+                val blob = text.head
+                val data = blob.getBytes(1, blob.length().toInt)
+                val stream = new java.io.ByteArrayInputStream(data)
+                new play.mvc.results.RenderBinary(stream, "cv.pdf", "application/pdf", false )
+            }
+            else Forbidden
+        }
+    }
+    
+    def cvAnalysis =
+    {
+        val userId = session("userId").get.toLong
+        val cvId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val query = ( for ( u <-models.CVs if u.id === cvId && u.userId === userId ) yield u.documentDigest ).list
+            
+            if ( query != Nil )
+            {
+                val blob = query.head
+                val data = blob.getBytes(1, blob.length().toInt)
+                val dd = fromByteArray[DocumentDigest](data)
                 
-                if ( res != Nil )
-                {
-                    val userId = res.head._1
-                    val name = res.head._2
-                    
-                    flash += ("info" -> ("Welcome " + name ))
-                    session += ("user" -> name)
-                    session += ("userId" -> userId.toString)
-                    Action(index)
-                }
-                else
-                {
-                    flash += ("error" -> ("Unknown user " + email))
-                    html.login(session, flash)
-                }
+                val groupedSkills = dd.topicVector.rankedAndGrouped
+                
+                val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
+                html.cvAnalysis( session, flash, theTable )
             }
+            else Forbidden
         }
     }
     
-    def captcha(id:String) = {
-        val captcha = Images.captcha
-        val code = captcha.getText("#E4EAFD")
-        Cache.set(id, code, "10mn")
-        captcha
-    }
-    
-    def logout =
+    def cvText =
     {
-        val name = session.get("user")
-        session.remove("user")
-        flash += ("info" -> ("Goodbye: " + name) )
-        Action(index)
-    }
-    
-    def register = 
-    {
-        val uid = Codec.UUID
-        val email = params.get("email")
-        if ( email != null )
+        val userId = session("userId").get.toLong
+        val cvId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
         {
-            val name = params.get("username")
-            val password1 = params.get("password1")
-            val password2 = params.get("password2")
-            val captchauid = params.get("uid")
-            val captcha = params.get("captcha")
+            val text = ( for ( u <- models.CVs if u.id === cvId && u.userId === userId ) yield u.text ).list
             
-            if ( password1 != password2 )
+            if ( text != Nil )
             {
-                flash += ("error" -> "Passwords do not match. Please try again.")
-                html.register(session, flash, uid)
+                val blob = text.head
+                val data = blob.getBytes(1, blob.length().toInt)
+                
+                Text( new String(data) )
             }
-            else
-            {
-                val stored = Cache.get(captchauid)
-                if ( stored.isEmpty || stored.get != captcha )
-                {
-                    flash += ("error" -> "Captcha text does not match. Please try again.")
-                    html.register(session, flash, uid)
-                }
-                else
-                {
-                    val db = Database.forDataSource(play.db.DB.datasource)
-                    db withSession
-                    {
-                        val res = (for ( u <- models.Users if u.email === name ) yield u.id).list
-                        if ( res != Nil )
-                        {
-                            flash += ("error" -> "Email address already taken. Please try again.")
-                            html.register(session, flash, uid)
-                        }
-                        else
-                        {
-                            val cols = models.Users.email ~ models.Users.password ~ models.Users.fullName ~ models.Users.isAdmin
-                            cols.insert( email, passwordHash( password1 ), name, false )
-                            
-                            flash += ("info" -> ("Thanks for registering " + name + ". Please login." ))
-                            Action(login)
-                        }
-                    }
-                }
-            }
-        }
-        else
-        {
-            html.register( session, flash, uid )
+            else Forbidden                
         }
     }
-       
 }
+

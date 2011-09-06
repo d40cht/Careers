@@ -3,7 +3,7 @@
 # ~~~~
 
 # Home page
-GET     /                                       Application.index
+GET     /                                       PublicSite.index
 
 # Ignore favicon requests
 GET     /favicon.ico                            404
