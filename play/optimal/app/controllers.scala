@@ -193,7 +193,7 @@ object Application extends Controller {
             
             <cvs>
             {
-                for ( (id, dd) <- unprocessedCVs.list.filter( _._2 ) ) yield <id>{id}</id>
+                for ( (id ~ dd) <-unprocessedCVs ) yield <id>{id}</id><dd>{dd.toString}</dd>
             }
             </cvs>
         }
