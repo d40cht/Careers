@@ -45,7 +45,7 @@ object HTMLRender
         {
             val asArr = groupsByRank.toArray
             val numCells = asArr.size
-            val numCols = 6
+            val numCols = 5
             val numRows = ceil(numCells.toDouble / numCols.toDouble).toInt
             var i = 0
             for ( r <- 0 until numRows ) yield

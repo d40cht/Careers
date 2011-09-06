@@ -3,7 +3,7 @@
 @main(title="Home", session=session, flash=flash) {
     <h1>Manage your existing CVs</h1>
     
-    <table>
+    <table class="simple">
         <tr><th>Date added</th><th>Description</th><th>Pdf</th><th>Plain text</th><th>Analysis</th></tr>
     
         @cvs.map { (row) =>
@@ -11,7 +11,7 @@
                 <td>@row._2</td>
                 <td>@row._3</td>
                 <td>@if(row._4) {
-                    <a href="@action(controllers.Authenticated.cvPdf)?id=@row._1">View</a>
+                    <a href="@action(controllers.Authenticated.cvPdf)?id=@row._1">Download</a>
                 } else {
                     <span/>
                 }

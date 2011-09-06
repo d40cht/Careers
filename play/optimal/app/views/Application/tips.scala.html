@@ -1,0 +1,50 @@
+@(session:play.mvc.Scope.Session)
+
+@if( session.contains("user") ) {
+    <div id="tipContainer" class="body"> 
+        Tips: <a id="hideTips">(hide/show)</a>
+        <div id="tips"/>
+            <ol>
+                <li>Upload a CV.</li>
+                <ol>
+                    <li>Review skills.</li>
+                </ol>
+                <li>Create a job profile.</li>
+                <ol>
+                    <li>Enter details.</li>
+                    <li>Choose a CV.</li>
+                    <li>Tune skills.</li>
+                </ol>
+                <li>Create a job search.</li>
+                <ol>
+                    <li>Select a location.</li>
+                    <li>Choose CV for search.</li>
+                    <li>Tune skills.</li>
+                    <li>Review results.</li>
+                </ol>
+            </ol>
+        </div>
+    </div>
+    <script>
+        var state = $.cookie('hide_tips');
+        if ( state == 'true' ) $('#tips').hide();
+        
+        $('#hideTips').click( function()
+        {
+            var hidden = $.cookie("hide_tips");
+            if ( hidden == 'false' )
+            {
+                $('#tips').hide( 'slow' );
+                $.cookie('hide_tips', 'true');
+            }
+            else
+            {
+                $('#tips').show( 'slow' );
+                $.cookie('hide_tips', 'false');
+            }
+        } );
+    </script>
+}
+
+
+
