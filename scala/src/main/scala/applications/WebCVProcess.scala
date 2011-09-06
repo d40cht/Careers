@@ -64,7 +64,7 @@ object WebCVProcess
         val maxId = args(2).toInt
         
         val p = new WebCVProcess()   
-        val res = p.fetch( "%s/application/listcvs?magic=%s".format( baseUrl, Utils.magic ) )
+        val res = p.fetch( "%s/Batch/listcvs?magic=%s".format( baseUrl, Utils.magic ) )
         val cvs = XML.loadString(res)
         
 
@@ -74,7 +74,7 @@ object WebCVProcess
         {
             val trimmedId = id.text.trim
             println( "Fetching: " + trimmedId )
-            val text = p.fetch( "%s/application/cvtext?id=%s&magic=%s".format( baseUrl, trimmedId, Utils.magic ) )
+            val text = p.fetch( "%s/Batch/rpcCVText?id=%s&magic=%s".format( baseUrl, trimmedId, Utils.magic ) )
             
             //println( "Text: " + text )
             
@@ -86,7 +86,7 @@ object WebCVProcess
             val ddFileName = "documentDigest" + trimmedId + ".bin"
             forest.saveDocumentDigest( trimmedId.toInt, ddFileName )
             
-            p.post( "%s/application/uploadDocumentDigest?id=%s&magic=%s".format( baseUrl, trimmedId, Utils.magic ), new FileInputStream( new File( ddFileName ) ) )
+            p.post( "%s/Batch/uploadDocumentDigest?id=%s&magic=%s".format( baseUrl, trimmedId, Utils.magic ), new FileInputStream( new File( ddFileName ) ) )
             
             //Thread.sleep( 10000 )
         }
