@@ -44,7 +44,7 @@ class H2DbDebugTest extends FunSuite
             {
                 CVs.ddl.create
                 
-                val range = 0 until 5
+                val range = 0 until 15
                 for ( id <- range )
                 {
                     val str = id.toString
@@ -61,12 +61,19 @@ class H2DbDebugTest extends FunSuite
                 
                 val expected = range.reverse.map( x => (x, x.toString, x.toDouble * x.toDouble) )
                 assert( expected === rows.list.map( x => (x._1, x._2, x._3) ) )
+                
+                val allRows = for ( row <- CVs if row.sqr > 10.0 ) yield row
+                val maxValue = allRows.map( row => row.sqr.max ).first
+                val minValue = allRows.map( row => row.sqr.min ).first
+                val count = allRows.map( row => ColumnOps.CountAll(row) ).first
+                
+                println( ":::::::::::: ", count, minValue, maxValue )
             }
         } )
     }
 }
 
-
+/*
 class Point( val x : Double, val y : Double )
 {
     def dist( other : Point ) =
@@ -115,8 +122,9 @@ class DistanceManager()
     
     def update( fromId : Int, toId : Int, sim : Double )
     {
-        val count = Matches.map( row => ColumnOps.CountAll(row) ).first
-        val minSim = Matches.map( row => ColumnOps.Min(row.similarity) ).firstOption.getOrElse(0.0)
+        val relevantRows = for ( row <- Matches if row.fromId === fromId ) yield row
+        val count = for ( row <- relevantRows
+        val minSim = Matches.map( row => row.similarity.min ).firstOption.getOrElse(0.0)
         
         if ( count < 10 || sim > minSim )
         {
@@ -124,7 +132,8 @@ class DistanceManager()
             
             if ( count == 10 )
             {
-                for ( row <- Matches if row.fromId == fromId && row.similarity == minSim ) row.delete()
+                val minRow = for ( row <- Matches if row.fromId == fromId && row.similarity == minSim ) yield row
+                minRow.mutate( m => m.delete() )
             }
         }
     }
@@ -178,4 +187,5 @@ class H2DistanceTest extends FunSuite
         } )
     }
 }
+*/
 
