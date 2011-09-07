@@ -3,16 +3,22 @@ package org.seacourt.tests
 import org.scalatest.FunSuite
 
 import java.io.{File}
+import java.sql.{Timestamp, Blob}
+import javax.sql.rowset.serial.SerialBlob
 
 import org.scalaquery.session._
 import org.scalaquery.session.Database.threadLocalSession
 
+import org.scalaquery.ql.extended.ExtendedColumnOption.AutoInc
 import org.scalaquery.ql.basic.{BasicTable => Table}
 import org.scalaquery.ql.basic.BasicDriver.Implicit._
 import org.scalaquery.ql.TypeMapper._
 import org.scalaquery.ql._
 
 import org.seacourt.utility._
+
+import sbinary._
+import sbinary.Operations._
 
 object CVs extends Table[(Int, String, Double)]("CVs")
 {
@@ -22,6 +28,8 @@ object CVs extends Table[(Int, String, Double)]("CVs")
     
     def * = id ~ str ~ sqr
 }
+
+
 
 class H2DbDebugTest extends FunSuite
 {
@@ -53,6 +61,119 @@ class H2DbDebugTest extends FunSuite
                 
                 val expected = range.reverse.map( x => (x, x.toString, x.toDouble * x.toDouble) )
                 assert( expected === rows.list.map( x => (x._1, x._2, x._3) ) )
+            }
+        } )
+    }
+}
+
+
+class Point( val x : Double, val y : Double )
+{
+    def dist( other : Point ) =
+    {
+        val xd = (x-other.x)
+        val yd = (y-other.y)
+        
+        xd*xd + yd*yd
+    }
+}
+
+object SerializationProtocol extends sbinary.DefaultProtocol
+{
+    implicit object PointFormat extends Format[Point]
+    {
+        def reads(in : Input) = new Point( read[Double](in), read[Double](in) )
+        def writes(out : Output, p : Point )
+        {
+            write(out, p.x)
+            write(out, p.y)
+        }
+    }
+}
+
+object Points extends Table[(Int, Blob)]("Points")
+{
+    def id      = column[Int]("id", O PrimaryKey)
+    def point   = column[Blob]("point")
+    
+    def * = id ~ point
+}
+
+object Matches extends Table[(Int, Int, Double)]("Matches")
+{
+    def fromId      = column[Int]("fromId")
+    def toId        = column[Int]("toId")
+    def similarity  = column[Double]("distance")
+    
+    def * = fromId ~ toId ~ similarity
+}
+
+class DistanceManager()
+{
+    var nextId = 0
+    import SerializationProtocol._
+    
+    def update( fromId : Int, toId : Int, sim : Double )
+    {
+        val count = Matches.map( row => ColumnOps.CountAll(row) ).first
+        val minSim = Matches.map( row => ColumnOps.Min(row.similarity) ).firstOption.getOrElse(0.0)
+        
+        if ( count < 10 || sim > minSim )
+        {
+            Matches.insert( fromId, toId, sim )
+            
+            if ( count == 10 )
+            {
+                for ( row <- Matches if row.fromId == fromId && row.similarity == minSim ) row.delete()
+            }
+        }
+    }
+    
+    def addElement( p : Point )
+    {
+        val serialized = toByteArray(p)
+        val fromId = nextId
+        nextId += 1
+        Points.insert( fromId, new SerialBlob(serialized) )
+        
+        val allPoints = for ( row <- Points ) yield row.id ~ row.point
+        
+        allPoints.foreach( row =>
+        {
+            val toId = row._1
+            if ( fromId != toId )
+            {
+                val blob = row._2
+                val rowPoint = fromByteArray[Point]( blob.getBytes(1, blob.length().toInt) )
+                val dist = rowPoint.dist( p )
+                
+                update( fromId, toId, dist )
+                update( toId, fromId, dist )
+            }
+        } )
+    }
+}
+
+class H2DistanceTest extends FunSuite
+{
+    test( "H2 and Scalaquery distance test", TestTags.unitTests )
+    {
+        Utils.withTemporaryDirectory( dirName =>
+        {
+            val dbFileName = new File( dirName, "testdb" )
+            val db = Database.forURL("jdbc:h2:file:%s;DB_CLOSE_DELAY=-1".format( dbFileName.toString ), driver = "org.h2.Driver")
+            
+            db withSession
+            {
+                Points.ddl.create
+                Matches.ddl.create
+                
+                val rng = new scala.util.Random()
+                for ( iterations <- 0 until 10000 )
+                {
+                    // [0.0 - 1.0]
+                    val d = rng.nextDouble()
+                }
             }
         } )
     }

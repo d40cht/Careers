@@ -66,7 +66,6 @@ object WebCVProcess
         val p = new WebCVProcess()   
         val res = p.fetch( "%s/Batch/listcvs?magic=%s".format( baseUrl, Utils.magic ) )
         val cvs = XML.loadString(res)
-        
 
         
         val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
