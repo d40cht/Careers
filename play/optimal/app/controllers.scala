@@ -80,7 +80,7 @@ package models
         def distance        = column[Double]("distance")
         def matchVector     = column[Blob]("matchVector")
         
-        def * = id ~ fromCVId ~ toCVId ~ distance ~ matchVector
+        def * = id ~ fromMatchId ~ toMatchId ~ distance ~ matchVector
     }
     
     object Companies extends Table[(Long, String, String, String, String)]("Companies")
