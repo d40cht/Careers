@@ -94,7 +94,7 @@ package models
         def * = id ~ name ~ url ~ nameMatch1 ~ nameMatch2
     }
     
-    object Positions extends Table[(Long, Long, Long, String, String, Int, Int, Int, Double, Double, Int)]("Positions")
+    object Positions extends Table[(Long, Long, Long, String, String, Int, Int, Int, Double, Double, Long)]("Positions")
     {
         def id              = column[Long]("id")
         def userId          = column[Long]("userId")
