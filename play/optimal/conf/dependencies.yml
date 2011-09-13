@@ -5,6 +5,9 @@ require:
     - play -> scala 0.9.1
     - org.scalaquery -> scalaquery_2.8.1 0.9.1:
         transitive:     false
+        
+    - commons-codec 1.5:
+        force:          true
     
 repositories:
     

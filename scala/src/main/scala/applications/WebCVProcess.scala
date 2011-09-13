@@ -118,7 +118,7 @@ object WebCVProcess
         
         val p = new WebCVProcess()
         
-        val makeTables = !(new File( localDb )).exists()
+        val makeTables = !(new File( localDb + ".h2.db" )).exists()
         val db = Database.forURL("jdbc:h2:file:%s;DB_CLOSE_DELAY=-1".format( localDb ), driver = "org.h2.Driver")
         
         db withSession

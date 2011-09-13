@@ -36,6 +36,7 @@ import java.io.{StringReader}
 import sbinary._
 import sbinary.Operations._
 
+import org.apache.commons.codec.language.DoubleMetaphone
 
 case class TestClass( val a : Int, val b : Double )
 {
@@ -100,6 +101,17 @@ class TokenizerTest extends FunSuite
             run = tokenizer.incrementToken()
         }
         tokenizer.close()
+    }
+    
+    test( "Double metaphone", TestTags.unitTests )
+    {
+        val world = "navetas energy"
+        val encoder = new DoubleMetaphone()
+        encoder.setMaxCodeLen(8)
+        val res1 = encoder.doubleMetaphone(world, false)
+        val res2 = encoder.doubleMetaphone(world, true)
+        
+        println( "::: ", res1, res2 )
     }
 }
 
