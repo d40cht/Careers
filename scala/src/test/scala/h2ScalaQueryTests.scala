@@ -66,14 +66,12 @@ class H2DbDebugTest extends FunSuite
                 val maxValue = allRows.map( row => row.sqr.max ).first
                 val minValue = allRows.map( row => row.sqr.min ).first
                 val count = allRows.map( row => ColumnOps.CountAll(row) ).first
-                
-                println( ":::::::::::: ", count, minValue, maxValue )
             }
         } )
     }
 }
 
-/*
+
 class Point( val x : Double, val y : Double )
 {
     def dist( other : Point ) =
@@ -113,39 +111,48 @@ object Matches extends Table[(Int, Int, Double)]("Matches")
     def similarity  = column[Double]("distance")
     
     def * = fromId ~ toId ~ similarity
+    def pk = primaryKey("pk_Matches", fromId ~ toId )
 }
+
 
 class DistanceManager()
 {
+    val maxRows = 5
+    
     var nextId = 0
     import SerializationProtocol._
     
-    def update( fromId : Int, toId : Int, sim : Double )
+    private def update( fromId : Int, toId : Int, sim : Double )
     {
         val relevantRows = for ( row <- Matches if row.fromId === fromId ) yield row
-        val count = for ( row <- relevantRows
-        val minSim = Matches.map( row => row.similarity.min ).firstOption.getOrElse(0.0)
+        val rowCount = relevantRows.map( row => row.toId.count ).first
+        val (minSim, minId) = ( for ( row <- relevantRows; _ <- Query orderBy( row.similarity asc ) ) yield row.similarity ~ row.toId ).firstOption.getOrElse( (0.0, 0) )
         
-        if ( count < 10 || sim > minSim )
+        assert( rowCount <= maxRows )
+        
+        if ( rowCount < maxRows || sim > minSim )
         {
-            Matches.insert( fromId, toId, sim )
-            
-            if ( count == 10 )
+            if ( rowCount == maxRows )
             {
-                val minRow = for ( row <- Matches if row.fromId == fromId && row.similarity == minSim ) yield row
-                minRow.mutate( m => m.delete() )
+                Matches.filter( row => row.fromId === fromId && row.toId === minId ).mutate( m => m.delete )
             }
+            
+            val cols = Matches.fromId ~ Matches.toId ~ Matches.similarity
+            assert( fromId != toId )
+            cols.insert( fromId, toId, sim )
         }
     }
     
+
     def addElement( p : Point )
     {
+        //println( nextId )
         val serialized = toByteArray(p)
         val fromId = nextId
         nextId += 1
         Points.insert( fromId, new SerialBlob(serialized) )
         
-        val allPoints = for ( row <- Points ) yield row.id ~ row.point
+        val allPoints = for ( row <- Points ) yield row
         
         allPoints.foreach( row =>
         {
@@ -163,6 +170,7 @@ class DistanceManager()
     }
 }
 
+
 class H2DistanceTest extends FunSuite
 {
     test( "H2 and Scalaquery distance test", TestTags.unitTests )
@@ -172,20 +180,26 @@ class H2DistanceTest extends FunSuite
             val dbFileName = new File( dirName, "testdb" )
             val db = Database.forURL("jdbc:h2:file:%s;DB_CLOSE_DELAY=-1".format( dbFileName.toString ), driver = "org.h2.Driver")
             
-            db withSession
+            db withSession 
             {
+                val d = new DistanceManager()
+                
                 Points.ddl.create
                 Matches.ddl.create
                 
                 val rng = new scala.util.Random()
-                for ( iterations <- 0 until 10000 )
+                for ( iterations <- 0 until 100 )
                 {
                     // [0.0 - 1.0]
-                    val d = rng.nextDouble()
+                    val x = rng.nextDouble()
+                    val y = rng.nextDouble()
+                    
+                    val np = new Point(x, y)
+                    d.addElement( np )
                 }
             }
         } )
     }
 }
-*/
+
 

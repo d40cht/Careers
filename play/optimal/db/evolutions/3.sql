@@ -1,5 +1,3 @@
-
-
 # --- !Ups
 
 CREATE TABLE "CVMatches" (
@@ -9,12 +7,12 @@ CREATE TABLE "CVMatches" (
     "distance"      DOUBLE NOT NULL,
     "matchVector"   BLOB NOT NULL,
     
-    CONSTRAINT fk_CVMatches_fromCVId FOREIGN KEY("fromCVId") REFERENCES "CVs"("id"),
-    CONSTRAINT fk_CVMatches_toCVId FOREIGN KEY("toCVId") REFERENCES "CVs"("id")
+    CONSTRAINT fk_CVMatches_fromId FOREIGN KEY("fromCVId") REFERENCES "CVs"("id"),
+    CONSTRAINT fk_CVMatches_toId FOREIGN KEY("toCVId") REFERENCES "CVs"("id")
 );
 
 CREATE INDEX index_CVs_Id ON "CVs"("id");
 CREATE INDEX index_CVMatches_fromCVId ON "CVMatches"("fromCVId");
 
 # --- !Downs
- 
+
