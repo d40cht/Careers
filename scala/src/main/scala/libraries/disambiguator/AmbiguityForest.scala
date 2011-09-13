@@ -1154,7 +1154,7 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
         }            
     }
     
-    def saveDocumentDigest( id : Int, fileName : String )
+    def getDocumentDigest( id : Int ) =
     {
         var topicWeights = new AutoMap[Int, Double]( x => 0.0 )
         var primaryTopicSet = new HashSet[Int]()
@@ -1207,10 +1207,10 @@ class AmbiguityForest( val words : List[String], val topicNameMap : HashMap[Int,
             tv.addTopic( topicId, weight, topicNameMap(topicId), groupId, isPrimaryTopic )
         }
         
-        val dd = new DocumentDigest( id, tv, linkWeights.toList.map( x => (x._1._1, x._1._2, x._2) ) )
         
-        sbinary.Operations.toFile( dd )( new java.io.File( fileName ) )
+        new DocumentDigest( id, tv, linkWeights.toList.map( x => (x._1._1, x._1._2, x._2) ) )
     }
+    
     
     def output( htmlFileName : String, resolutionFileName : String )
     {
