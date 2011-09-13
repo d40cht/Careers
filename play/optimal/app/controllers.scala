@@ -63,15 +63,52 @@ package models
         def * = id ~ added ~ description ~ userId ~ pdf ~ text ~ documentDigest
     }
     
+    object MatchVectors extends Table[(Long, Long, Blob)]("MatchVector")
+    {
+        def id              = column[Long]("id")
+        def cvId            = column[Long]("cvId")
+        def topicVector     = column[Blob]("topicVector")
+        
+        def * = id ~ cvId ~ topicVector
+    }
+    
     object CVMatches extends Table[(Long, Long, Long, Double, Blob)]("CVMatches")
     {
         def id              = column[Long]("id")
-        def fromCVId        = column[Long]("fromCVId")
-        def toCVId          = column[Long]("toCVId")
+        def fromMatchId     = column[Long]("fromCVId")
+        def toMatchId       = column[Long]("toCVId")
         def distance        = column[Double]("distance")
         def matchVector     = column[Blob]("matchVector")
         
         def * = id ~ fromCVId ~ toCVId ~ distance ~ matchVector
+    }
+    
+    object Companies extends Table[(Long, String, String, String, String)]("Companies")
+    {
+        def id              = column[Long]("id")
+        def name            = column[String]("name")
+        def url             = column[String]("url")
+        def nameMatch1      = column[String]("nameMatch1")
+        def nameMatch2      = column[String]("nameMatch2")
+        
+        def * = id ~ name ~ url ~ nameMatch1 ~ nameMatch2
+    }
+    
+    object Positions extends Table[(Long, Long, Long, String, String, Int, Int, Int, Double, Double, Int)]("Positions")
+    {
+        def id              = column[Long]("id")
+        def userId          = column[Long]("userId")
+        def companyId       = column[Long]("companyId")
+        def department      = column[String]("department")
+        def jobTitle        = column[String]("jobTitle")
+        def yearsExperience = column[Int]("yearsExperience")
+        def startYear       = column[Int]("startYear")
+        def endYear         = column[Int]("endYear")
+        def longitude       = column[Double]("longitude")
+        def latitude        = column[Double]("latitude")
+        def matchVectorId   = column[Long]("matchVectorId")
+        
+        def * = id ~ userId ~ companyId ~ department ~ jobTitle ~ yearsExperience ~ startYear ~ endYear ~ longitude ~ latitude ~ matchVectorId
     }
 }
 
