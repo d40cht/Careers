@@ -112,10 +112,10 @@ class DistanceMetricTest extends FunSuite
                                                     (totalRank.toDouble / count.toDouble, groupId, x._2)
                                                 } ).sortWith( _._1 < _._1 )
                                                 
-                                                for ( ((aveRank, groupId, groupMembership), i) <- aveRankSorted.slice(0, 10).zipWithIndex ) yield
+                                                /*for ( ((aveRank, groupId, groupMembership), i) <- aveRankSorted.slice(0, 10).zipWithIndex ) yield
                                                 {
                                                     <td>{renderGroup("m_%d_%d".format(ddIndex, i).format(i), groupMembership, "")}</td>
-                                                }
+                                                }*/
                                             }
                                         </tr> 
                                     }

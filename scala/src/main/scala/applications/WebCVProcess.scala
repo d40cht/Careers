@@ -10,6 +10,22 @@ import scala.xml._
 import org.seacourt.utility._
 import org.seacourt.disambiguator._
 
+import org.scalaquery.session._
+import org.scalaquery.session.Database.threadLocalSession
+
+import org.scalaquery.ql.extended.ExtendedColumnOption.AutoInc
+import org.scalaquery.ql.basic.{BasicTable => Table}
+import org.scalaquery.ql.basic.BasicDriver.Implicit._
+import org.scalaquery.ql.TypeMapper._
+import org.scalaquery.ql._
+
+import java.sql.{Timestamp, Blob}
+import javax.sql.rowset.serial.SerialBlob
+
+import org.seacourt.serialization.SerializationProtocol._
+
+import sbinary._
+import sbinary.Operations._
 
 class WebCVProcess
 {
@@ -54,41 +70,103 @@ class WebCVProcess
     }
 }
 
+object Digests extends Table[(Int, Blob)]("CVs")
+{
+    def id      = column[Int]("id", O PrimaryKey)
+    def digest  = column[Blob]("digest")
+    
+    def * = id ~ digest
+}
+
+object Matches extends Table[(Int, Int, Double, Blob)]("Matches")
+{
+    def fromId      = column[Int]("fromId")
+    def toId        = column[Int]("toId")
+    def similarity  = column[Double]("distance")
+    def matchVector = column[Blob]("matchVector")
+    
+    def * = fromId ~ toId ~ similarity ~ matchVector
+    def pk = primaryKey("pk_Matches", fromId ~ toId )
+}
+
 
 object WebCVProcess
 {
+    def addDigest( docId : Int, digest : DocumentDigest )
+    {
+        val toCompare = (for ( row <- Digests ) yield row.id ~ row.digest).list
+        
+        val serialized = toByteArray( digest )
+        
+        Digests.insert( docId, new SerialBlob(serialized) )
+        
+        for ( (otherId, otherDigestBlob) <- toCompare )
+        {
+            val otherDigest = fromByteArray[DocumentDigest]( otherDigestBlob.getBytes(1, otherDigestBlob.length().toInt) )
+            
+            val (distance, why) = digest.topicVector.distance( otherDigest.topicVector )
+            
+            // Compare to existing min similarity for this from/to id and update
+        }
+    }
+    
     def main( args : Array[String] )
     {
         val baseUrl = args(0)
-        val minId = args(1).toInt
-        val maxId = args(2).toInt
-        
-        val p = new WebCVProcess()   
-        val res = p.fetch( "%s/Batch/listcvs?magic=%s".format( baseUrl, Utils.magic ) )
-        val cvs = XML.loadString(res)
-        
-
-        
+        val localDb = args(1)
         val d = new Disambiguator( "./DisambigData/phraseMap.bin", "./DisambigData/dbout.sqlite", "./DisambigData/categoryHierarchy.bin" )
-        for ( id <- (cvs \\ "id") if (id.text.trim.toInt >= minId && id.text.trim.toInt <= maxId) )
+        
+        val p = new WebCVProcess()
+        
+        val makeTables = !(new File( localDb )).exists()
+        val db = Database.forURL("jdbc:h2:file:%s;DB_CLOSE_DELAY=-1".format( localDb ), driver = "org.h2.Driver")
+        
+        db withSession
         {
-            val trimmedId = id.text.trim
-            println( "Fetching: " + trimmedId )
-            val text = p.fetch( "%s/Batch/rpcCVText?id=%s&magic=%s".format( baseUrl, trimmedId, Utils.magic ) )
+            if ( makeTables )
+            {
+                Digests.ddl.create
+                Matches.ddl.create
+            }
             
-            //println( "Text: " + text )
-            
-            val b = new d.Builder(text)
-            val forest = b.build()
-            forest.dumpDebug( "ambiguitydebug" + trimmedId + ".xml" )
-            forest.output( "ambiguity" + trimmedId + ".html", "ambiguityresolution" + trimmedId + ".xml" )
-            
-            val ddFileName = "documentDigest" + trimmedId + ".bin"
-            forest.saveDocumentDigest( trimmedId.toInt, ddFileName )
-            
-            p.post( "%s/Batch/uploadDocumentDigest?id=%s&magic=%s".format( baseUrl, trimmedId, Utils.magic ), new FileInputStream( new File( ddFileName ) ) )
-            
-            //Thread.sleep( 10000 )
+            while (true)
+            {
+                val res = p.fetch( "%s/Batch/listcvs?magic=%s".format( baseUrl, Utils.magic ) )
+                
+                val cvs = XML.loadString(res)
+                for ( cv <- cvs \\ "cv" )
+                {
+                    val id = (cv \ "id").text.trim.toInt
+                    val toProcess = (cv \ "dd").text.trim.toBoolean
+                    
+                    //if ( toProcess )
+                    {
+                        println( "Fetching: " + id )
+                        val text = p.fetch( "%s/Batch/rpcCVText?id=%d&magic=%s".format( baseUrl, id, Utils.magic ) )
+                        
+                        val b = new d.Builder(text)
+                        val forest = b.build()
+                        //forest.dumpDebug( "ambiguitydebug" + id + ".xml" )
+                        //forest.output( "ambiguity" + id + ".html", "ambiguityresolution" + id + ".xml" )
+                        
+                        
+                        val dd = forest.getDocumentDigest( id )
+                        
+                        Utils.withTemporaryDirectory( dirName =>
+                        {
+                            val ddFile = new java.io.File( dirName, "documentDigest" + id + ".bin" )
+                            
+                            sbinary.Operations.toFile( dd )( ddFile )
+                            p.post( "%s/Batch/uploadDocumentDigest?id=%d&magic=%s".format( baseUrl, id, Utils.magic ), new FileInputStream( ddFile ) )
+                        } )
+
+                        addDigest( id, dd )
+                    }
+                }
+                
+                println( "Sleeping..." )
+                Thread.sleep( 1000 )
+            }
         }
     }
 }
