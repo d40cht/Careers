@@ -105,13 +105,19 @@ class TokenizerTest extends FunSuite
     
     test( "Double metaphone", TestTags.unitTests )
     {
+        val companyNames = List(
+            "Celoxica Ltd", "Winton Capital Management", "Navetas Energy Management", "Goldman Sachs",
+            "Morgan Stanley", "Google", "Microsoft", "Maxeller", "Blackstone chambers", "Xilinx", "Altera" )
+            
         val world = "navetas energy"
         val encoder = new DoubleMetaphone()
         encoder.setMaxCodeLen(8)
         val res1 = encoder.doubleMetaphone(world, false)
         val res2 = encoder.doubleMetaphone(world, true)
         
-        println( "::: ", res1, res2 )
+        val metaphones = companyNames.map( name => encoder.encode(name) )
+        
+        println( metaphones.zip( companyNames ) )
     }
 }
 

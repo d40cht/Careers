@@ -286,6 +286,10 @@ object Authenticated extends Controller
             val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.description ).list
             
             html.addPosition( session, flash, cvs )
+            
+            // Break down to add company first (index on DoubleMetaphone)
+            // Then when adding the position, also add a MatchVector based
+            // on the chosen CV.
         }
     }
     
