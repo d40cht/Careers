@@ -21,9 +21,30 @@
             map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
           } );
           
+        function validateCompanyName()
+        {
+            var companyName = $("#companyName").val();
+            $.get("@action(controllers.Authenticated.validateCompany)", { name : companyName }, function(data)
+            {
+                var select = $("#companySelect");
+                select.find('option').remove()
+                
+                for ( index in data )
+                {
+                    var line = data[index];
+                    var name = line[0];
+                    var url = line[1];
+                    var id = line[2];
+                    select.append($("<option></option").attr("value", id).attr("data-url", url).text(name));
+                }
+                
+                $("#companyDialog").dialog("open");
+            } );
+        }
+          
         function codeAddress()
         {
-            var address = document.getElementById("address").value;
+            var address = $("#address").val();
             geocoder.geocode( { 'address': address}, function(results, status)
             {
                 if (status == google.maps.GeocoderStatus.OK)
@@ -52,24 +73,25 @@
     
     <table>
     <tr>
-        <td><form action="@action(controllers.Authenticated.addPosition)" method="POST">
+        <td><form action="@action(controllers.Authenticated.acceptPosition)" method="POST" id="positionForm">
+            <input type="hidden" id="companyId"/>
             <table>
-                
-                <tr><td>Company url</td><td><input type="text" name="companyUrl"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></tr>
-                <tr><td>Company name</td><td><input type="text" name="companyName"/></td><td/></tr>
-                <tr><td>Department</td><td><input type="text" name="department"/></td><td/></tr>
-                <tr><td>Job title</td><td><input type="text" name="jobTitle"/></td><td/></tr>
+                <tr><td>Company name</td><td><input type="text" name="companyName" value="@flash.get("companyName")" id="companyName"/></td><td><input type="button" value="Lookup" onclick="validateCompanyName()"></td></tr>
+                <tr><td>Company url</td><td><input type="text" name="companyUrl" value="@flash.get("companyUrl")" id = "companyUrl"/></td><td></td></tr>
+
+                <tr><td>Department</td><td><input type="text" name="department" value="@flash.get("department")"/></td><td/></tr>
+                <tr><td>Job title</td><td><input type="text" name="jobTitle" value="@flash.get("jobTitle")"/></td><td/></tr>
                 <tr><td>Years of experience relevant to this position</td><td>
-                <select>
+                <select name="experience">
                     @for( y <- 0 until 20 ) {
                         <option value=@y>@y</option>
                     }
                 </select>
-                <tr><td>Start year</td><td><input type="text" name="startYear"/></td><td/></tr>
-                <tr><td>End year</td><td><input type="text" name="endYear"/></td><td/></tr>
-                <tr><td>Address</td><td><input type="text" name="address" id="address"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></td></tr>
-                <tr><td>Location</td><td><input type="text" name="location" id="loc"/></td></td></tr>
-                <tr><td>CV of position</td><td><select>
+                <tr><td>Start year</td><td><input type="text" name="startYear" value="@flash.get("startYear")"/></td><td/></tr>
+                <tr><td>End year</td><td><input type="text" name="endYear" value="@flash.get("endYear")"/></td><td/></tr>
+                <tr><td>Address</td><td><input type="text" name="address" value="@flash.get("address")" id="address"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></td></tr>
+                <tr><td>Location</td><td><input type="hidden" name="location" value="@flash.get("location")" id="loc"/></td></td></tr>
+                <tr><td>CV of position</td><td><select name="chosenCV">
                     @cvs.map { description => <option value=@description>@description</option> }
                 </select></td><td/></tr>
             </table>
@@ -81,4 +103,42 @@
         <td><div id="map_canvas" style="width:280px; height:380px"></div></td>
     </tr>
     </table>
+
+    <div id="companyDialog" title="Company details" style="width: 100%">
+        <form action="" method="POST">
+            <select size="5" style="width: 100%" id="companySelect">
+            </select>
+        </form>
+    </div>
+    
+    <script>
+        $(document).ready( function()
+        {
+            $("#companyDialog").dialog( { autoOpen : false, modal : true,
+                buttons :
+                {
+                    "Select" : function()
+                    {
+                        var selected = $("#companySelect option:selected");
+                        var name = selected.text()
+                        var id = selected.attr('value');
+                        var url = selected.attr('data-url');
+                        $("#companyName").val( name );
+                        $("#companyId").val( id );
+                        $("#companyUrl").val( url );
+                        $("#positionForm input").each( function() { $(this).attr('disabled', false); } );
+                        $(this).dialog("close");
+                    },
+                    "None of these" : function()
+                    {
+                        $("#positionForm input").each( function() { $(this).attr('disabled', false); } );
+                        $(this).dialog("close");
+                    }
+                },
+                close : function()
+                {
+                } } );
+        } );
+    </script> 
+
 }

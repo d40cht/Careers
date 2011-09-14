@@ -1,14 +1,10 @@
 body {
-     margin: 0;
-     padding: 0;
-     color: black;
-     font-family: "Franklin Gothic Medium", Helvetica, Arial, sans-serif;
-     background: #ffffff;
-}
-.body { 
+    margin: 0;
+    padding: 0;
+    color: black;
     font-family: arial,helvetica,clean,sans-serif;
     font-size: 13px;
-    
+    background: #ffffff;
 }
 
 table.simple
@@ -78,6 +74,7 @@ strong {
 
 #header h1 {
     color: #333;
+    font-size: 300%;
     font-weight: bold;
     padding: 10px;
     border: none;
@@ -207,7 +204,6 @@ div.info {
 /* Footer */
 #footer {
     padding: 6px;
-    font-size: 80%;
     text-align: center;
     background-color: #d0d0f0;
 }

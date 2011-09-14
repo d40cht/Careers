@@ -4,6 +4,7 @@ import play._
 import play.libs._
 import play.mvc._
 import play.cache._
+import play.data.validation._
 
 import scala.io.Source._
 
@@ -35,6 +36,14 @@ import org.seacourt.utility._
 import org.seacourt.disambiguator.{DocumentDigest, TopicVector}
 import org.seacourt.serialization.SerializationProtocol._
 
+import net.liftweb.json.JsonAST
+import net.liftweb.json.JsonDSL._
+import net.liftweb.json.Printer._
+
+import org.apache.commons.codec.language.DoubleMetaphone
+
+import scala.collection.JavaConversions._
+
 // To interrogate the H2 DB: java -jar ../../../play-1.2.2RC2/framework/lib/h2-1.3.149.jar
 package models
 {
@@ -63,15 +72,52 @@ package models
         def * = id ~ added ~ description ~ userId ~ pdf ~ text ~ documentDigest
     }
     
+    object MatchVectors extends Table[(Long, Long, Blob)]("MatchVector")
+    {
+        def id              = column[Long]("id")
+        def cvId            = column[Long]("cvId")
+        def topicVector     = column[Blob]("topicVector")
+        
+        def * = id ~ cvId ~ topicVector
+    }
+    
     object CVMatches extends Table[(Long, Long, Long, Double, Blob)]("CVMatches")
     {
         def id              = column[Long]("id")
-        def fromCVId        = column[Long]("fromCVId")
-        def toCVId          = column[Long]("toCVId")
+        def fromMatchId     = column[Long]("fromCVId")
+        def toMatchId       = column[Long]("toCVId")
         def distance        = column[Double]("distance")
         def matchVector     = column[Blob]("matchVector")
         
-        def * = id ~ fromCVId ~ toCVId ~ distance ~ matchVector
+        def * = id ~ fromMatchId ~ toMatchId ~ distance ~ matchVector
+    }
+    
+    object Companies extends Table[(Long, String, String, String, String)]("Companies")
+    {
+        def id              = column[Long]("id")
+        def name            = column[String]("name")
+        def url             = column[String]("url")
+        def nameMatch1      = column[String]("nameMatch1")
+        def nameMatch2      = column[String]("nameMatch2")
+        
+        def * = id ~ name ~ url ~ nameMatch1 ~ nameMatch2
+    }
+    
+    object Positions extends Table[(Long, Long, Long, String, String, Int, Int, Int, Double, Double, Long)]("Positions")
+    {
+        def id              = column[Long]("id")
+        def userId          = column[Long]("userId")
+        def companyId       = column[Long]("companyId")
+        def department      = column[String]("department")
+        def jobTitle        = column[String]("jobTitle")
+        def yearsExperience = column[Int]("yearsExperience")
+        def startYear       = column[Int]("startYear")
+        def endYear         = column[Int]("endYear")
+        def longitude       = column[Double]("longitude")
+        def latitude        = column[Double]("latitude")
+        def matchVectorId   = column[Long]("matchVectorId")
+        
+        def * = id ~ userId ~ companyId ~ department ~ jobTitle ~ yearsExperience ~ startYear ~ endYear ~ longitude ~ latitude ~ matchVectorId
     }
 }
 
@@ -249,7 +295,7 @@ object Batch extends Controller
             
             <cvs>
             {
-                for ( (id, dd) <- unprocessedCVs ) yield <id>{id}</id><dd>{dd.toString}</dd>
+                for ( (id, dd) <-unprocessedCVs ) yield <cv><id>{id}</id><dd>{dd.toString}</dd></cv>
             }
             </cvs>
         }
@@ -286,6 +332,35 @@ object Authenticated extends Controller
             val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.description ).list
             
             html.addPosition( session, flash, cvs )
+        }
+    }
+    
+    def acceptPosition =
+    {
+        Validation.required( "Company name", params.get("companyName") )
+        Validation.required( "Company url", params.get("companyUrl") )
+        Validation.required( "Department", params.get("department") )
+        Validation.required( "Job title", params.get("jobTitle") )
+        Validation.required( "Experience", params.get("experience") )
+        Validation.required( "Start year", params.get("startYear") )
+        Validation.required( "Address", params.get("address") )
+        Validation.required( "Location", params.get("location") )
+        Validation.required( "CV for position", params.get("chosenCV") )
+
+        if ( Validation.hasErrors )
+        {
+            params.flash()
+            Validation.errors.foreach( error => flash += ("error" -> error.message()) )
+
+            Validation.keep()
+            addPosition
+        }
+        else
+        {
+            // Make the company if it doesn't already exist (use hidden companyId field after lookup)
+            // Make the MatchVectors from the CV
+            // Add the position itself
+            Action(Authenticated.manageCVs)
         }
     }
     
@@ -442,6 +517,22 @@ object Authenticated extends Controller
                 Text( new String(data) )
             }
             else Forbidden                
+        }
+    }
+    
+    def validateCompany =
+    {
+        val companyName = params.get("name")
+        
+        val encoder = new DoubleMetaphone()
+        val asMetaphone = encoder.encode( companyName )
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val res = ( for ( c <- models.Companies if c.nameMatch1 === asMetaphone ) yield c.name ~ c.url ~ c.id ).list.map( x => List(x._1, x._2, x._3.toString) )
+            val toStr = compact(JsonAST.render( res ))
+            Json( toStr )
         }
     }
 }
