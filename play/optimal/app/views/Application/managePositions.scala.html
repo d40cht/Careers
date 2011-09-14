@@ -1,4 +1,4 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(String, String, String, Int, Int)])
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(String, String, String, String, Int, Int)])
 
 @main(title="Home", session=session, flash=flash) {
     <h1>Manage job positions</h1>
@@ -8,11 +8,11 @@
     
         @cvs.map { (row) =>
             <tr>
-                <td>@row._1</td>
-                <td>@row._2</td>
+                <td><a href="http://@row._2">@row._1</a></td>
                 <td>@row._3</td>
-                <td>@row._4.toString</td>
+                <td>@row._4</td>
                 <td>@row._5.toString</td>
+                <td>@row._6.toString</td>
             </tr>
         }
     </table>

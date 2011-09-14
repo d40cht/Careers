@@ -518,7 +518,7 @@ object Authenticated extends Controller
             {
                 Join(p, c) <- Position leftJoin Companies on (_.companyId is _.id) if p.userId === userId
                 _ <- Query orderBy( p.startYear desc )
-            } yield c.name ~ p.department ~ p.jobTitle ~ p.startYear ~ p.endYear ).list
+            } yield c.name ~ c.url ~ p.department ~ p.jobTitle ~ p.startYear ~ p.endYear ).list
             
             html.managePositions( session, flash, positions )
         }
