@@ -245,11 +245,11 @@ object Batch extends Controller
             /*val unprocessedCVs = for {
                 Join(cv, md) <- models.CVs leftJoin models.CVMetaData on (_.id is _.cvId)
             } yield cv.id ~ cv.added.?*/
-            val unprocessedCVs = for ( cv <- models.CVs ) yield cv.id ~ cv.documentDigest.isNull
+            val unprocessedCVs = (for ( cv <- models.CVs ) yield cv.id ~ cv.documentDigest.isNull).list
             
             <cvs>
             {
-                for ( (id ~ dd) <-unprocessedCVs ) yield <id>{id}</id><dd>{dd.toString}</dd>
+                for ( (id, dd) <- unprocessedCVs ) yield <id>{id}</id><dd>{dd.toString}</dd>
             }
             </cvs>
         }
