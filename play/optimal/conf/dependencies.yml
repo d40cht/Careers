@@ -8,6 +8,9 @@ require:
         
     - commons-codec 1.5:
         force:          true
+        
+    - net.liftweb -> lift-json_2.8.1 2.3:
+        force:          true
     
 repositories:
     

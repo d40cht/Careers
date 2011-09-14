@@ -1,0 +1,19 @@
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(String, String, String, Int, Int)])
+
+@main(title="Home", session=session, flash=flash) {
+    <h1>Manage job positions</h1>
+    
+    <table class="simple">
+        <tr><th>Company</th><th>Department</th><th>Job title</th><th>From</th><th>To</th></tr>
+    
+        @cvs.map { (row) =>
+            <tr>
+                <td>@row._1</td>
+                <td>@row._2</td>
+                <td>@row._3</td>
+                <td>@row._4.toString</td>
+                <td>@row._5.toString</td>
+            </tr>
+        }
+    </table>
+}

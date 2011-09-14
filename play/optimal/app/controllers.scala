@@ -4,6 +4,7 @@ import play._
 import play.libs._
 import play.mvc._
 import play.cache._
+import play.data.validation._
 
 import scala.io.Source._
 
@@ -34,6 +35,14 @@ import org.seacourt.htmlrender._
 import org.seacourt.utility._
 import org.seacourt.disambiguator.{DocumentDigest, TopicVector}
 import org.seacourt.serialization.SerializationProtocol._
+
+import net.liftweb.json.JsonAST
+import net.liftweb.json.JsonDSL._
+import net.liftweb.json.Printer._
+
+import org.apache.commons.codec.language.DoubleMetaphone
+
+import scala.collection.JavaConversions._
 
 // To interrogate the H2 DB: java -jar ../../../play-1.2.2RC2/framework/lib/h2-1.3.149.jar
 package models
@@ -94,7 +103,7 @@ package models
         def * = id ~ name ~ url ~ nameMatch1 ~ nameMatch2
     }
     
-    object Positions extends Table[(Long, Long, Long, String, String, Int, Int, Int, Double, Double, Long)]("Positions")
+    object Position extends Table[(Long, Long, Long, String, String, Int, Int, Int, Double, Double, Long)]("Position")
     {
         def id              = column[Long]("id")
         def userId          = column[Long]("userId")
@@ -312,21 +321,102 @@ object Batch extends Controller
 object Authenticated extends Controller
 {
     import views.Application._
+    import models._
     
     def addPosition =
     {
         val userId = session("userId").get.toLong
-        
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.description ).list
+            val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.id ~ u.description ).list
             
             html.addPosition( session, flash, cvs )
-            
-            // Break down to add company first (index on DoubleMetaphone)
-            // Then when adding the position, also add a MatchVector based
-            // on the chosen CV.
+        }
+    }
+    
+    def acceptPosition =
+    {
+        Validation.required( "Company name", params.get("companyName") )
+        Validation.required( "Company url", params.get("companyUrl") )
+        Validation.required( "Department", params.get("department") )
+        Validation.required( "Job title", params.get("jobTitle") )
+        Validation.required( "Experience", params.get("experience") )
+        Validation.required( "Start year", params.get("startYear") )
+        Validation.required( "Start year", params.get("endYear") )
+        Validation.required( "Address", params.get("address") )
+        Validation.required( "Location", params.get("location") )
+        Validation.required( "CV for position", params.get("chosenCV") )
+
+        if ( Validation.hasErrors )
+        {
+            params.flash()
+            Validation.errors.foreach( error => flash += ("error" -> error.message()) )
+
+            Validation.keep()
+            addPosition
+        }
+        else
+        {
+            val userId = session("userId").get.toLong
+            val db = Database.forDataSource(play.db.DB.datasource)
+            db withSession
+            {
+                // Retrieve company id or make new row and get last insert id
+                val companyId =
+                {
+                    val submittedCompanyId = params.get("companyId")
+                    if ( submittedCompanyId != "" )
+                    {
+                        submittedCompanyId.toInt
+                    }
+                    else
+                    {
+                        val name = params.get("companyName")
+                        val url = params.get("companyUrl")
+                        val rows = Companies.name ~ Companies.url ~ Companies.nameMatch1 ~ Companies.nameMatch2
+                        
+                        val encoder = new DoubleMetaphone()
+                        rows.insert( name, url, encoder.encode( name ), encoder.encode( name ) )
+                        
+                        val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
+                        Query(scopeIdentity).first
+                    }
+                }
+                
+                // Make the MatchVectors from the CV
+                val matchVectorId =
+                {
+                    val cvId = params.get("chosenCV").toLong
+                    val blob = (for (row <- CVs if row.id === cvId) yield row.documentDigest).first
+                    
+                    val data = blob.getBytes(1, blob.length().toInt)
+                    val dd = fromByteArray[DocumentDigest](data)
+                    
+                    val tvData = toByteArray(dd.topicVector)
+                    
+                    val rows = MatchVectors.cvId ~ MatchVectors.topicVector
+                    rows.insert( cvId, new SerialBlob(tvData) )
+                    
+                    val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
+                    Query(scopeIdentity).first
+                }
+                
+                val llList = params.get("location").replace("(","").replace(")","").split(",").map( _.trim.toDouble )
+                val (latitude, longitude) = (llList(0), llList(1))
+
+                // Add the position itself
+                val rows =
+                    Position.userId ~ Position.companyId ~ Position.department ~ Position.jobTitle ~
+                    Position.yearsExperience ~ Position.startYear ~ Position.endYear ~
+                    Position.longitude ~ Position.latitude ~ Position.matchVectorId
+                    
+                rows.insert( userId, companyId, params.get("department"), params.get("jobTitle"),
+                    params.get("experience").toInt, params.get("startYear").toInt, params.get("endYear").toInt,
+                    longitude, latitude, matchVectorId )
+                
+                Action(Authenticated.manageCVs)
+            }
         }
     }
     
@@ -417,6 +507,24 @@ object Authenticated extends Controller
         }
     }
     
+    def managePositions =
+    {
+        val userId = session("userId").get.toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val positions = ( for
+            {
+                Join(p, c) <- Position leftJoin Companies on (_.companyId is _.id) if p.userId === userId
+                _ <- Query orderBy( p.startYear desc )
+            } yield c.name ~ p.department ~ p.jobTitle ~ p.startYear ~ p.endYear ).list
+            
+            html.managePositions( session, flash, positions )
+        }
+    }
+    
+    
     def manageSearches = html.manageSearches( session, flash )
     
     def cvPdf =
@@ -448,20 +556,22 @@ object Authenticated extends Controller
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val query = ( for ( u <-models.CVs if u.id === cvId && u.userId === userId ) yield u.documentDigest ).list
+            val res = ( for ( u <-models.CVs if u.id === cvId && u.userId === userId ) yield u.documentDigest ).firstOption
             
-            if ( query != Nil )
+            res match
             {
-                val blob = query.head
-                val data = blob.getBytes(1, blob.length().toInt)
-                val dd = fromByteArray[DocumentDigest](data)
-                
-                val groupedSkills = dd.topicVector.rankedAndGrouped
-                
-                val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
-                html.cvAnalysis( session, flash, theTable )
+                case Some( blob ) =>
+                {
+                    val data = blob.getBytes(1, blob.length().toInt)
+                    val dd = fromByteArray[DocumentDigest](data)
+                    
+                    val groupedSkills = dd.topicVector.rankedAndGrouped
+                    
+                    val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
+                    html.cvAnalysis( session, flash, theTable )
+                }
+                case None => Forbidden
             }
-            else Forbidden
         }
     }
     
@@ -483,6 +593,22 @@ object Authenticated extends Controller
                 Text( new String(data) )
             }
             else Forbidden                
+        }
+    }
+    
+    def validateCompany =
+    {
+        val companyName = params.get("name")
+        
+        val encoder = new DoubleMetaphone()
+        val asMetaphone = encoder.encode( companyName )
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val res = ( for ( c <- models.Companies if c.nameMatch1 === asMetaphone ) yield c.name ~ c.url ~ c.id ).list.map( x => List(x._1, x._2, x._3.toString) )
+            val toStr = compact(JsonAST.render( res ))
+            Json( toStr )
         }
     }
 }

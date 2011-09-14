@@ -1,5 +1,7 @@
 # --- !Ups
 
+DROP TABLE IF EXISTS "CVMatches";
+
 CREATE TABLE "CVMatches" (
     "id"            bigint(20) NOT NULL AUTO_INCREMENT,
     "fromCVId"      bigint(20) NOT NULL,
