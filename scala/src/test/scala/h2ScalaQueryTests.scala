@@ -66,6 +66,9 @@ class H2DbDebugTest extends FunSuite
                 val maxValue = allRows.map( row => row.sqr.max ).first
                 val minValue = allRows.map( row => row.sqr.min ).first
                 val count = allRows.map( row => ColumnOps.CountAll(row) ).first
+                
+                assert( minValue === Some(4.0*4.0) )
+                assert( maxValue === Some(14.0*14.0) )
             }
         } )
     }

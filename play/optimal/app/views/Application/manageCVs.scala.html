@@ -4,7 +4,7 @@
     <h1>Manage your existing CVs</h1>
     
     <table class="simple">
-        <tr><th>Date added</th><th>Description</th><th>Pdf</th><th>Plain text</th><th>Analysis</th></tr>
+        <tr><th>Date added</th><th>Description</th><th>Pdf</th><th>Plain text</th><th>Analysis</th><th>Actions</th></tr>
     
         @cvs.map { (row) =>
             <tr>
@@ -27,6 +27,10 @@
                 } else {
                     <span/>
                 }
+                </td>
+                <td>
+                    <a href="">edit</a> /
+                    <a href="">delete</a>
                 </td>
             </tr>
         }

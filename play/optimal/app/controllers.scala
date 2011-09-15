@@ -81,26 +81,27 @@ package models
         def * = id ~ cvId ~ topicVector
     }
     
-    object CVMatches extends Table[(Long, Long, Long, Double, Blob)]("CVMatches")
+    object Matches extends Table[(Long, Long, Long, Double, Blob)]("Matches")
     {
         def id              = column[Long]("id")
-        def fromMatchId     = column[Long]("fromCVId")
-        def toMatchId       = column[Long]("toCVId")
-        def distance        = column[Double]("distance")
+        def fromMatchId     = column[Long]("fromMatchId")
+        def toMatchId       = column[Long]("toMatchId")
+        def similarity      = column[Double]("similarity")
         def matchVector     = column[Blob]("matchVector")
         
-        def * = id ~ fromMatchId ~ toMatchId ~ distance ~ matchVector
+        def * = id ~ fromMatchId ~ toMatchId ~ similarity ~ matchVector
     }
     
-    object Companies extends Table[(Long, String, String, String, String)]("Companies")
+    object Companies extends Table[(Long, String, String, String, String, String)]("Companies")
     {
         def id              = column[Long]("id")
         def name            = column[String]("name")
         def url             = column[String]("url")
+        def description     = column[String]("description")
         def nameMatch1      = column[String]("nameMatch1")
         def nameMatch2      = column[String]("nameMatch2")
         
-        def * = id ~ name ~ url ~ nameMatch1 ~ nameMatch2
+        def * = id ~ name ~ url ~ description ~ nameMatch1 ~ nameMatch2
     }
     
     object Position extends Table[(Long, Long, Long, String, String, Int, Int, Int, Double, Double, Long)]("Position")
@@ -118,6 +119,19 @@ package models
         def matchVectorId   = column[Long]("matchVectorId")
         
         def * = id ~ userId ~ companyId ~ department ~ jobTitle ~ yearsExperience ~ startYear ~ endYear ~ longitude ~ latitude ~ matchVectorId
+    }
+    
+    object Searches extends Table[(Long, Long, String, Double, Double, Double, Long)]("Searches")
+    {
+        def id              = column[Long]("id")
+        def userId          = column[Long]("userId")
+        def description     = column[String]("description")
+        def longitude       = column[Double]("longitude")
+        def latitude        = column[Double]("latitude")
+        def radius          = column[Double]("radius")
+        def matchVectorId   = column[Long]("matchVectorId")
+        
+        def * = id ~ userId ~ description ~ longitude ~ latitude ~ radius ~ matchVectorId
     }
 }
 
@@ -157,7 +171,7 @@ object PublicSite extends Controller
                     flash += ("info" -> ("Welcome " + name ))
                     session += ("user" -> name)
                     session += ("userId" -> userId.toString)
-                    Action(index)
+                    Action(Authenticated.home)
                 }
                 else
                 {
@@ -233,6 +247,7 @@ object PublicSite extends Controller
 
 object Batch extends Controller
 {
+    import models._
     import views.Application._
     
     private def authRequired[T]( handler : => T ) =
@@ -258,46 +273,106 @@ object Batch extends Controller
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val toUpdate = for ( cv <- models.CVs if cv.id === id ) yield cv.documentDigest
+            val toUpdate = for ( cv <- CVs if cv.id === id ) yield cv.documentDigest
             toUpdate.update( new SerialBlob(data) )
         }
     }
     
-    def uploadCVDistance = authRequired
-    {
-        val fromId = params.get("fromId").toLong
-        val toId = params.get("toId").toLong
-        val distance = params.get("distance").toLong
-        
-        val reqType = request.contentType
-        val data = IOUtils.toByteArray( request.body )
-        val dd = fromByteArray[TopicVector](data)
-        
-        val db = Database.forDataSource(play.db.DB.datasource)
-        db withSession
-        {
-            // For both the from id and the to id we need to get the existing min 
-            // SELECT MIN(matchMetric) AS minMatch, SUM(1) AS count FROM CVMatches WHERE fromId=?
-            // Then if count < 10 OR matchMetric > minMatch add/replace
-        }
-    }
     
-    // TODO: Add validation to these data classes. Encryption? IP address restrictions?
     def listCVs = authRequired
     {
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            /*val unprocessedCVs = for {
-                Join(cv, md) <- models.CVs leftJoin models.CVMetaData on (_.id is _.cvId)
-            } yield cv.id ~ cv.added.?*/
-            val unprocessedCVs = (for ( cv <- models.CVs ) yield cv.id ~ cv.documentDigest.isNull).list
+            val unprocessedCVs = (for ( cv <- CVs ) yield cv.id ~ cv.documentDigest.isNull).list
             
             <cvs>
             {
                 for ( (id, dd) <-unprocessedCVs ) yield <cv><id>{id}</id><dd>{dd.toString}</dd></cv>
             }
             </cvs>
+        }
+    }
+    
+    def listSearches = authRequired
+    {
+        val minId = params.get("minId").toLong
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val searches = (for (s <- Searches if s.id >= minId) yield s.id ~ s.userId ~ s.longitude ~ s.latitude ~ s.radius ~ s.matchVectorId).list
+            
+            <searches>
+            {
+                for ( (id, userId, lon, lat, radius, mvId) <- searches ) yield
+                {
+                    <search>
+                        <id>{id}</id>
+                        <userId>{userId}</userId>
+                        <lon>{lon}</lon>
+                        <lat>{lat}</lat>
+                        <radius>{radius}</radius>
+                        <mvId>{mvId}</mvId>
+                    </search>
+                }
+            }
+            </searches>
+        }
+    }
+    
+    def listPositions = authRequired
+    {
+        val minId = params.get("minId").toLong
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val positions = (for (p <- Position if p.id >= minId) yield p.id ~ p.userId ~ p.longitude ~ p.latitude ~ p.matchVectorId).list
+            
+            <positions>
+            {
+                for ( (id, userId, lon, lat, mvId) <- positions ) yield
+                {
+                    <position>
+                        <id>{id}</id>
+                        <userId>{userId}</userId>
+                        <lon>{lon}</lon>
+                        <lat>{lat}</lat>
+                        <mvId>{mvId}</mvId>
+                    </position>
+                }
+            }
+            </positions>
+        }
+    }
+    
+    def matchVector = authRequired
+    {
+        val mvId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val blob = ( for ( m <- MatchVectors if m.id === mvId ) yield m.topicVector ).first
+            val data = blob.getBytes(1, blob.length().toInt)
+            val stream = new java.io.ByteArrayInputStream(data)
+            new play.mvc.results.RenderBinary(stream, "mv.bin", "application/octet-stream", false )
+        }
+    }
+    
+    def addMatch = authRequired
+    {
+        val fromId = params.get("fromId").toLong
+        val toId = params.get("toId").toLong
+        val similarity = params.get("similarity").toDouble
+        
+        val reqType = request.contentType
+        val data = IOUtils.toByteArray( request.body )
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val cols = Matches.fromMatchId ~ Matches.toMatchId ~ Matches.similarity ~ Matches.matchVector
+            cols.insert( fromId, toId, similarity, new SerialBlob(data) )
         }
     }
     
@@ -308,7 +383,7 @@ object Batch extends Controller
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val text = ( for ( u <- models.CVs if u.id === cvId ) yield u.text ).list
+            val text = ( for ( u <- CVs if u.id === cvId ) yield u.text ).list
             val blob = text.head
             val data = blob.getBytes(1, blob.length().toInt)
             
@@ -322,6 +397,122 @@ object Authenticated extends Controller
 {
     import views.Application._
     import models._
+    
+    private def parseLocation(loc : String) =
+    {
+        val llList = params.get("location").replace("(","").replace(")","").split(",").map( _.trim.toDouble )
+        (llList(0), llList(1))
+    }
+    
+    private def makeMatchVectorFromCV( cvId : Long ) =
+    {
+        val cvId = params.get("chosenCV").toLong
+        val blob = (for (row <- CVs if row.id === cvId) yield row.documentDigest).first
+        
+        val data = blob.getBytes(1, blob.length().toInt)
+        val dd = fromByteArray[DocumentDigest](data)
+        
+        val tvData = toByteArray(dd.topicVector)
+        
+        val rows = MatchVectors.cvId ~ MatchVectors.topicVector
+        rows.insert( cvId, new SerialBlob(tvData) )
+        
+        val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
+        Query(scopeIdentity).first
+    }
+    
+    class LLPoint( val longitude : Double, val latitude : Double )
+    {
+    }
+    
+    private def distance( p1 : LLPoint, p2 : LLPoint ) =
+    {
+        def deg2rad( deg : Double ) = deg * Math.Pi / 180.0
+        def rad2deg( rad : Double ) = rad * 180.0 / Math.Pi
+
+        val theta = p1.longitude - p2.longitude
+        var dist = Math.sin(deg2rad(p1.latitude)) * Math.sin(deg2rad(p2.latitude)) + Math.cos(deg2rad(p1.latitude)) * Math.cos(deg2rad(p2.latitude)) * Math.cos(deg2rad(theta))
+        dist = Math.acos(dist)
+        dist = rad2deg(dist)
+        dist = dist * 60 * 1.1515
+        
+        dist
+    }
+
+    
+    def home =
+    {
+        val userId = session("userId").get.toLong
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val matchData = ( for
+            {
+                s <- Searches
+                m <- Matches
+                if s.matchVectorId === m.fromMatchId && s.userId === userId
+                p <- Position
+                if p.matchVectorId === m.toMatchId 
+                c <- Companies
+                if c.id === p.companyId
+                u <- Users
+                if u.id === p.userId
+                _ <- Query orderBy( c.name, m.similarity desc )
+            } yield u.fullName ~ c.name ~ c.url ~ c.description ~ p.department ~ p.jobTitle ~ p.yearsExperience ~ m.similarity ~ s.latitude ~ s.longitude ~ p.latitude ~ p.longitude ).list
+            
+            
+            
+            val matches = matchData.map( row =>
+                (row._1, row._2, row._3, row._4, row._5, row._6, row._7, row._8,
+                distance( new LLPoint( row._9, row._10 ), new LLPoint( row._11, row._12 ) )) ).groupBy( r => (r._2, r._3, r._4) )
+            
+            html.home( session, flash, matches )
+        }
+    }
+    
+    def addSearch =
+    {
+        val userId = session("userId").get.toLong
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val cvs = ( for ( u <- CVs if u.userId === userId ) yield u.id ~ u.description ).list
+            
+            html.addSearch( session, flash, cvs )
+        }
+    }
+    
+    def acceptSearch =
+    {
+        Validation.required( "Description", params.get("description") )
+        Validation.required( "Location", params.get("location") )
+        Validation.required( "Search radius", params.get("radius") )
+        Validation.required( "CV", params.get("chosenCV") )
+
+        if ( Validation.hasErrors )
+        {
+            params.flash()
+            Validation.errors.foreach( error => flash += ("error" -> error.message()) )
+            addSearch
+        }
+        else
+        {
+            val userId = session("userId").get.toLong
+            val db = Database.forDataSource(play.db.DB.datasource)
+            db withSession
+            {
+                val description = params.get("description")
+                val (latitude, longitude) = parseLocation( params.get("location") )
+                val radius = params.get("radius").toDouble
+                val matchVectorId = makeMatchVectorFromCV( params.get("chosenCV").toLong )
+                
+                val cols = Searches.userId ~ Searches.description ~ Searches.longitude ~ Searches.latitude ~ Searches.radius ~ Searches.matchVectorId
+                
+                cols.insert( userId, description, longitude, latitude, radius, matchVectorId )
+                Action(Authenticated.manageSearches)
+            }
+        }
+    }
     
     def addPosition =
     {
@@ -339,6 +530,7 @@ object Authenticated extends Controller
     {
         Validation.required( "Company name", params.get("companyName") )
         Validation.required( "Company url", params.get("companyUrl") )
+        Validation.required( "Company description", params.get("companyDescription") )
         Validation.required( "Department", params.get("department") )
         Validation.required( "Job title", params.get("jobTitle") )
         Validation.required( "Experience", params.get("experience") )
@@ -352,8 +544,6 @@ object Authenticated extends Controller
         {
             params.flash()
             Validation.errors.foreach( error => flash += ("error" -> error.message()) )
-
-            Validation.keep()
             addPosition
         }
         else
@@ -374,10 +564,11 @@ object Authenticated extends Controller
                     {
                         val name = params.get("companyName")
                         val url = params.get("companyUrl")
-                        val rows = Companies.name ~ Companies.url ~ Companies.nameMatch1 ~ Companies.nameMatch2
+                        val description = params.get("companyDescription")
+                        val rows = Companies.name ~ Companies.url ~ Companies.description ~ Companies.nameMatch1 ~ Companies.nameMatch2
                         
                         val encoder = new DoubleMetaphone()
-                        rows.insert( name, url, encoder.encode( name ), encoder.encode( name ) )
+                        rows.insert( name, url, description, encoder.encode( name ), encoder.encode( name ) )
                         
                         val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
                         Query(scopeIdentity).first
@@ -385,25 +576,10 @@ object Authenticated extends Controller
                 }
                 
                 // Make the MatchVectors from the CV
-                val matchVectorId =
-                {
-                    val cvId = params.get("chosenCV").toLong
-                    val blob = (for (row <- CVs if row.id === cvId) yield row.documentDigest).first
-                    
-                    val data = blob.getBytes(1, blob.length().toInt)
-                    val dd = fromByteArray[DocumentDigest](data)
-                    
-                    val tvData = toByteArray(dd.topicVector)
-                    
-                    val rows = MatchVectors.cvId ~ MatchVectors.topicVector
-                    rows.insert( cvId, new SerialBlob(tvData) )
-                    
-                    val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
-                    Query(scopeIdentity).first
-                }
+                val matchVectorId = makeMatchVectorFromCV( params.get("chosenCV").toLong )
                 
-                val llList = params.get("location").replace("(","").replace(")","").split(",").map( _.trim.toDouble )
-                val (latitude, longitude) = (llList(0), llList(1))
+                val (latitude, longitude) = parseLocation( params.get("location") )
+
 
                 // Add the position itself
                 val rows =
@@ -415,7 +591,7 @@ object Authenticated extends Controller
                     params.get("experience").toInt, params.get("startYear").toInt, params.get("endYear").toInt,
                     longitude, latitude, matchVectorId )
                 
-                Action(Authenticated.manageCVs)
+                Action(Authenticated.managePositions)
             }
         }
     }
@@ -525,7 +701,21 @@ object Authenticated extends Controller
     }
     
     
-    def manageSearches = html.manageSearches( session, flash )
+    def manageSearches =
+    {
+        val userId = session("userId").get.toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val searches = ( for
+            {
+                s <- Searches if s.userId === userId
+            } yield s.description ~ s.radius ).list
+            
+            html.manageSearches( session, flash, searches )
+        }
+    }
     
     def cvPdf =
     {
@@ -606,7 +796,7 @@ object Authenticated extends Controller
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val res = ( for ( c <- models.Companies if c.nameMatch1 === asMetaphone ) yield c.name ~ c.url ~ c.id ).list.map( x => List(x._1, x._2, x._3.toString) )
+            val res = ( for ( c <- models.Companies if c.nameMatch1 === asMetaphone ) yield c.name ~ c.url ~ c.id ~ c.description ).list.map( x => List(x._1, x._2, x._3.toString, x._4) )
             val toStr = compact(JsonAST.render( res ))
             Json( toStr )
         }

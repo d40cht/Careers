@@ -17,9 +17,10 @@ table.simple tr:hover
     background-color: #e9ffe9;
 }
 
-table.simple td
+table.simple td, th
 {
     padding: 3px 10px;
+    text-align: left;
 }
 
 #tips

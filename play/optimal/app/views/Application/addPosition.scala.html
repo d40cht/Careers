@@ -35,7 +35,8 @@
                     var name = line[0];
                     var url = line[1];
                     var id = line[2];
-                    select.append($("<option></option").attr("value", id).attr("data-url", url).text(name));
+                    var description = line[3];
+                    select.append($("<option></option").attr("value", id).attr("data-url", url).attr("data-description", description).text(name));
                 }
                 
                 $("#companyDialog").dialog("open");
@@ -75,9 +76,11 @@
     <tr>
         <td><form action="@action(controllers.Authenticated.acceptPosition)" method="POST" id="positionForm">
             <input type="hidden" name="companyId" id="companyId"/>
+            <input type="hidden" name="location" value="@flash.get("location")" id="loc"/>
             <table>
                 <tr><td>Company name</td><td><input type="text" name="companyName" value="@flash.get("companyName")" id="companyName"/></td><td><input type="button" value="Lookup" onclick="validateCompanyName()"></td></tr>
                 <tr><td>Company url</td><td><input type="text" name="companyUrl" value="@flash.get("companyUrl")" id = "companyUrl"/></td><td></td></tr>
+                <tr><td>Company description</td><td><input type="text" name="companyDescription" value="@flash.get("companyDescription")" id = "companyDescription"/></td><td></td></tr>
 
                 <tr><td>Department</td><td><input type="text" name="department" value="@flash.get("department")"/></td><td/></tr>
                 <tr><td>Job title</td><td><input type="text" name="jobTitle" value="@flash.get("jobTitle")"/></td><td/></tr>
@@ -90,7 +93,6 @@
                 <tr><td>Start year</td><td><input type="text" name="startYear" value="@flash.get("startYear")"/></td><td/></tr>
                 <tr><td>End year</td><td><input type="text" name="endYear" value="@flash.get("endYear")"/></td><td/></tr>
                 <tr><td>Address</td><td><input type="text" name="address" value="@flash.get("address")" id="address"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></td></tr>
-                <tr><td>Location</td><td><input type="hidden" name="location" value="@flash.get("location")" id="loc"/></td></td></tr>
                 <tr><td>CV of position</td><td><select name="chosenCV">
                     @cvs.map { row => <option value="@row._1">"@row._2"</option> }
                 </select></td><td/></tr>
@@ -123,9 +125,11 @@
                         var name = selected.text()
                         var id = selected.attr('value');
                         var url = selected.attr('data-url');
+                        var companyDescription = selected.attr('data-description');
                         $("#companyName").val( name );
                         $("#companyId").val( id );
                         $("#companyUrl").val( url );
+                        $("#companyDescription").val( companyDescription )
                         $("#positionForm input").each( function() { $(this).attr('disabled', false); } );
                         $(this).dialog("close");
                     },

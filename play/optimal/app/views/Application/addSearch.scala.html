@@ -1,0 +1,82 @@
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : List[(Long, String)])
+
+@main(title="Add search", session=session, flash=flash) {
+    <h1>Add search</h1>
+    
+    <h2>Details</h2>
+    
+    <script type="text/javascript">
+        var geocoder;
+        var map;
+        var marker = null;
+        $(document).ready( function()
+        {
+            geocoder = new google.maps.Geocoder();
+            var latlng = new google.maps.LatLng(54.559322587438636, -4.1748046875);
+            var myOptions = {
+              zoom: 5,
+              center: latlng,
+              mapTypeId: google.maps.MapTypeId.ROADMAP
+            };
+            map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+          } );
+          
+        function codeAddress()
+        {
+            var address = $("#address").val();
+            geocoder.geocode( { 'address': address}, function(results, status)
+            {
+                if (status == google.maps.GeocoderStatus.OK)
+                {
+                    map.setCenter(results[0].geometry.location);
+                    map.setZoom(10);
+                    if ( marker != null )
+                    {
+                        marker.setMap(null);    
+                    }
+                    
+                    marker = new google.maps.Marker({
+                        map: map,
+                        position: results[0].geometry.location
+                    });
+                    
+                    $("#loc").val( results[0].geometry.location );
+                }
+                else
+                {
+                    alert("Geocode was not successful for the following reason: " + status);
+                }
+            } );
+        }
+    </script>
+    
+    <table>
+    <tr>
+        <td><form action="@action(controllers.Authenticated.acceptSearch)" method="POST">
+            <input type="hidden" name="companyId" id="companyId"/>
+            <input type="hidden" name="location" value="@flash.get("location")" id="loc"/>
+            <table>
+                <tr><td>Description of search</td><td><input type="text" name="description" value="@flash.get("description")" id="description"/></td></td/></tr>
+                <tr><td>Near (address/postcode)</td><td><input type="text" name="address" value="@flash.get("address")" id="address"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></td></tr>
+                <tr><td>Search radius</td><td><select name="radius">
+                    <option value="5">5 miles</option>
+                    <option value="10">10 miles</option>
+                    <option value="20">20 miles</option>
+                    <option value="30">30 miles</option>
+                    <option value="40">40 miles</option>
+                    <option value="200">50+ miles</option>
+                </select></td></td></tr>
+                <tr><td>CV to use for search</td><td><select name="chosenCV">
+                    @cvs.map { row => <option value="@row._1">"@row._2"</option> }
+                </select></td><td/></tr>
+            </table>
+            
+            <br/>
+            <input type="submit" value="Submit"/>
+        </form></td>
+        
+        <td><div id="map_canvas" style="width:280px; height:380px"></div></td>
+    </tr>
+    </table>
+
+}
