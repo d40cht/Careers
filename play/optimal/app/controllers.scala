@@ -467,15 +467,15 @@ object Authenticated extends Controller
                 if c.id === p.companyId
                 u <- Users
                 if u.id === p.userId
-                _ <- Query orderBy( c.name, m.similarity desc )
-            } yield u.fullName ~ c.name ~ c.url ~ c.description ~ p.department ~ p.jobTitle ~ p.yearsExperience ~ m.similarity ~ s.latitude ~ s.longitude ~ p.latitude ~ p.longitude ).list
+                _ <- Query orderBy( m.similarity desc )
+            } yield u.fullName ~ c.name ~ c.url ~ c.description ~ p.department ~ p.jobTitle ~ p.yearsExperience ~ m.similarity ~ s.latitude ~ s.longitude ~ p.latitude ~ p.longitude ~ m.id ).list
             
             
             
             val matches = matchData.map( row =>
                 (row._1, row._2, row._3, row._4, row._5, row._6, row._7, row._8,
-                distance( new LLPoint( row._9, row._10 ), new LLPoint( row._11, row._12 ) )) ).groupBy( r => (r._2, r._3, r._4) )
-            
+                distance( new LLPoint( row._9, row._10 ), new LLPoint( row._11, row._12 ) ), row._13) ).groupBy( r => (r._2, r._3, r._4) )
+                
             html.home( session, flash, matches )
         }
     }
@@ -769,6 +769,33 @@ object Authenticated extends Controller
                     
                     val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
                     html.cvAnalysis( session, flash, theTable )
+                }
+                case None => Forbidden
+            }
+        }
+    }
+    
+    def matchAnalysis =
+    {
+        val userId = session("userId").get.toLong
+        val matchId = params.get("id").toLong
+        
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            val res = Matches.filter( row => row.id === matchId ).map( row => row.matchVector ).firstOption
+            
+            res match
+            {
+                case Some( blob ) =>
+                {
+                    val data = blob.getBytes(1, blob.length().toInt)
+                    val tv = fromByteArray[TopicVector](data)
+                    
+                    val groupedSkills = tv.rankedAndGrouped
+                    
+                    val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
+                    html.matchAnalysis( session, flash, theTable )
                 }
                 case None => Forbidden
             }

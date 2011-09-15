@@ -1,2 +1,2 @@
 #!/bin/sh
-/home/alex/devel/play-1.2.3/play run -Xmx128M -Xms128M
+/home/alex/AW/optimal/play/play-1.2.3/play run -Xmx128M -Xms128M

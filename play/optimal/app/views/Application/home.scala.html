@@ -1,4 +1,4 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Map[(String, String, String), Seq[(String, String, String, String, String, String, Int, Double, Double)]])
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Map[(String, String, String), Seq[(String, String, String, String, String, String, Int, Double, Double, Long)]])
         
 @main(title="Home", session=session, flash=flash) {
     <h1>Home</h1>
@@ -15,7 +15,7 @@
                 <td>@{"%.0f%%".format( row._2.map( r => r._8 ).max * 100 )}</td>
                 <td>@{"%.0f".format( row._2.map( r => r._9 ).min )} miles</td>
                 <td>@row._2.size</td>
-                <td><a href="">Details</a></td>
+                <td><a href="">Details</a>/<a href="">Block</a></td>
             </tr>
             
             @row._2.map { (details) =>
@@ -25,7 +25,7 @@
                     <td style="font-style:italic">@{"%.0f%%".format(details._8 * 100)}</td>
                     <td style="font-style:italic">@{"%.0f".format(details._9)} miles</td>
                     <td/>
-                    <td style="font-style:italic"><a href="">Details</a></td>
+                    <td style="font-style:italic"><a href="@action(controllers.Authenticated.matchAnalysis)?id=@details._10">Details</a></td>
                 </tr>
             }
         }
