@@ -390,6 +390,16 @@ object Batch extends Controller
             Text( new String(data) )
         }
     }
+    
+    def clearMatches = authRequired
+    {
+        val db = Database.forDataSource(play.db.DB.datasource)
+        db withSession
+        {
+            Matches.filter( x => true ).mutate( m => m.delete() )
+        }
+        Ok
+    }
 }
 
 
