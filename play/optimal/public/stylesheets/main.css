@@ -17,11 +17,19 @@ table.simple tr:hover
     background-color: #e9ffe9;
 }
 
-table.simple td, th
+table.simple td
 {
     padding: 3px 10px;
     text-align: left;
 }
+
+table.simple th
+{
+    padding: 3px 10px;
+    text-align: left;
+    font-size: 115%
+}
+
 
 #tips
 {

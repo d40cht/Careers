@@ -10,7 +10,7 @@
     
         @matches.map { (row) =>
             <tr>
-                <td style="font-size: 130%; font-weight: bold"><a href="http://@row._1._2">@row._1._1</a></td>
+                <td style="font-size: 115%; font-weight: bold"><a href="http://@row._1._2">@row._1._1</a></td>
                 <td>@row._1._3</td>
                 <td>@{"%.0f%%".format( row._2.map( r => r._8 ).max * 100 )}</td>
                 <td>@{"%.0f".format( row._2.map( r => r._9 ).min )} miles</td>
