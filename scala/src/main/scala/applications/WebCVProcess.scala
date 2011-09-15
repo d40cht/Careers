@@ -182,7 +182,9 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
         
         assert( tv1cp.size <= minSize )
         assert( tv2cp.size <= minSize )
-        tv1cp.distance(tv2cp)
+        val (dist, why) = tv1cp.distance(tv2cp)
+        
+        (scala.math.sqrt(dist), why)
     }
     
     private def checkMatch( searchMatchId : Long, positionMatchId : Long )
@@ -194,7 +196,7 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
         
         println( "Match score: ", searchMatchId, positionMatchId, similarity )
         
-        if ( similarity > 0.01 )
+        if ( similarity > 0.1 )
         {
             val newTV = new TopicVector()
             for ( (priorityWeight, id, te) <- why )

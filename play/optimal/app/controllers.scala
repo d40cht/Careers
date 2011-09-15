@@ -476,7 +476,9 @@ object Authenticated extends Controller
                 (row._1, row._2, row._3, row._4, row._5, row._6, row._7, row._8,
                 distance( new LLPoint( row._9, row._10 ), new LLPoint( row._11, row._12 ) ), row._13) ).groupBy( r => (r._2, r._3, r._4) )
                 
-            html.home( session, flash, matches )
+            val sorted = matches.toList.sortWith( (x, y) => x._2.map( _._8 ).max > y._2.map( _._8 ).max )
+                
+            html.home( session, flash, sorted )
         }
     }
     

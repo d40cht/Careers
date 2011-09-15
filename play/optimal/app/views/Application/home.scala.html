@@ -1,4 +1,4 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Map[(String, String, String), Seq[(String, String, String, String, String, String, Int, Double, Double, Long)]])
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Seq[((String, String, String), Seq[(String, String, String, String, String, String, Int, Double, Double, Long)])])
         
 @main(title="Home", session=session, flash=flash) {
     <h1>Home</h1>
