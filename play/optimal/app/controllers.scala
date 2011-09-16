@@ -15,6 +15,7 @@ import java.security.MessageDigest
 
 import org.apache.commons.io.IOUtils
 import org.apache.commons.io.FileUtils.copyFile
+import org.apache.commons.mail.SimpleEmail
 
 import org.scalaquery.session._
 import org.scalaquery.ql.basic.{BasicTable => Table}
@@ -133,18 +134,69 @@ package models
         
         def * = id ~ userId ~ description ~ longitude ~ latitude ~ radius ~ matchVectorId
     }
+    
+    object Logs extends Table[(Long, java.sql.Timestamp, Long, String)]("Logs")
+    {
+        def id              = column[Long]("id")
+        def time            = column[java.sql.Timestamp]("time")
+        def userId          = column[Long]("userId")
+        def event           = column[String]("event")
+        
+        def * = id ~ time ~ userId ~ event
+    }
+}
+
+object Utilities
+{
+    def eventLog( userId : Long, event : String )
+    {
+        val cols = models.Logs.userId ~ models.Logs.event
+        cols.insert( userId, event )
+    }
 }
 
 object PublicSite extends Controller
-{    
+{
+    import models._
     import views.Application._
     
     private def passwordHash( x : String) = MessageDigest.getInstance("SHA").digest(x.getBytes).map( 0xff & _ ).map( {"%02x".format(_)} ).mkString
     
     def index = html.index( session, flash )
-    def about = html.about( session, flash )
     def help = html.help( session, flash )
     def contact = html.contact( session, flash )
+    
+    def viewLogs =
+    {
+        val db = Database.forDataSource(play.db.DB.datasource)
+            
+        db withSession
+        {
+            val res = ( for {
+                l <- Logs
+                u <- Users
+                if l.userId === u.id
+            } yield l.time ~ u.email ~ l.event ).list
+            
+            res.map( r => "%s, %s: %s".format( r._1, r._2, r._3 ) ).mkString( "\n" )
+        }
+    }
+    
+    def about =
+    {
+        val db = Database.forDataSource(play.db.DB.datasource)
+            
+        db withSession
+        {
+            val numUsers = Users.map( row => ColumnOps.CountAll(row) ).first
+            val numPositions = Position.map( row => ColumnOps.CountAll(row) ).first
+            val numMatches = Matches.map( row => ColumnOps.CountAll(row) ).first
+            
+            val stats = "Users: %d, Positions: %d, Matches: %d".format( numUsers, numPositions, numMatches )
+            println( stats )
+            html.about( session, flash )
+        }
+    }
     
     def login =
     {
@@ -171,6 +223,8 @@ object PublicSite extends Controller
                     flash += ("info" -> ("Welcome " + name ))
                     session += ("user" -> name)
                     session += ("userId" -> userId.toString)
+                    
+                    Utilities.eventLog( userId, "Logged in" )
                     Action(Authenticated.home)
                 }
                 else
@@ -231,6 +285,7 @@ object PublicSite extends Controller
                             cols.insert( email, passwordHash( password1 ), name, false )
                             
                             flash += ("info" -> ("Thanks for registering " + name + ". Please login." ))
+                            
                             Action(login)
                         }
                     }
@@ -521,6 +576,7 @@ object Authenticated extends Controller
                 val cols = Searches.userId ~ Searches.description ~ Searches.longitude ~ Searches.latitude ~ Searches.radius ~ Searches.matchVectorId
                 
                 cols.insert( userId, description, longitude, latitude, radius, matchVectorId )
+                Utilities.eventLog( userId, "Added a search: %s".format(description) )
                 Action(Authenticated.manageSearches)
             }
         }
@@ -583,6 +639,9 @@ object Authenticated extends Controller
                         rows.insert( name, url, description, encoder.encode( name ), encoder.encode( name ) )
                         
                         val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
+                        
+                        Utilities.eventLog( userId, "Added a company: %s, %s".format(name, url) )
+                        
                         Query(scopeIdentity).first
                     }
                 }
@@ -603,6 +662,8 @@ object Authenticated extends Controller
                     params.get("experience").toInt, params.get("startYear").toInt, params.get("endYear").toInt,
                     longitude, latitude, matchVectorId )
                 
+                
+                Utilities.eventLog( userId, "Added a position: %s".format(params.get("jobTitle")) )
                 Action(Authenticated.managePositions)
             }
         }
@@ -664,6 +725,9 @@ object Authenticated extends Controller
                 val cols = models.CVs.userId ~ models.CVs.description ~ models.CVs.pdf ~ models.CVs.text
                 
                 cols.insert( userId, description, if (pdfData == null) null else new SerialBlob( pdfData ), new SerialBlob( textData ) )
+                
+                Utilities.eventLog( userId, "Uploaded a CV" )
+                
                 flash += ("info" -> ("CV uploaded and added to the processing queue. You'll get an email when it is ready.") )
                 Action(manageCVs)
             }            
