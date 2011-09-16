@@ -284,7 +284,7 @@ object Batch extends Controller
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val unprocessedCVs = (for ( cv <- CVs ) yield cv.id ~ cv.documentDigest.isNull).list
+            val unprocessedCVs = (for ( cv <- CVs if !cv.documentDigest.isNull ) yield cv.id ~ cv.documentDigest.isNull).list
             
             <cvs>
             {

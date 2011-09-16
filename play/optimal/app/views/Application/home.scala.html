@@ -9,13 +9,13 @@
         <tr><th>Company name</th><th>Company description</th><th>Best similarity</th><th>Shortest distance</th><th>Number of matches</th><th>Actions</th></tr>
     
         @matches.map { (row) =>
-            <tr id="i_@row._1._1">
+            <tr>
                 <td style="font-size: 115%; font-weight: bold"><a href="http://@row._1._3">@row._1._2</a></td>
                 <td>@row._1._4</td>
                 <td>@{"%.0f%%".format( row._2.map( r => r._9 ).max * 100 )}</td>
                 <td>@{"%.0f".format( row._2.map( r => r._10 ).min )} miles</td>
                 <td>@row._2.size</td>
-                <td><a href="">Details</a>/<a href="">Block</a></td>
+                <td><a id="i_@row._1._1">Details</a>/<a href="">Block</a></td>
             </tr>
             
             @row._2.map { (details) =>
@@ -25,7 +25,7 @@
                     <td style="font-style:italic">@{"%.0f%%".format(details._9 * 100)}</td>
                     <td style="font-style:italic">@{"%.0f".format(details._10)} miles</td>
                     <td/>
-                    <td style="font-style:italic"><a href="@action(controllers.Authenticated.matchAnalysis)?id=@details._10">Details</a></td>
+                    <td style="font-style:italic"><a href="@action(controllers.Authenticated.matchAnalysis)?id=@details._11">Details</a></td>
                 </tr>
             }
             
