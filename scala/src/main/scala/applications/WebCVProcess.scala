@@ -302,11 +302,21 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
             
             while (true)
             {
-                processCVs()
-                processMatches()
-                
-                println( "Sleeping..." )
-                Thread.sleep( 1000 )
+                try
+                {
+                    processCVs()
+                    processMatches()
+                    
+                    println( "Sleeping..." )
+                    Thread.sleep( 5000 )
+                }
+                catch
+                {
+                    case e : java.lang.Exception =>
+                    {
+                        println( "Exception caught: ", e.getMessage() )
+                    }
+                }
             }
         }
     }
