@@ -468,15 +468,15 @@ object Authenticated extends Controller
                 u <- Users
                 if u.id === p.userId
                 _ <- Query orderBy( m.similarity desc )
-            } yield u.fullName ~ c.name ~ c.url ~ c.description ~ p.department ~ p.jobTitle ~ p.yearsExperience ~ m.similarity ~ s.latitude ~ s.longitude ~ p.latitude ~ p.longitude ~ m.id ).list
+            } yield u.fullName ~ c.id ~ c.name ~ c.url ~ c.description ~ p.department ~ p.jobTitle ~ p.yearsExperience ~ m.similarity ~ s.latitude ~ s.longitude ~ p.latitude ~ p.longitude ~ m.id ).list
             
             
             
             val matches = matchData.map( row =>
-                (row._1, row._2, row._3, row._4, row._5, row._6, row._7, row._8,
-                distance( new LLPoint( row._9, row._10 ), new LLPoint( row._11, row._12 ) ), row._13) ).groupBy( r => (r._2, r._3, r._4) )
+                (row._1, row._2, row._3, row._4, row._5, row._6, row._7, row._8, row._9,
+                distance( new LLPoint( row._10, row._11 ), new LLPoint( row._12, row._13 ) ), row._14) ).groupBy( r => (r._2, r._3, r._4, r._5) )
                 
-            val sorted = matches.toList.sortWith( (x, y) => x._2.map( _._8 ).max > y._2.map( _._8 ).max )
+            val sorted = matches.toList.sortWith( (x, y) => x._2.map( _._9 ).max > y._2.map( _._9 ).max )
                 
             html.home( session, flash, sorted )
         }
