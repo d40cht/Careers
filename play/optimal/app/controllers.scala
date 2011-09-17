@@ -245,7 +245,7 @@ object PublicSite extends AuthenticatedController
                     val userId = res.head._1
                     val name = res.head._2
                     
-                    val authenticationToken = scala.util.Random.nextString( 16 )
+                    val authenticationToken = hashedpw
                     Cache.set("authToken" + userId, authenticationToken, "600mn")
                     
                     flash += ("info" -> ("Welcome " + name ))

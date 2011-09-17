@@ -1,7 +1,87 @@
 *{ You can use plain selenium command using the selenium tag }*
 
 #{selenium}
-    // Open the home page, and check that no error occured
+    // Step through a few pages to check they're all working
     open('/')
-    assertNotTitle('Application error')
+    assertTextNotPresent( 'Logout' )
+    assertTitle('Home')
+    clickAndWait( 'link=Help' )
+    assertTextNotPresent( 'Logout' )
+    assertTitle('Help')
+    clickAndWait( 'link=About us' )
+    assertTextNotPresent( 'Logout' )
+    assertTitle( 'About us' )
+    clickAndWait( 'link=Contact' )
+    assertTextNotPresent( 'Logout' )
+    assertTitle( 'Contact us' )
+    clickAndWait( 'link=login' )
+    assertTextNotPresent( 'Logout' )
+    assertTitle( 'Login' )
+    clickAndWait( 'link=register' )
+    assertTextNotPresent( 'Logout' )
+    assertTitle( 'Register' )
+    
+    // Register with the site
+    clickAndWait( 'link=register' ) 
+    type( 'name=email', 'alex_wilson@pobox.com' )
+    type( 'name=username', 'Alex Wilson' )
+    type( 'name=password1', 'imptrw' )
+    type( 'name=password2', 'omptrw' )
+    type( 'name=captcha', 'bloo' )
+    clickAndWait( 'name=submit' )
+    
+    verifyTextPresent( 'Passwords do not match. Please try again' )
+    
+    type( 'name=password2', 'imptrw' )
+    clickAndWait( 'name=submit' )
+    
+    // Should fail as captcha text does not match
+    assertTitle( 'Register' )
+    verifyTextPresent( 'Captcha text does not match' )
+    
+    type( 'name=captcha', 'cPPftsUp4TzZZdXyCmmpNpfT' )
+    clickAndWait( 'name=submit' )
+    verifyTextPresent( 'Thanks for registering Alex Wilson' )
+    
+    // Check that a second registration fails
+    clickAndWait( 'link=register' ) 
+    type( 'name=email', 'alex_wilson@pobox.com' )
+    type( 'name=username', 'Alex Wilson' )
+    type( 'name=password1', 'imptrw' )
+    type( 'name=password2', 'imptrw' )
+    type( 'name=captcha', 'cPPftsUp4TzZZdXyCmmpNpfT' )
+    clickAndWait( 'name=submit' )
+    
+    verifyTextPresent( 'Email address already taken. Please try again' )
+    
+    clickAndWait( 'link=login' )
+    type( 'name=email', 'alex_wilson@pobox.com' )
+    type( 'name=password', 'imptrw' )
+    clickAndWait( 'name=submit' )
+        
+    assertTitle( 'Home' )
+    
+    clickAndWait( 'link=Logout' )
+    assertTextNotPresent( 'Logout' )
+    
+    clickAndWait( 'link=login' )
+    type( 'name=email', 'alex_wilson@pobox.com' )
+    type( 'name=password', 'imptrw' )
+    clickAndWait( 'name=submit' )
+    
+    clickAndWait( 'link=Upload CV' )
+    assertTitle( 'Upload CV' )
+    clickAndWait( 'link=Add position' )
+    assertTitle( 'Add position' )
+    clickAndWait( 'link=Add search' )
+    assertTitle( 'Add search' )
+    clickAndWait( 'link=Manage CVs' )
+    assertTitle( 'Manage CVs' )
+    clickAndWait( 'link=Manage positions' )
+    assertTitle( 'Manage positions' )
+    clickAndWait( 'link=Manage searches' )
+    assertTitle( 'Manage searches' )
+    
+    clickAndWait( 'link=Logout' )
+
 #{/selenium}
