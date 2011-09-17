@@ -1,6 +1,6 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Seq[((Long, String, String, String), Seq[(String, Long, String, String, String, String, String, Int, Double, Double, Long)])])
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Seq[((Long, String, String, String), Seq[(String, Long, String, String, String, String, String, Int, Double, Double, Long)])], authenticated:Boolean)
         
-@main(title="Home", session=session, flash=flash) {
+@main(title="Home", session=session, flash=flash, authenticated=authenticated) {
     <h1>Home</h1>
     
     <h2>Search matches</h2>

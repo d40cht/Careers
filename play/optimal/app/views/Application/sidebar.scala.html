@@ -1,6 +1,6 @@
-@(session:play.mvc.Scope.Session)
+@(session:play.mvc.Scope.Session, authenticated:Boolean)
 
-@if( !session.contains("user") ) {
+@if( !authenticated ) {
     <h3>Join in:</h3>
     <ul>
         <li><a href="@action(controllers.PublicSite.login)">login</a></li>

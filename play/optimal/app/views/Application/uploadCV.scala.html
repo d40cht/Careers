@@ -1,6 +1,6 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, authenticated:Boolean)
 
-@main(title="Home", session=session, flash=flash) {
+@main(title="Upload CV", session=session, flash=flash, authenticated=authenticated) {
     <h1>Upload a CV for analysis</h1>
     
     You can upload a CV in either PDF or plain text format (or both). If you just upload a PDF then we will convert it to text automatically. The text version of your CV will be the one we use for our analysis.

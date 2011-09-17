@@ -1,6 +1,6 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, authenticated:Boolean)
 
-@main(title="Home", session=session, flash=flash) {
+@main(title="Home", session=session, flash=flash, authenticated=authenticated) {
     <h1>Front page</h1>
     
     Some decent explanation about what the site is about and how to use it.

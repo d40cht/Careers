@@ -1,6 +1,6 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(Long, java.sql.Timestamp, String, Boolean, Boolean, Boolean)])
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, cvs : Seq[(Long, java.sql.Timestamp, String, Boolean, Boolean, Boolean)], authenticated:Boolean)
 
-@main(title="Home", session=session, flash=flash) {
+@main(title="Manage CVs", session=session, flash=flash, authenticated=authenticated) {
     <h1>Manage your existing CVs</h1>
     
     <table class="simple">

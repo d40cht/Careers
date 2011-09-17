@@ -1,4 +1,4 @@
-@(title:String="", session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash)(content: => Html)
+@(title:String="", session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, authenticated:Boolean)(content: => Html)
 
 @import views.Application.html
 
@@ -46,7 +46,7 @@
         
         <div id="container"> 
             <div id="sidebar" class="body">
-                @views.Application.html.sidebar(session)
+                @views.Application.html.sidebar(session, authenticated)
             </div>
             
             <div id="main">

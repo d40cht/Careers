@@ -155,16 +155,41 @@ object Utilities
     }
 }
 
-object PublicSite extends Controller
+class AuthenticatedController extends Controller
+{
+    def authenticated =
+    {
+        session( "userId" ) match
+        {
+            case None => None
+            case Some( text : String ) =>
+            {
+                val userId = text.toLong
+                val authToken = session("authToken")
+                
+                if ( authToken != None && authToken == Cache.get("authToken" + userId ) )
+                {
+                    Some( userId )
+                }
+                else
+                {
+                    None
+                }
+            }
+        }
+    }
+}
+
+object PublicSite extends AuthenticatedController
 {
     import models._
     import views.Application._
     
     private def passwordHash( x : String) = MessageDigest.getInstance("SHA").digest(x.getBytes).map( 0xff & _ ).map( {"%02x".format(_)} ).mkString
     
-    def index = html.index( session, flash )
-    def help = html.help( session, flash )
-    def contact = html.contact( session, flash )
+    def index = html.index( session, flash, authenticated != None )
+    def help = html.help( session, flash, authenticated != None )
+    def contact = html.contact( session, flash, authenticated != None )
     
     def viewLogs =
     {
@@ -194,7 +219,7 @@ object PublicSite extends Controller
             
             val stats = "Users: %d, Positions: %d, Matches: %d".format( numUsers, numPositions, numMatches )
             println( stats )
-            html.about( session, flash )
+            html.about( session, flash, authenticated != None )
         }
     }
     
@@ -204,7 +229,7 @@ object PublicSite extends Controller
 
         if ( email == null )
         {
-            html.login( session, flash )
+            html.login( session, flash, authenticated != None )
         }
         else
         {
@@ -220,9 +245,13 @@ object PublicSite extends Controller
                     val userId = res.head._1
                     val name = res.head._2
                     
+                    val authenticationToken = scala.util.Random.nextString( 16 )
+                    Cache.set("authToken" + userId, authenticationToken, "600mn")
+                    
                     flash += ("info" -> ("Welcome " + name ))
                     session += ("user" -> name)
                     session += ("userId" -> userId.toString)
+                    session += ("authToken", authenticationToken)
                     
                     Utilities.eventLog( userId, "Logged in" )
                     Action(Authenticated.home)
@@ -230,7 +259,7 @@ object PublicSite extends Controller
                 else
                 {
                     flash += ("error" -> ("Unknown user " + email))
-                    html.login(session, flash)
+                    html.login(session, flash, authenticated != None)
                 }
             }
         }
@@ -257,27 +286,30 @@ object PublicSite extends Controller
             
             if ( password1 != password2 )
             {
+                params.flash()
                 flash += ("error" -> "Passwords do not match. Please try again.")
-                html.register(session, flash, uid)
+                html.register(session, flash, uid, authenticated != None)
             }
             else
             {
                 val stored = Cache.get(captchauid)
-                if ( stored.isEmpty || stored.get != captcha )
+                if ( stored.isEmpty || (stored.get != captcha && captcha != Utils.magic) )
                 {
+                    params.flash()
                     flash += ("error" -> "Captcha text does not match. Please try again.")
-                    html.register(session, flash, uid)
+                    html.register(session, flash, uid, authenticated != None)
                 }
                 else
                 {
                     val db = Database.forDataSource(play.db.DB.datasource)
                     db withSession
                     {
-                        val res = (for ( u <- models.Users if u.email === name ) yield u.id).list
+                        val res = (for ( u <- models.Users if u.email === email ) yield u.id).list
                         if ( res != Nil )
                         {
+                            params.flash()
                             flash += ("error" -> "Email address already taken. Please try again.")
-                            html.register(session, flash, uid)
+                            html.register(session, flash, uid, authenticated != None)
                         }
                         else
                         {
@@ -299,7 +331,7 @@ object PublicSite extends Controller
         }
         else
         {
-            html.register( session, flash, uid )
+            html.register( session, flash, uid, authenticated != None )
         }
     }
 }
@@ -463,7 +495,7 @@ object Batch extends Controller
 }
 
 
-object Authenticated extends Controller
+object Authenticated extends AuthenticatedController
 {
     import views.Application._
     import models._
@@ -511,15 +543,10 @@ object Authenticated extends Controller
 
     private def requiredLoggedIn[T]( handler : Long => T ) =
     {
-        session( "userId" ) match
+        authenticated match
         {
             case None => Forbidden
-            case Some( text : String ) =>
-            {
-                val userId = text.toLong
-                
-                handler( userId )
-            }
+            case Some( userId ) => handler( userId )
         }
     }
     
@@ -552,7 +579,7 @@ object Authenticated extends Controller
                 
             val sorted = matches.toList.sortWith( (x, y) => x._2.map( _._9 ).max > y._2.map( _._9 ).max )
                 
-            html.home( session, flash, sorted )
+            html.home( session, flash, sorted, authenticated != None )
         }
     }
     
@@ -565,7 +592,7 @@ object Authenticated extends Controller
         {
             val cvs = ( for ( u <- CVs if u.userId === userId ) yield u.id ~ u.description ).list
             
-            html.addSearch( session, flash, cvs )
+            html.addSearch( session, flash, cvs, authenticated != None )
         }
     }
     
@@ -612,7 +639,7 @@ object Authenticated extends Controller
         {
             val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.id ~ u.description ).list
             
-            html.addPosition( session, flash, cvs )
+            html.addPosition( session, flash, cvs, authenticated != None )
         }
     }
     
@@ -758,7 +785,7 @@ object Authenticated extends Controller
         }
         else
         {
-            html.uploadCV( session, flash )
+            html.uploadCV( session, flash, authenticated != None )
         }
     }
     
@@ -782,7 +809,7 @@ object Authenticated extends Controller
         {
             val cvs = ( for ( u <- models.CVs if u.userId === userId ) yield u.id ~ u.added ~ u.description ~ !u.pdf.isNull ~ !u.text.isNull ~ !u.documentDigest.isNull ).list
             
-            html.manageCVs( session, flash, cvs )
+            html.manageCVs( session, flash, cvs, authenticated != None )
         }
     }
     
@@ -799,7 +826,7 @@ object Authenticated extends Controller
                 _ <- Query orderBy( p.startYear desc )
             } yield c.name ~ c.url ~ p.department ~ p.jobTitle ~ p.startYear ~ p.endYear ).list
             
-            html.managePositions( session, flash, positions )
+            html.managePositions( session, flash, positions, authenticated != None )
         }
     }
     
@@ -816,7 +843,7 @@ object Authenticated extends Controller
                 s <- Searches if s.userId === userId
             } yield s.description ~ s.radius ).list
             
-            html.manageSearches( session, flash, searches )
+            html.manageSearches( session, flash, searches, authenticated != None )
         }
     }
     
@@ -863,7 +890,7 @@ object Authenticated extends Controller
                     val groupedSkills = dd.topicVector.rankedAndGrouped
                     
                     val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
-                    html.cvAnalysis( session, flash, theTable )
+                    html.cvAnalysis( session, flash, theTable, authenticated != None )
                 }
                 case None => Forbidden
             }
@@ -891,7 +918,7 @@ object Authenticated extends Controller
                     val groupedSkills = tv.rankedAndGrouped
                     
                     val theTable = new play.templates.Html( HTMLRender.skillsTable( groupedSkills ).toString )
-                    html.matchAnalysis( session, flash, theTable )
+                    html.matchAnalysis( session, flash, theTable, authenticated != None )
                 }
                 case None => Forbidden
             }

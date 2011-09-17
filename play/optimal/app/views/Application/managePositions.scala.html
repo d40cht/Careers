@@ -1,6 +1,6 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, positions : Seq[(String, String, String, String, Int, Int)])
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, positions : Seq[(String, String, String, String, Int, Int)], authenticated:Boolean)
 
-@main(title="Home", session=session, flash=flash) {
+@main(title="Manage positions", session=session, flash=flash, authenticated=authenticated) {
     <h1>Manage job positions</h1>
     
     <table class="simple">

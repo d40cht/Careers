@@ -1,17 +1,17 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, uid : String)
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, uid : String, authenticated:Boolean)
 
-@main(title="Home", session=session, flash=flash) {
+@main(title="Register", session=session, flash=flash, authenticated=authenticated) {
     <h1>Registration page</h1>
-    <form action="@action(controllers.PublicSite.register)" method="POST">
+    <form action="@action(controllers.PublicSite.register)" method="POST" id="register">
         <input type="hidden" name="uid" value="@uid"/>
         
         <table>
-            <tr><td>Email address:</td> <td><input type="text" name="email"/></td></tr>
-            <tr><td>Full name:</td> <td><input type="text" name="username"/></td></tr>
-            <tr><td>Password:</td> <td><input type="password" name="password1"/></td></tr>
-            <tr><td>Password (repeat):</td> <td><input type="password" name="password2"/></td></tr>
-            <tr><td><img src="@action(controllers.PublicSite.captcha(uid))"></td> <td><input type="text" name="captcha"/></td></tr>
-            <tr><td></td> <td><input type="submit" value="Login!"/></td></tr>
+            <tr><td>Email address:</td> <td><input type="text" name="email" value="@flash.get("email")"/></td></tr>
+            <tr><td>Full name:</td> <td><input type="text" name="username" value="@flash.get("username")"/></td></tr>
+            <tr><td>Password:</td> <td><input type="password" name="password1" value="@flash.get("password1")"/></td></tr>
+            <tr><td>Password (repeat):</td> <td><input type="password" name="password2" value="@flash.get("password2")"/></td></tr>
+            <tr><td><img src="@action(controllers.PublicSite.captcha(uid))"></td> <td><input type="text" name="captcha" value="@flash.get("description")"/></td></tr>
+            <tr><td></td> <td><input type="submit" name="submit" value="Register!"/></td></tr>
         </table>
     </form>
 
