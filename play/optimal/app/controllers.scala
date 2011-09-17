@@ -545,7 +545,7 @@ object Authenticated extends AuthenticatedController
     {
         authenticated match
         {
-            case None => Forbidden
+            case None => Action(PublicSite.index)
             case Some( userId ) => handler( userId )
         }
     }
