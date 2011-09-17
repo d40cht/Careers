@@ -509,10 +509,24 @@ object Authenticated extends Controller
         dist
     }
 
-    
-    def home =
+    private def requiredLoggedIn[T]( handler : Long => T ) =
     {
-        val userId = session("userId").get.toLong
+        session( "userId" ) match
+        {
+            case None => Forbidden
+            case Some( text : String ) =>
+            {
+                val userId = text.toLong
+                
+                handler( userId )
+            }
+        }
+    }
+    
+    def home = requiredLoggedIn
+    {
+        userId =>   
+
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
@@ -542,9 +556,10 @@ object Authenticated extends Controller
         }
     }
     
-    def addSearch =
+    def addSearch = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
+        
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
@@ -554,8 +569,10 @@ object Authenticated extends Controller
         }
     }
     
-    def acceptSearch =
+    def acceptSearch = requiredLoggedIn
     {
+        userId =>
+        
         Validation.required( "Description", params.get("description") )
         Validation.required( "Location", params.get("location") )
         Validation.required( "Search radius", params.get("radius") )
@@ -569,7 +586,6 @@ object Authenticated extends Controller
         }
         else
         {
-            val userId = session("userId").get.toLong
             val db = Database.forDataSource(play.db.DB.datasource)
             db withSession
             {
@@ -587,9 +603,10 @@ object Authenticated extends Controller
         }
     }
     
-    def addPosition =
+    def addPosition = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
+        
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
@@ -599,8 +616,10 @@ object Authenticated extends Controller
         }
     }
     
-    def acceptPosition =
+    def acceptPosition = requiredLoggedIn
     {
+        userId =>
+        
         Validation.required( "Company name", params.get("companyName") )
         Validation.required( "Company url", params.get("companyUrl") )
         Validation.required( "Company description", params.get("companyDescription") )
@@ -621,7 +640,6 @@ object Authenticated extends Controller
         }
         else
         {
-            val userId = session("userId").get.toLong
             val db = Database.forDataSource(play.db.DB.datasource)
             db withSession
             {
@@ -684,8 +702,10 @@ object Authenticated extends Controller
         ba
     }
     
-    def uploadCV =
+    def uploadCV = requiredLoggedIn
     {
+        userId =>
+        
         // I don't know why this is required. It appears to be because of a bug in the framework.
         params.checkAndParse()
         val description = params.get("description")
@@ -726,7 +746,6 @@ object Authenticated extends Controller
             db withSession
             {
                 // TODO: The session returns an Option. Use pattern matching
-                val userId = session("userId").get.toLong
                 val cols = models.CVs.userId ~ models.CVs.description ~ models.CVs.pdf ~ models.CVs.text
                 
                 cols.insert( userId, description, if (pdfData == null) null else new SerialBlob( pdfData ), new SerialBlob( textData ) )
@@ -743,17 +762,20 @@ object Authenticated extends Controller
         }
     }
     
-    def logout =
+    def logout = requiredLoggedIn
     {
+        userId =>
+        
         val name = session.get("user")
         session.remove("user")
+        session.remove("userId")
         flash += ("info" -> ("Goodbye: " + name) )
         Action(PublicSite.index)
     }
     
-    def manageCVs =
+    def manageCVs = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
         
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
@@ -764,9 +786,9 @@ object Authenticated extends Controller
         }
     }
     
-    def managePositions =
+    def managePositions = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
         
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
@@ -782,9 +804,9 @@ object Authenticated extends Controller
     }
     
     
-    def manageSearches =
+    def manageSearches = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
         
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
@@ -798,9 +820,10 @@ object Authenticated extends Controller
         }
     }
     
-    def cvPdf =
+    def cvPdf = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
+        
         val cvId = params.get("id").toLong
         
         val db = Database.forDataSource(play.db.DB.datasource)
@@ -819,9 +842,10 @@ object Authenticated extends Controller
         }
     }
     
-    def cvAnalysis =
+    def cvAnalysis = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
+        
         val cvId = params.get("id").toLong
         
         val db = Database.forDataSource(play.db.DB.datasource)
@@ -846,9 +870,10 @@ object Authenticated extends Controller
         }
     }
     
-    def matchAnalysis =
+    def matchAnalysis = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
+        
         val matchId = params.get("id").toLong
         
         val db = Database.forDataSource(play.db.DB.datasource)
@@ -873,9 +898,10 @@ object Authenticated extends Controller
         }
     }
     
-    def cvText =
+    def cvText = requiredLoggedIn
     {
-        val userId = session("userId").get.toLong
+        userId =>
+        
         val cvId = params.get("id").toLong
         
         val db = Database.forDataSource(play.db.DB.datasource)
