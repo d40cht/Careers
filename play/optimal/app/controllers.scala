@@ -178,7 +178,7 @@ object PublicSite extends Controller
                 if l.userId === u.id
             } yield l.time ~ u.email ~ l.event ).list
             
-            res.map( r => "%s, %s: %s".format( r._1, r._2, r._3 ) ).mkString( "\n" )
+            Text( res.map( r => "%s, %s: %s".format( r._1, r._2, r._3 ) ).mkString( "\n" ) )
         }
     }
     
@@ -283,6 +283,11 @@ object PublicSite extends Controller
                         {
                             val cols = models.Users.email ~ models.Users.password ~ models.Users.fullName ~ models.Users.isAdmin
                             cols.insert( email, passwordHash( password1 ), name, false )
+                            
+                            val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
+                            val userId = Query(scopeIdentity).first
+                            
+                            Utilities.eventLog( userId, "User registered: %s".format(email) )
                             
                             flash += ("info" -> ("Thanks for registering " + name + ". Please login." ))
                             
