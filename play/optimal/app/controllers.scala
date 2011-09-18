@@ -659,11 +659,11 @@ object Authenticated extends AuthenticatedController
                 val cols = Searches.userId ~ Searches.description ~ Searches.longitude ~ Searches.latitude ~ Searches.radius ~ Searches.matchVectorId
                 
                 cols.insert( userId, description, longitude, latitude, radius, matchVectorId )
-                Utilities.eventLog( userId, "Added a search: %s".format(description) )
-                
                 
                 val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
                 val searchId = Query(scopeIdentity).first
+                
+                Utilities.eventLog( userId, "Added a search: %s (%d)".format(description, searchId) )
                 val jobDetails = WorkTracker.searchAnalysis( searchId )
                 WorkTracker.setSubmitted( jobDetails )
                 
