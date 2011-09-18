@@ -241,7 +241,7 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
 
             val searches = XML.loadString( p.fetch( "%s/Batch/listSearches?magic=%s&minId=%d".format( baseUrl, Utils.magic, nextSearchId ) ) )
             
-            var searchIds = HashSet[Int]()
+            var searchIds = HashSet[Long]()
             for ( search <- searches \\ "search" )
             {
                 val searchId = (search \ "id").text.trim.toLong
