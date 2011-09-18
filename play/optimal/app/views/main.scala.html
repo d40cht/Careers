@@ -58,8 +58,52 @@
             @views.Application.html.tips(session)
         </div>
         
+        @if( flash.contains("pend") ) {
+            <div id="processing" title="Processing, please wait" style="width: 100%; display: none">
+                Your request is in the queue for processing. Please wait a few seconds. @flash.get("pend")
+                <br/><br/>
+                <div style="text-align: center"><img src="@asset("public/images/spinner.gif")"/></div>
+            </div>
+            
+            <script>
+            var pendToken = "@flash.get("pend")";
+            $(document).ready( function() {
+                $("#processing").dialog( { autoOpen : false, modal : true,
+                    buttons :
+                    {
+                        "Cancel" : function()
+                        {
+                            $(this).dialog("close");
+                        }
+                    },
+                    close : function()
+                    {
+                    } } );
+                    
+                $("#processing").dialog("open");
+                
+                var i = setInterval( function()
+                {
+                    $.ajax( {
+                        url : "@action(controllers.PublicSite.checkComplete)?jobId=" + pendToken,
+                        success : function( data )
+                        {
+                            if ( data == "true" )
+                            {
+                                clearInterval(i);
+                                $("#processing").dialog("close");
+                                window.location.reload(true);
+
+                            }
+                        }
+                    } );
+                }, 1000 );
+            } );
+            </script>
+        }
+    </div>
         <div id="footer">
             Some footer stuff
-        </div>
+        </div>        
     </body>
 </html>

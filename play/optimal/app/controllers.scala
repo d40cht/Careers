@@ -155,6 +155,27 @@ object Utilities
     }
 }
 
+object WorkTracker
+{
+    def cvAnalysis( cvId : Long ) = "JOB_cvAnalysis" + cvId
+    def searchAnalysis( searchId : Long ) = "JOB_search" + searchId
+    
+    def setSubmitted( workItem : String )
+    {
+        Cache.set( workItem, "running", "10mn" )
+    }
+    
+    def setComplete( workItem : String )
+    {
+        Cache.delete( workItem )
+    }
+    
+    def checkComplete( workItem : String ) =
+    {
+        Cache.get( workItem ) == None
+    }
+}
+
 class AuthenticatedController extends Controller
 {
     def authenticated =
@@ -190,6 +211,14 @@ object PublicSite extends AuthenticatedController
     def index = html.index( session, flash, authenticated != None )
     def help = html.help( session, flash, authenticated != None )
     def contact = html.contact( session, flash, authenticated != None )
+    
+    def checkComplete =
+    {
+        val jobId = params.get("jobId")
+        val res = if ( WorkTracker.checkComplete( jobId ) ) "true" else "false"
+        
+        Text( res )
+    }
     
     def viewLogs =
     {
@@ -336,7 +365,6 @@ object PublicSite extends AuthenticatedController
     }
 }
 
-
 object Batch extends Controller
 {
     import models._
@@ -367,6 +395,8 @@ object Batch extends Controller
         {
             val toUpdate = for ( cv <- CVs if cv.id === id ) yield cv.documentDigest
             toUpdate.update( new SerialBlob(data) )
+            
+            WorkTracker.setComplete( WorkTracker.cvAnalysis(id) )
         }
     }
     
@@ -376,7 +406,7 @@ object Batch extends Controller
         val db = Database.forDataSource(play.db.DB.datasource)
         db withSession
         {
-            val unprocessedCVs = (for ( cv <- CVs if !cv.documentDigest.isNull ) yield cv.id ~ cv.documentDigest.isNull).list
+            val unprocessedCVs = (for ( cv <- CVs if cv.documentDigest.isNull ) yield cv.id ~ cv.documentDigest.isNull).list
             
             <cvs>
             {
@@ -466,6 +496,11 @@ object Batch extends Controller
             val cols = Matches.fromMatchId ~ Matches.toMatchId ~ Matches.similarity ~ Matches.matchVector
             cols.insert( fromId, toId, similarity, new SerialBlob(data) )
         }
+    }
+    
+    def searchCompleted = authRequired
+    {
+        WorkTracker.setComplete( WorkTracker.searchAnalysis(params.get("id").toLong) )
     }
     
     def rpcCVText = authRequired
@@ -625,6 +660,14 @@ object Authenticated extends AuthenticatedController
                 
                 cols.insert( userId, description, longitude, latitude, radius, matchVectorId )
                 Utilities.eventLog( userId, "Added a search: %s".format(description) )
+                
+                
+                val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
+                val searchId = Query(scopeIdentity).first
+                val jobDetails = WorkTracker.searchAnalysis( searchId )
+                WorkTracker.setSubmitted( jobDetails )
+                
+                flash += ("pend" -> (jobDetails) )
                 Action(Authenticated.manageSearches)
             }
         }
@@ -777,9 +820,13 @@ object Authenticated extends AuthenticatedController
                 
                 cols.insert( userId, description, if (pdfData == null) null else new SerialBlob( pdfData ), new SerialBlob( textData ) )
                 
+                val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
+                val cvId = Query(scopeIdentity).first
+                WorkTracker.setSubmitted( WorkTracker.cvAnalysis( cvId ) )
+                
                 Utilities.eventLog( userId, "Uploaded a CV" )
                 
-                flash += ("info" -> ("CV uploaded and added to the processing queue. You'll get an email when it is ready.") )
+                flash += ("pend" -> ( WorkTracker.cvAnalysis(cvId) ) )
                 Action(manageCVs)
             }            
         }

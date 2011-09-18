@@ -1,10 +1,14 @@
 *{ You can use plain selenium command using the selenium tag }*
 
 #{selenium}
+    // Check that non-logged in authenticated pages lead to login page
+    open('/authenticated/home')
+    assertTitle('WhatsOutThere.co.uk')
+
     // Step through a few pages to check they're all working
     open('/')
     assertTextNotPresent( 'Logout' )
-    assertTitle('Home')
+    assertTitle('WhatsOutThere.co.uk')
     clickAndWait( 'link=Help' )
     assertTextNotPresent( 'Logout' )
     assertTitle('Help')
