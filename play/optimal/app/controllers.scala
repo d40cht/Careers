@@ -668,7 +668,7 @@ object Authenticated extends AuthenticatedController
                 WorkTracker.setSubmitted( jobDetails )
                 
                 flash += ("pend" -> (jobDetails) )
-                Action(Authenticated.manageSearches)
+                Action(Authenticated.home)
             }
         }
     }
