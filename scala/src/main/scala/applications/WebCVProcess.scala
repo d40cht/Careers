@@ -219,6 +219,8 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
         var maxSearchId = nextSearchId
         
         // Fetch all the match data
+        var searchIds = HashSet[Long]()
+        
         {
             var allMatchVectorIds = HashSet[Long]()
             val positions = XML.loadString( p.fetch( "%s/Batch/listPositions?magic=%s&minId=%d".format( baseUrl, Utils.magic, nextPositionId ) ) )
@@ -241,7 +243,7 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
 
             val searches = XML.loadString( p.fetch( "%s/Batch/listSearches?magic=%s&minId=%d".format( baseUrl, Utils.magic, nextSearchId ) ) )
             
-            var searchIds = HashSet[Long]()
+            
             for ( search <- searches \\ "search" )
             {
                 val searchId = (search \ "id").text.trim.toLong
@@ -272,12 +274,6 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
                     MatchVectors.insert( mvId, new SerialBlob( IOUtils.toByteArray(instream) ) )
                 }
             }
-            
-            for ( searchId <- searchIds )
-            {
-                println( "Ping: ", searchId )
-                p.fetchRaw( "%s/Batch/searchCompleted?id=%d&magic=%s".format( baseUrl, searchId, Utils.magic ) )
-            }
         }
         
         // Process all the match data
@@ -294,6 +290,11 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
             {
                 checkMatch( sid, pid )
             }
+        }
+        
+        for ( searchId <- searchIds )
+        {
+            p.fetchRaw( "%s/Batch/searchCompleted?id=%d&magic=%s".format( baseUrl, searchId, Utils.magic ) )
         }
     }
     
