@@ -105,7 +105,7 @@ package models
         def * = id ~ name ~ url ~ description ~ nameMatch1 ~ nameMatch2
     }
     
-    object Position extends Table[(Long, Long, Long, String, String, Int, Int, Int, Double, Double, Long)]("Position")
+    object Position extends Table[(Long, Long, Long, String, String, Int, Int, Int, String, Double, Double, Long)]("Position")
     {
         def id              = column[Long]("id")
         def userId          = column[Long]("userId")
@@ -115,24 +115,26 @@ package models
         def yearsExperience = column[Int]("yearsExperience")
         def startYear       = column[Int]("startYear")
         def endYear         = column[Int]("endYear")
+        def address         = column[String]("address")
         def longitude       = column[Double]("longitude")
         def latitude        = column[Double]("latitude")
         def matchVectorId   = column[Long]("matchVectorId")
         
-        def * = id ~ userId ~ companyId ~ department ~ jobTitle ~ yearsExperience ~ startYear ~ endYear ~ longitude ~ latitude ~ matchVectorId
+        def * = id ~ userId ~ companyId ~ department ~ jobTitle ~ yearsExperience ~ startYear ~ endYear ~ address ~ longitude ~ latitude ~ matchVectorId
     }
     
-    object Searches extends Table[(Long, Long, String, Double, Double, Double, Long)]("Searches")
+    object Searches extends Table[(Long, Long, String, String, Double, Double, Double, Long)]("Searches")
     {
         def id              = column[Long]("id")
         def userId          = column[Long]("userId")
         def description     = column[String]("description")
+        def address         = column[String]("address")
         def longitude       = column[Double]("longitude")
         def latitude        = column[Double]("latitude")
         def radius          = column[Double]("radius")
         def matchVectorId   = column[Long]("matchVectorId")
         
-        def * = id ~ userId ~ description ~ longitude ~ latitude ~ radius ~ matchVectorId
+        def * = id ~ userId ~ description ~ address ~ longitude ~ latitude ~ radius ~ matchVectorId
     }
     
     object Logs extends Table[(Long, java.sql.Timestamp, Long, String)]("Logs")
