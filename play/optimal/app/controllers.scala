@@ -57,6 +57,8 @@ package models
         def fullName    = column[String]("fullName")
         def isAdmin     = column[Boolean]("isAdmin")
         
+        def insertId    = Sequence[Long]("seq_Users_id").next
+        
         def * = id ~ added ~ email ~ password ~ fullName ~ isAdmin
     }
     
@@ -70,6 +72,8 @@ package models
         def text            = column[Blob]("text")
         def documentDigest  = column[Blob]("documentDigest")
         
+        def insertId        = Sequence[Long](("seq_CVs_id").next
+        
         def * = id ~ added ~ description ~ userId ~ pdf ~ text ~ documentDigest
     }
     
@@ -78,6 +82,8 @@ package models
         def id              = column[Long]("id")
         def cvId            = column[Long]("cvId")
         def topicVector     = column[Blob]("topicVector")
+        
+        def insertId        = Sequence[Long](("seq_MatchVector_id").next
         
         def * = id ~ cvId ~ topicVector
     }
@@ -90,6 +96,8 @@ package models
         def similarity      = column[Double]("similarity")
         def matchVector     = column[Blob]("matchVector")
         
+        def insertId        = Sequence[Long](("seq_Matches_id").next
+        
         def * = id ~ fromMatchId ~ toMatchId ~ similarity ~ matchVector
     }
     
@@ -101,6 +109,8 @@ package models
         def description     = column[String]("description")
         def nameMatch1      = column[String]("nameMatch1")
         def nameMatch2      = column[String]("nameMatch2")
+        
+        def insertId        = Sequence[Long](("seq_Companies_id").next
         
         def * = id ~ name ~ url ~ description ~ nameMatch1 ~ nameMatch2
     }
@@ -120,6 +130,8 @@ package models
         def latitude        = column[Double]("latitude")
         def matchVectorId   = column[Long]("matchVectorId")
         
+        def insertId        = Sequence[Long](("seq_Positions_id").next
+        
         def * = id ~ userId ~ companyId ~ department ~ jobTitle ~ yearsExperience ~ startYear ~ endYear ~ address ~ longitude ~ latitude ~ matchVectorId
     }
     
@@ -134,6 +146,8 @@ package models
         def radius          = column[Double]("radius")
         def matchVectorId   = column[Long]("matchVectorId")
         
+        def insertId        = Sequence[Long](("seq_Searches_id").next
+        
         def * = id ~ userId ~ description ~ address ~ longitude ~ latitude ~ radius ~ matchVectorId
     }
     
@@ -143,6 +157,8 @@ package models
         def time            = column[java.sql.Timestamp]("time")
         def userId          = column[Long]("userId")
         def event           = column[String]("event")
+        
+        def insertId        = Sequence[Long](("seq_Logs_id").next
         
         def * = id ~ time ~ userId ~ event
     }
@@ -345,16 +361,25 @@ object PublicSite extends AuthenticatedController
                         else
                         {
                             val cols = models.Users.email ~ models.Users.password ~ models.Users.fullName ~ models.Users.isAdmin
-                            cols.insert( email, passwordHash( password1 ), name, false )
                             
-                            val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
-                            val userId = Query(scopeIdentity).first
-                            
-                            Utilities.eventLog( userId, "User registered: %s".format(email) )
-                            
-                            flash += ("info" -> ("Thanks for registering " + name + ". Please login." ))
-                            
-                            Action(login)
+                            threadLocalSession withTransaction
+                            {
+                                val hashedPassword = passwordHash( password1 )
+                                cols.insert( email, hashedPassword, name, false )
+                                val userId = Users.insertId
+                                
+                                Utilities.eventLog( userId, "User registered: %s".format(email) )
+                                
+                                flash += ("info" -> ("Thanks for registering " + name + "." ))
+                                
+                                Cache.set("authToken" + userId, hashedPassword, "600mn")
+                                
+                                session += ("user" -> name)
+                                session += ("userId" -> userId.toString)
+                                session += ("authToken", hashedPassword)
+                                
+                                Action(Authenticated.home)
+                            }
                         }
                     }
                 }
@@ -554,10 +579,12 @@ object Authenticated extends AuthenticatedController
         val tvData = toByteArray(dd.topicVector)
         
         val rows = MatchVectors.cvId ~ MatchVectors.topicVector
-        rows.insert( cvId, new SerialBlob(tvData) )
         
-        val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
-        Query(scopeIdentity).first
+        threadLocalSession withTransaction
+        {
+            rows.insert( cvId, new SerialBlob(tvData) )
+            MatchVectors.insertId
+        }
     }
     
     class LLPoint( val longitude : Double, val latitude : Double )
@@ -660,17 +687,18 @@ object Authenticated extends AuthenticatedController
                 
                 val cols = Searches.userId ~ Searches.description ~ Searches.longitude ~ Searches.latitude ~ Searches.radius ~ Searches.matchVectorId
                 
-                cols.insert( userId, description, longitude, latitude, radius, matchVectorId )
-                
-                val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
-                val searchId = Query(scopeIdentity).first
-                
-                Utilities.eventLog( userId, "Added a search: %s (%d)".format(description, searchId) )
-                val jobDetails = WorkTracker.searchAnalysis( searchId )
-                WorkTracker.setSubmitted( jobDetails )
-                
-                flash += ("pend" -> (jobDetails) )
-                Action(Authenticated.home)
+                threadLocalSession withTransaction
+                {
+                    cols.insert( userId, description, longitude, latitude, radius, matchVectorId )
+                    val searchId = Searches.insertId
+                    
+                    Utilities.eventLog( userId, "Added a search: %s (%d)".format(description, searchId) )
+                    val jobDetails = WorkTracker.searchAnalysis( searchId )
+                    WorkTracker.setSubmitted( jobDetails )
+                    
+                    flash += ("pend" -> (jobDetails) )
+                    Action(Authenticated.home)
+                }
             }
         }
     }
@@ -731,13 +759,15 @@ object Authenticated extends AuthenticatedController
                         val rows = Companies.name ~ Companies.url ~ Companies.description ~ Companies.nameMatch1 ~ Companies.nameMatch2
                         
                         val encoder = new DoubleMetaphone()
-                        rows.insert( name, url, description, encoder.encode( name ), encoder.encode( name ) )
-                        
-                        val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
-                        
-                        Utilities.eventLog( userId, "Added a company: %s, %s".format(name, url) )
-                        
-                        Query(scopeIdentity).first
+                        threadLocalSession withTransaction
+                        {
+                            rows.insert( name, url, description, encoder.encode( name ), encoder.encode( name ) )
+                            val companyId = Companies.insertId
+                            
+                            Utilities.eventLog( userId, "Added a company: %s, %s".format(name, url) )
+                            
+                            companyId
+                        }
                     }
                 }
                 
@@ -820,16 +850,18 @@ object Authenticated extends AuthenticatedController
                 // TODO: The session returns an Option. Use pattern matching
                 val cols = models.CVs.userId ~ models.CVs.description ~ models.CVs.pdf ~ models.CVs.text
                 
-                cols.insert( userId, description, if (pdfData == null) null else new SerialBlob( pdfData ), new SerialBlob( textData ) )
+                threadLocalSession withTransaction
+                {
+                    cols.insert( userId, description, if (pdfData == null) null else new SerialBlob( pdfData ), new SerialBlob( textData ) )
+                    val cvId = models.CVs.insertId
                 
-                val scopeIdentity = SimpleScalarFunction.nullary[Long]("scope_identity")
-                val cvId = Query(scopeIdentity).first
-                WorkTracker.setSubmitted( WorkTracker.cvAnalysis( cvId ) )
-                
-                Utilities.eventLog( userId, "Uploaded a CV" )
-                
-                flash += ("pend" -> ( WorkTracker.cvAnalysis(cvId) ) )
-                Action(manageCVs)
+                    WorkTracker.setSubmitted( WorkTracker.cvAnalysis( cvId ) )
+                    
+                    Utilities.eventLog( userId, "Uploaded a CV" )
+                    
+                    flash += ("pend" -> ( WorkTracker.cvAnalysis(cvId) ) )
+                    Action(manageCVs)
+                }
             }            
         }
         else
