@@ -45,3 +45,4 @@ function enableSelectable()
         $("#decrement").click( function() { reWeight(element, 1.0/1.05); } )
     } );
 }
+

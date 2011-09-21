@@ -1,5 +1,17 @@
 *{ You can use plain selenium command using the selenium tag }*
 
+
+*{ GETTING FILE UPLOAD TESTING TO WORK. IN FIREFOX:
+
+  about:config
+  set the value of “signed.applets.codebase_principal_support” to “true”
+  
+  Add netscape.security.PrivilegeManager.enablePrivilege('UniversalFileRead');
+  
+  to Selenium.prototype.doType in the file selenium-api.js
+}*
+
+
 #{selenium}
     // Check that non-logged in authenticated pages lead to login page
     open('/authenticated/home')
@@ -95,6 +107,7 @@
     type( 'name=password', 'imptrw' )
     clickAndWait( 'name=submit' )
     
+    // Test all the relevant links
     clickAndWait( 'link=Upload CV' )
     assertTitle( 'Upload CV' )
     clickAndWait( 'link=Add position' )
@@ -107,6 +120,32 @@
     assertTitle( 'Manage positions' )
     clickAndWait( 'link=Manage searches' )
     assertTitle( 'Manage searches' )
+    
+    // Try a file upload
+    clickAndWait( 'link=Upload CV' )
+    assertTitle( 'Upload CV' )
+    type( 'name=description', 'An example CV' )
+    type( 'name=pdf', '/home/alex/Desktop/SoftwareCV0108.pdf' )
+    clickAndWait( 'name=submit' )
+    
+    assertTitle( 'Manage your existing CVs' )
+    assertTextPresent( 'An example CV' )
+    
+    clickAndWait( 'link=Add position' )
+    
+    type( 'Company name', 'Celoxica Ltd' )
+    click( 'name=lookupCompany' )
+    assertTextPresent( 'Company details' )
+    click( 'link=None of these' )
+    type( 'Company url', 'www.celoxica.com' )
+    type( 'Company description', 'FPGA-based financial algorithm acceleration' )
+    type( 'Department', 'Research and development' )
+    type( 'Job title', 'Research and development manager' )
+    type( 'Start year', '2000' )
+    type( 'End year', '2007' )
+    type( 'Address', '66 Milton Park, Abingdon, Oxfordshire' )
+    click( 'name=lookupAddress' )
+    clickAndWait( 'name=submit' )
     
     clickAndWait( 'link=Logout' )
 
