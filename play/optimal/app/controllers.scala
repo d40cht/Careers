@@ -57,7 +57,7 @@ package models
         def fullName    = column[String]("fullName")
         def isAdmin     = column[Boolean]("isAdmin")
         
-        def insertId    = Sequence[Long]("seq_Users_id").next
+        def insertIdSeq = Sequence[Long]("seq_Users_id")
         
         def * = id ~ added ~ email ~ password ~ fullName ~ isAdmin
     }
@@ -72,7 +72,7 @@ package models
         def text            = column[Blob]("text")
         def documentDigest  = column[Blob]("documentDigest")
         
-        def insertId        = Sequence[Long](("seq_CVs_id").next
+        def insertIdSeq     = Sequence[Long]("seq_CVs_id")
         
         def * = id ~ added ~ description ~ userId ~ pdf ~ text ~ documentDigest
     }
@@ -83,7 +83,7 @@ package models
         def cvId            = column[Long]("cvId")
         def topicVector     = column[Blob]("topicVector")
         
-        def insertId        = Sequence[Long](("seq_MatchVector_id").next
+        def insertIdSeq     = Sequence[Long]("seq_MatchVector_id")
         
         def * = id ~ cvId ~ topicVector
     }
@@ -96,7 +96,7 @@ package models
         def similarity      = column[Double]("similarity")
         def matchVector     = column[Blob]("matchVector")
         
-        def insertId        = Sequence[Long](("seq_Matches_id").next
+        def insertIdSeq     = Sequence[Long]("seq_Matches_id")
         
         def * = id ~ fromMatchId ~ toMatchId ~ similarity ~ matchVector
     }
@@ -110,7 +110,7 @@ package models
         def nameMatch1      = column[String]("nameMatch1")
         def nameMatch2      = column[String]("nameMatch2")
         
-        def insertId        = Sequence[Long](("seq_Companies_id").next
+        def insertIdSeq     = Sequence[Long]("seq_Companies_id")
         
         def * = id ~ name ~ url ~ description ~ nameMatch1 ~ nameMatch2
     }
@@ -130,7 +130,7 @@ package models
         def latitude        = column[Double]("latitude")
         def matchVectorId   = column[Long]("matchVectorId")
         
-        def insertId        = Sequence[Long](("seq_Positions_id").next
+        def insertIdSeq     = Sequence[Long]("seq_Positions_id")
         
         def * = id ~ userId ~ companyId ~ department ~ jobTitle ~ yearsExperience ~ startYear ~ endYear ~ address ~ longitude ~ latitude ~ matchVectorId
     }
@@ -146,7 +146,7 @@ package models
         def radius          = column[Double]("radius")
         def matchVectorId   = column[Long]("matchVectorId")
         
-        def insertId        = Sequence[Long](("seq_Searches_id").next
+        def insertIdSeq     = Sequence[Long]("seq_Searches_id")
         
         def * = id ~ userId ~ description ~ address ~ longitude ~ latitude ~ radius ~ matchVectorId
     }
@@ -158,7 +158,7 @@ package models
         def userId          = column[Long]("userId")
         def event           = column[String]("event")
         
-        def insertId        = Sequence[Long](("seq_Logs_id").next
+        def insertIdSeq     = Sequence[Long]("seq_Logs_id")
         
         def * = id ~ time ~ userId ~ event
     }
@@ -171,6 +171,8 @@ object Utilities
         val cols = models.Logs.userId ~ models.Logs.event
         cols.insert( userId, event )
     }
+    
+    def getCurr( seq : Sequence[Long] ) : Long = Query(seq.curr).first
 }
 
 object WorkTracker
@@ -366,7 +368,7 @@ object PublicSite extends AuthenticatedController
                             {
                                 val hashedPassword = passwordHash( password1 )
                                 cols.insert( email, hashedPassword, name, false )
-                                val userId = Users.insertId
+                                val userId = Utilities.getCurr(Users.insertIdSeq)
                                 
                                 Utilities.eventLog( userId, "User registered: %s".format(email) )
                                 
@@ -583,7 +585,7 @@ object Authenticated extends AuthenticatedController
         threadLocalSession withTransaction
         {
             rows.insert( cvId, new SerialBlob(tvData) )
-            MatchVectors.insertId
+            Utilities.getCurr(MatchVectors.insertIdSeq)
         }
     }
     
@@ -690,7 +692,7 @@ object Authenticated extends AuthenticatedController
                 threadLocalSession withTransaction
                 {
                     cols.insert( userId, description, longitude, latitude, radius, matchVectorId )
-                    val searchId = Searches.insertId
+                    val searchId = Utilities.getCurr(Searches.insertIdSeq)
                     
                     Utilities.eventLog( userId, "Added a search: %s (%d)".format(description, searchId) )
                     val jobDetails = WorkTracker.searchAnalysis( searchId )
@@ -762,7 +764,7 @@ object Authenticated extends AuthenticatedController
                         threadLocalSession withTransaction
                         {
                             rows.insert( name, url, description, encoder.encode( name ), encoder.encode( name ) )
-                            val companyId = Companies.insertId
+                            val companyId = Utilities.getCurr(Companies.insertIdSeq)
                             
                             Utilities.eventLog( userId, "Added a company: %s, %s".format(name, url) )
                             
@@ -853,7 +855,7 @@ object Authenticated extends AuthenticatedController
                 threadLocalSession withTransaction
                 {
                     cols.insert( userId, description, if (pdfData == null) null else new SerialBlob( pdfData ), new SerialBlob( textData ) )
-                    val cvId = models.CVs.insertId
+                    val cvId = Utilities.getCurr(models.CVs.insertIdSeq)
                 
                     WorkTracker.setSubmitted( WorkTracker.cvAnalysis( cvId ) )
                     

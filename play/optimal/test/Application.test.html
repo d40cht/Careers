@@ -46,9 +46,11 @@
     type( 'name=captcha', 'cPPftsUp4TzZZdXyCmmpNpfT' )
     clickAndWait( 'name=submit' )
     verifyTextPresent( 'Thanks for registering Alex Wilson' )
+    assertTitle( 'Home' )
+    clickAndWait( 'link=Logout' )
     
     // Check that a second registration fails
-    clickAndWait( 'link=register' ) 
+    clickAndWait( 'link=register' )
     type( 'name=email', 'alex_wilson@pobox.com' )
     type( 'name=username', 'Alex Wilson' )
     type( 'name=password1', 'imptrw' )
@@ -58,11 +60,31 @@
     
     verifyTextPresent( 'Email address already taken. Please try again' )
     
+    // Check that a second registration fails
+    clickAndWait( 'link=register' )
+    type( 'name=email', 'gav@blah.com' )
+    type( 'name=username', 'Gavin Lightfoot' )
+    type( 'name=password1', 'bloo' )
+    type( 'name=password2', 'bloo' )
+    type( 'name=captcha', 'cPPftsUp4TzZZdXyCmmpNpfT' )
+    clickAndWait( 'name=submit' )
+    verifyTextPresent( 'Thanks for registering Gavin Lightfoot' )
+    assertTitle( 'Home' )
+    clickAndWait( 'link=Logout' )
+    
+    clickAndWait( 'link=login' )
+    type( 'name=email', 'gav@blah.com' )
+    type( 'name=password', 'bloo' )
+    clickAndWait( 'name=submit' )
+    verifyTextPresent( 'Welcome Gavin Lightfoot' )
+    assertTitle( 'Home' )
+    clickAndWait( 'link=Logout' )
+    
     clickAndWait( 'link=login' )
     type( 'name=email', 'alex_wilson@pobox.com' )
     type( 'name=password', 'imptrw' )
     clickAndWait( 'name=submit' )
-        
+    verifyTextPresent( 'Welcome Alex Wilson' )
     assertTitle( 'Home' )
     
     clickAndWait( 'link=Logout' )
