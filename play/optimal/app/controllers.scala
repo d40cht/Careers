@@ -45,6 +45,8 @@ import org.apache.commons.codec.language.DoubleMetaphone
 
 import scala.collection.JavaConversions._
 
+import org.scala_tools.time.Imports._
+
 // To interrogate the H2 DB: java -jar ../../../play-1.2.2RC2/framework/lib/h2-1.3.149.jar
 package models
 {
@@ -162,6 +164,15 @@ package models
         
         def * = id ~ time ~ userId ~ event
     }
+  
+    object AuthenticatedSessions extends Table[(String, Long, java.sql.Timestamp)]("AuthenticatedSessions")
+    {
+        def token           = column[String]("token")
+        def userId          = column[Long]("userId")
+        def expiry          = column[java.sql.Timestamp]("expiry")
+        
+        def * = token ~ userId ~ expiry
+    }
 }
 
 object Utilities
@@ -198,6 +209,10 @@ object WorkTracker
 
 class AuthenticatedController extends Controller
 {
+    // TODO: Run regular clearouts of the AuthenticatedSessions table
+    
+    import models._
+    
     def authenticated =
     {
         session( "userId" ) match
@@ -205,19 +220,65 @@ class AuthenticatedController extends Controller
             case None => None
             case Some( text : String ) =>
             {
+                // Do we have the auth token and the user id in the session?
                 val userId = text.toLong
                 val authToken = session("authToken")
                 
-                if ( authToken != None && authToken == Cache.get("authToken" + userId ) )
+                // Is the auth token cached and matching?
+                if ( authToken != None && authToken == Cache.get("authToken" + userId) )
                 {
                     Some( userId )
                 }
                 else
                 {
-                    None
+                    // Not cached: is it in the database and in date?
+                    
+                    val db = Database.forDataSource(play.db.DB.datasource)
+            
+                    db withSession
+                    {
+                        val res = (for ( r <- AuthenticatedSessions if r.token === authToken && r.userId === userId ) yield r.expiry).list
+                        
+                        if ( res != Nil )
+                        {
+                            val now = new Timestamp( System.currentTimeMillis() )
+                            if ( res.head.after( now ) )
+                            {
+                                None
+                            }
+                            else
+                            {
+                                Some( userId )
+                            }
+                        }
+                        else
+                        {
+                            None
+                        }
+                    }
                 }
             }
         }
+    }
+    
+    def makeSession( userId : Long, userName : String )
+    {
+        val token = scala.util.Random.nextString(20)
+        val expiry = new java.sql.Timestamp((DateTime.now + 5.days).millis)
+
+        AuthenticatedSessions.insert( token, userId, expiry )
+        session += ("user" -> userName)
+        session += ("userId" -> userId.toString)
+        session += ("authToken" -> token)
+        
+        Cache.set("authToken" + userId, token, "600mn")
+    }
+    
+    def clearSession()
+    {
+        session.remove("user")
+        session.remove("userId")
+        session.remove("authToken")
     }
 }
 
@@ -226,7 +287,8 @@ object PublicSite extends AuthenticatedController
     import models._
     import views.Application._
     
-    private def passwordHash( x : String) = MessageDigest.getInstance("SHA").digest(x.getBytes).map( 0xff & _ ).map( {"%02x".format(_)} ).mkString
+    // Includes a salt for the site
+    private def passwordHash( x : String) = MessageDigest.getInstance("SHA").digest(("whatsoutthere" + x).getBytes).map( 0xff & _ ).map( {"%02x".format(_)} ).mkString
     
     def index = html.index( session, flash, authenticated != None )
     def help = html.help( session, flash, authenticated != None )
@@ -294,13 +356,9 @@ object PublicSite extends AuthenticatedController
                     val userId = res.head._1
                     val name = res.head._2
                     
-                    val authenticationToken = hashedpw
-                    Cache.set("authToken" + userId, authenticationToken, "600mn")
+                    makeSession( userId, name )
                     
                     flash += ("info" -> ("Welcome " + name ))
-                    session += ("user" -> name)
-                    session += ("userId" -> userId.toString)
-                    session += ("authToken", authenticationToken)
                     
                     Utilities.eventLog( userId, "Logged in" )
                     Action(Authenticated.home)
@@ -314,7 +372,7 @@ object PublicSite extends AuthenticatedController
         }
     }
     
-    def captcha(id:String) = {
+    def captcha( id : String ) = {
         val captcha = Images.captcha
         val code = captcha.getText("#E4EAFD")
         Cache.set(id, code, "10mn")
@@ -877,8 +935,7 @@ object Authenticated extends AuthenticatedController
         userId =>
         
         val name = session.get("user")
-        session.remove("user")
-        session.remove("userId")
+        clearSession()
         flash += ("info" -> ("Goodbye: " + name) )
         Action(PublicSite.index)
     }
