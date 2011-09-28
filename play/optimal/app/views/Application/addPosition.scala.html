@@ -119,24 +119,34 @@
             $("#companyDialog").dialog( { autoOpen : false, modal : true,
                 buttons :
                 {
-                    "Select" : function()
+                    "Select" :
                     {
-                        var selected = $("#companySelect option:selected");
-                        var name = selected.text()
-                        var id = selected.attr('value');
-                        var url = selected.attr('data-url');
-                        var companyDescription = selected.attr('data-description');
-                        $("#companyName").val( name );
-                        $("#companyId").val( id );
-                        $("#companyUrl").val( url );
-                        $("#companyDescription").val( companyDescription )
-                        $("#positionForm input").each( function() { $(this).attr('disabled', false); } );
-                        $(this).dialog("close");
+                        text : "Select",
+                        id : "selectButton",
+                        click : function()
+                        {
+                            var selected = $("#companySelect option:selected");
+                            var name = selected.text()
+                            var id = selected.attr('value');
+                            var url = selected.attr('data-url');
+                            var companyDescription = selected.attr('data-description');
+                            $("#companyName").val( name );
+                            $("#companyId").val( id );
+                            $("#companyUrl").val( url );
+                            $("#companyDescription").val( companyDescription )
+                            $("#positionForm input").each( function() { $(this).attr('disabled', false); } );
+                            $(this).dialog("close");
+                        }
                     },
-                    "None of these" : function()
+                    "None of these" :
                     {
-                        $("#positionForm input").each( function() { $(this).attr('disabled', false); } );
-                        $(this).dialog("close");
+                        text : "None of these",
+                        id : "noneOfTheseButton",
+                        click : function()
+                        {
+                            $("#positionForm input").each( function() { $(this).attr('disabled', false); } );
+                            $(this).dialog("close");
+                        }
                     }
                 },
                 close : function()

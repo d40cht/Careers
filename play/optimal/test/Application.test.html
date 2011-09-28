@@ -126,26 +126,38 @@
     assertTitle( 'Upload CV' )
     type( 'name=description', 'An example CV' )
     type( 'name=pdf', '/home/alex/Desktop/SoftwareCV0108.pdf' )
+    
+    setTimeout( 90000 )
     clickAndWait( 'name=submit' )
     
-    assertTitle( 'Manage your existing CVs' )
+    waitForVisible( 'id=processing' )
+    waitForNotVisible( 'id=processing' )
+    assertTitle( 'Manage CVs' )
     assertTextPresent( 'An example CV' )
+    
     
     clickAndWait( 'link=Add position' )
     
-    type( 'Company name', 'Celoxica Ltd' )
+    type( 'name=companyName', 'Celoxica Ltd' )
     click( 'name=lookupCompany' )
+    waitForVisible( 'id=companyDialog' )
     assertTextPresent( 'Company details' )
-    click( 'link=None of these' )
-    type( 'Company url', 'www.celoxica.com' )
-    type( 'Company description', 'FPGA-based financial algorithm acceleration' )
-    type( 'Department', 'Research and development' )
-    type( 'Job title', 'Research and development manager' )
-    type( 'Start year', '2000' )
-    type( 'End year', '2007' )
-    type( 'Address', '66 Milton Park, Abingdon, Oxfordshire' )
+    click( 'id=selectButton' )
+    waitForNotVisible( 'id=companyDialog' )
+    type( 'name=companyUrl', 'www.celoxica.com' )
+    type( 'name=companyDescription', 'FPGA-based financial algorithm acceleration' )
+    type( 'name=department', 'Research and development' )
+    type( 'name=jobTitle', 'Research and development manager' )
+    type( 'name=startYear', '2000' )
+    type( 'name=endYear', '2007' )
+    type( 'name=address', '66 Milton Park, Abingdon, Oxfordshire' )
     click( 'name=lookupAddress' )
+    waitForCondition("selenium.browserbot.getUserWindow().$('#loc').val() != \"\"", "5000");
     clickAndWait( 'name=submit' )
+    
+    wait for id='loc' to be non=empty
+    
+    assertTitle( 'Manage positions' )
     
     clickAndWait( 'link=Logout' )
 
