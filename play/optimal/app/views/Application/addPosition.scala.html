@@ -63,6 +63,7 @@
                     });
                     
                     $("#loc").val( results[0].geometry.location );
+                    $("#placeholder").append( '<span id="addressLoaded"></span>' )
                 }
                 else
                 {
@@ -72,6 +73,7 @@
         }
     </script>
     
+    <span id="placeholder"></span>
     <table>
     <tr>
         <td><form action="@action(controllers.Authenticated.acceptPosition)" method="POST" id="positionForm">

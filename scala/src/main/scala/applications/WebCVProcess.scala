@@ -294,6 +294,7 @@ class WebCVProcess( val baseUrl : String, val localDb : String )
         
         for ( searchId <- searchIds )
         {
+            println( "Acknowledging complete search: %d".format( searchId ) )
             p.fetchRaw( "%s/Batch/searchCompleted?id=%d&magic=%s".format( baseUrl, searchId, Utils.magic ) )
         }
     }

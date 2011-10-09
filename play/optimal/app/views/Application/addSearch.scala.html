@@ -41,6 +41,7 @@
                     });
                     
                     $("#loc").val( results[0].geometry.location );
+                    $("#placeholder").append( '<span id="addressLoaded"></span>' );
                 }
                 else
                 {
@@ -50,14 +51,14 @@
         }
     </script>
     
+    <span id="placeholder"></span>
     <table>
     <tr>
         <td><form action="@action(controllers.Authenticated.acceptSearch)" method="POST">
-            <input type="hidden" name="companyId" id="companyId"/>
             <input type="hidden" name="location" value="@flash.get("location")" id="loc"/>
             <table>
                 <tr><td>Description of search</td><td><input type="text" name="description" value="@flash.get("description")" id="description"/></td></td/></tr>
-                <tr><td>Near (address/postcode)</td><td><input type="text" name="address" value="@flash.get("address")" id="address"/></td><td><input type="button" value="Lookup" onclick="codeAddress()"></td></tr>
+                <tr><td>Near (address/postcode)</td><td><input type="text" name="address" value="@flash.get("address")" id="address"/></td><td><input type="button" value="Lookup" name="lookupAddress" onclick="codeAddress()"></td></tr>
                 <tr><td>Search radius</td><td><select name="radius">
                     <option value="5">5 miles</option>
                     <option value="10">10 miles</option>
@@ -72,7 +73,7 @@
             </table>
             
             <br/>
-            <input type="submit" value="Submit"/>
+            <input type="submit" name="submit" value="Submit"/>
         </form></td>
         
         <td><div id="map_canvas" style="width:280px; height:380px"></div></td>

@@ -142,7 +142,7 @@
     click( 'name=lookupCompany' )
     waitForVisible( 'id=companyDialog' )
     assertTextPresent( 'Company details' )
-    click( 'id=selectButton' )
+    click( 'id=noneOfTheseButton' )
     waitForNotVisible( 'id=companyDialog' )
     type( 'name=companyUrl', 'www.celoxica.com' )
     type( 'name=companyDescription', 'FPGA-based financial algorithm acceleration' )
@@ -152,13 +152,76 @@
     type( 'name=endYear', '2007' )
     type( 'name=address', '66 Milton Park, Abingdon, Oxfordshire' )
     click( 'name=lookupAddress' )
-    waitForCondition("selenium.browserbot.getUserWindow().$('#loc').val() != \"\"", "5000");
+    waitForElementPresent( 'id=addressLoaded' )
+    clickAndWait( 'name=submit' )
+    
+    
+    assertTitle( 'Manage positions' )
+    
+    clickAndWait( 'link=Add search' )
+    assertTitle( 'Add search' )
+    type( 'name=description', 'Alexs first search' )
+    type( 'name=address', 'OX2 8QA, UK' )
+    click( 'name=lookupAddress' )
+    waitForElementPresent( 'id=addressLoaded' )
+    clickAndWait( 'name=submit' )
+    assertTextPresent( 'Search matches' )
+    
+    clickAndWait( 'link=Logout' )
+    assertTextPresent( 'Front page' )
+    
+    
+    clickAndWait( 'link=login' )
+    type( 'name=email', 'gav@blah.com' )
+    type( 'name=password', 'bloo' )
+    clickAndWait( 'name=submit' )
+    verifyTextPresent( 'Welcome Gavin Lightfoot' )
+    assertTitle( 'Home' )
+    
+    clickAndWait( 'link=Upload CV' )
+    assertTitle( 'Upload CV' )
+    type( 'name=description', 'Gav CV' )
+    type( 'name=text', '/home/alex/Desktop/GavCV.txt' )
+    
+    setTimeout( 90000 )
+    clickAndWait( 'name=submit' )
+    
+    waitForVisible( 'id=processing' )
+    waitForNotVisible( 'id=processing' )
+    assertTitle( 'Manage CVs' )
+    assertTextPresent( 'Gav CV' )
+    
+    clickAndWait( 'link=Add position' )
+    
+    type( 'name=companyName', 'Navetas Ltd' )
+    click( 'name=lookupCompany' )
+    waitForVisible( 'id=companyDialog' )
+    assertTextPresent( 'Company details' )
+    click( 'id=noneOfTheseButton' )
+    waitForNotVisible( 'id=companyDialog' )
+    type( 'name=companyUrl', 'www.navetas.com' )
+    type( 'name=companyDescription', 'Energy management' )
+    type( 'name=department', 'Software engineering' )
+    type( 'name=jobTitle', 'Software engineer' )
+    type( 'name=startYear', '2010' )
+    type( 'name=endYear', '2011' )
+    type( 'name=address', '287 Banbury Road, Oxford, UK' )
+    click( 'name=lookupAddress' )
+    waitForElementPresent( 'id=addressLoaded' )
     clickAndWait( 'name=submit' )
     
     wait for id='loc' to be non=empty
     
     assertTitle( 'Manage positions' )
     
-    clickAndWait( 'link=Logout' )
+    
+    clickAndWait( 'link=Add search' )
+    assertTitle( 'Add search' )
+    type( 'name=description', 'Gavs first search' )
+    type( 'name=address', 'London road, Headington, Oxford, UK' )
+    click( 'name=lookupAddress' )
+    waitForElementPresent( 'id=addressLoaded' )
+    clickAndWait( 'name=submit' )
+    
 
 #{/selenium}
