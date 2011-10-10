@@ -165,6 +165,9 @@
     click( 'name=lookupAddress' )
     waitForElementPresent( 'id=addressLoaded' )
     clickAndWait( 'name=submit' )
+    
+    waitForVisible( 'id=processing' )
+    waitForNotVisible( 'id=processing' )
     assertTextPresent( 'Search matches' )
     
     clickAndWait( 'link=Logout' )
@@ -223,5 +226,23 @@
     waitForElementPresent( 'id=addressLoaded' )
     clickAndWait( 'name=submit' )
     
+    waitForVisible( 'id=processing' )
+    waitForNotVisible( 'id=processing' )
+    assertTextPresent( 'Search matches' )
+    
+    assertTextPresent( 'Celoxica Ltd' )
+    assertTextPresent( 'FPGA-based financial algorithm acceleration' )
+    
+    clickAndWait( 'link=Logout' )
+    
+    clickAndWait( 'link=login' )
+    type( 'name=email', 'alex_wilson@pobox.com' )
+    type( 'name=password', 'imptrw' )
+    clickAndWait( 'name=submit' )
+    verifyTextPresent( 'Welcome Alex Wilson' )
+    assertTitle( 'Home' )
+    
+    assertTextPresent( 'Navetas Ltd' )
+    assertTextPresent( 'Energy management' )
 
 #{/selenium}

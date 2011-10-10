@@ -1,15 +1,16 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, searches : Seq[(String, Double)], authenticated:Boolean)
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, searches : Seq[(String, String, Double)], authenticated:Boolean)
 
 @main(title="Manage searches", session=session, flash=flash, authenticated=authenticated) {
     <h1>Manage job searches</h1>
     
     <table class="simple">
-        <tr><th>Description</th><th>Search radius</th><th>Actions</th></tr>
+        <tr><th>Description</th><th>Address</th><th>Search radius</th><th>Actions</th></tr>
     
         @searches.map { (row) =>
             <tr>
                 <td>@row._1</td>
                 <td>@row._2</td>
+                <td>@row._3</td>
                 <td>
                     <a href="">edit</a> /
                     <a href="">delete</a>

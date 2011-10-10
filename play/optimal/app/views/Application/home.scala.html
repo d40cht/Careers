@@ -1,4 +1,4 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Seq[((Long, String, String, String), Seq[(String, Long, String, String, String, String, String, Int, Double, Double, Long)])], authenticated:Boolean)
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Seq[((Long, String, String, String), Seq[(String, Long, String, String, String, String, String, Int, Double, String, Double, Long)])], authenticated:Boolean)
         
 @main(title="Home", session=session, flash=flash, authenticated=authenticated) {
     <h1>Home</h1>
@@ -13,7 +13,7 @@
                 <td style="font-size: 115%; font-weight: bold"><a href="http://@row._1._3">@row._1._2</a></td>
                 <td>@row._1._4</td>
                 <td>@{"%.0f%%".format( row._2.map( r => r._9 ).max * 100 )}</td>
-                <td>@{"%.0f".format( row._2.map( r => r._10 ).min )} miles</td>
+                <td>@{"%.0f".format( row._2.map( r => r._11 ).min )} miles</td>
                 <td>@row._2.size</td>
                 <td><a id="i_@row._1._1">Details</a>/<a href="">Block</a></td>
             </tr>
@@ -23,7 +23,7 @@
                     <td style="font-style:italic">@details._1, @details._6, @details._7</td>
                     <td/>
                     <td style="font-style:italic">@{"%.0f%%".format(details._9 * 100)}</td>
-                    <td style="font-style:italic">@{"%.0f".format(details._10)} miles</td>
+                    <td style="font-style:italic">@{"%.0f".format(details._11)} miles</td>
                     <td/>
                     <td style="font-style:italic"><a href="@action(controllers.Authenticated.matchAnalysis)?id=@details._11">Details</a></td>
                 </tr>

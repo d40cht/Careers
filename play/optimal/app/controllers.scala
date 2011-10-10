@@ -241,7 +241,7 @@ class AuthenticatedController extends Controller
                         
                         if ( res != Nil )
                         {
-                            val now = new Timestamp( System.currentTimeMillis() )
+                            val now = new Timestamp( (new DateTime() + 3.days).millis )
                             if ( res.head.after( now ) )
                             {
                                 None
@@ -693,13 +693,13 @@ object Authenticated extends AuthenticatedController
                 u <- Users
                 if u.id === p.userId
                 _ <- Query orderBy( m.similarity desc )
-            } yield u.fullName ~ c.id ~ c.name ~ c.url ~ c.description ~ p.department ~ p.jobTitle ~ p.yearsExperience ~ m.similarity ~ s.latitude ~ s.longitude ~ p.latitude ~ p.longitude ~ m.id ).list
+            } yield u.fullName ~ c.id ~ c.name ~ c.url ~ c.description ~ p.department ~ p.jobTitle ~ p.yearsExperience ~ m.similarity ~ s.address ~ s.latitude ~ s.longitude ~ p.latitude ~ p.longitude ~ m.id ).list
             
             
             
             val matches = matchData.map( row =>
-                (row._1, row._2, row._3, row._4, row._5, row._6, row._7, row._8, row._9,
-                distance( new LLPoint( row._10, row._11 ), new LLPoint( row._12, row._13 ) ), row._14) ).groupBy( r => (r._2, r._3, r._4, r._5) )
+                (row._1, row._2, row._3, row._4, row._5, row._6, row._7, row._8, row._9, row._10,
+                distance( new LLPoint( row._11, row._12 ), new LLPoint( row._13, row._14 ) ), row._15) ).groupBy( r => (r._2, r._3, r._4, r._5) )
                 
             val sorted = matches.toList.sortWith( (x, y) => x._2.map( _._9 ).max > y._2.map( _._9 ).max )
                 
@@ -725,6 +725,7 @@ object Authenticated extends AuthenticatedController
         userId =>
         
         Validation.required( "Description", params.get("description") )
+        Validation.required( "Address", params.get("address") )
         Validation.required( "Location", params.get("location") )
         Validation.required( "Search radius", params.get("radius") )
         Validation.required( "CV", params.get("chosenCV") )
@@ -741,15 +742,16 @@ object Authenticated extends AuthenticatedController
             db withSession
             {
                 val description = params.get("description")
+                val address = params.get("address")
                 val (latitude, longitude) = parseLocation( params.get("location") )
                 val radius = params.get("radius").toDouble
                 val matchVectorId = makeMatchVectorFromCV( params.get("chosenCV").toLong )
                 
-                val cols = Searches.userId ~ Searches.description ~ Searches.longitude ~ Searches.latitude ~ Searches.radius ~ Searches.matchVectorId
+                val cols = Searches.userId ~ Searches.description ~ Searches.address ~ Searches.longitude ~ Searches.latitude ~ Searches.radius ~ Searches.matchVectorId
                 
                 threadLocalSession withTransaction
                 {
-                    cols.insert( userId, description, longitude, latitude, radius, matchVectorId )
+                    cols.insert( userId, description, address, longitude, latitude, radius, matchVectorId )
                     val searchId = Utilities.getCurr(Searches.insertIdSeq)
                     
                     Utilities.eventLog( userId, "Added a search: %s (%d)".format(description, searchId) )
@@ -840,12 +842,12 @@ object Authenticated extends AuthenticatedController
                 // Add the position itself
                 val rows =
                     Position.userId ~ Position.companyId ~ Position.department ~ Position.jobTitle ~
-                    Position.yearsExperience ~ Position.startYear ~ Position.endYear ~
+                    Position.yearsExperience ~ Position.startYear ~ Position.endYear ~ Position.address ~
                     Position.longitude ~ Position.latitude ~ Position.matchVectorId
                     
                 rows.insert( userId, companyId, params.get("department"), params.get("jobTitle"),
                     params.get("experience").toInt, params.get("startYear").toInt, params.get("endYear").toInt,
-                    longitude, latitude, matchVectorId )
+                    params.get("address"), longitude, latitude, matchVectorId )
                 
                 
                 Utilities.eventLog( userId, "Added a position: %s".format(params.get("jobTitle")) )
@@ -981,7 +983,7 @@ object Authenticated extends AuthenticatedController
             val searches = ( for
             {
                 s <- Searches if s.userId === userId
-            } yield s.description ~ s.radius ).list
+            } yield s.description ~ s.address ~ s.radius ).list
             
             html.manageSearches( session, flash, searches, authenticated != None )
         }
