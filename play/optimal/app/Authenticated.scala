@@ -56,6 +56,12 @@ class SearchMatch(
     val matchId : Long,
     val added : java.sql.Timestamp )
 {
+    def isNew =
+    {
+        val now = new DateTime()
+        
+        (new DateTime(added) + 3.days) < now
+    }
 }
 
 
@@ -290,7 +296,6 @@ object Authenticated extends AuthenticatedController
                 rows.insert( userId, companyId, params.get("department"), params.get("jobTitle"),
                     params.get("experience").toInt, params.get("startYear").toInt, params.get("endYear").toInt,
                     params.get("address"), longitude, latitude, matchVectorId )
-                
                 
                 Utilities.eventLog( userId, "Added a position: %s".format(params.get("jobTitle")) )
                 Action(Authenticated.managePositions)

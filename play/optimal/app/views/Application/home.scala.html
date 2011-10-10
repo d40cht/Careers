@@ -10,7 +10,13 @@
     
         @matches.map { (row) =>
             <tr>
-                <td></td>
+                <td>
+                @if( row._2.foldLeft(false)( (acc, r) => acc || r.isNew ) ) {
+                    "new"
+                } else {
+                    ""
+                }
+                </td>
                 <td style="font-size: 115%; font-weight: bold"><a href="http://@row._1._3">@row._1._2</a></td>
                 <td>@row._1._4</td>
                 <td>@{"%.0f%%".format( row._2.map( r => r.similarity ).max * 100 )}</td>
@@ -21,7 +27,13 @@
             
             @row._2.map { (details) =>
                 <tr class="c_@row._1._1">
-                    <td></td>
+                    <td>
+                    @if( details.isNew ) {
+                        "new"
+                    } else {
+                        ""
+                    }
+                    </td>
                     <td style="font-style:italic">@details.userName, @details.companyDepartment, @details.jobTitle</td>
                     <td/>
                     <td style="font-style:italic">@{"%.0f%%".format(details.similarity * 100)}</td>
