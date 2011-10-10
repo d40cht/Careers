@@ -1,4 +1,4 @@
-@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Seq[((Long, String, String, String), Seq[(String, Long, String, String, String, String, String, Int, Double, String, Double, Long)])], authenticated:Boolean)
+@(session:play.mvc.Scope.Session, flash:play.mvc.Scope.Flash, matches : Seq[((Long, String, String, String), Seq[controllers.SearchMatch])], authenticated:Boolean)
         
 @main(title="Home", session=session, flash=flash, authenticated=authenticated) {
     <h1>Home</h1>
@@ -6,26 +6,28 @@
     <h2>Search matches</h2>
     <br/>
     <table class="simple" style="width: 100%">
-        <tr><th>Company name</th><th>Company description</th><th>Best similarity</th><th>Shortest distance</th><th>Number of matches</th><th>Actions</th></tr>
+        <tr><th></th><th>Company name</th><th>Company description</th><th>Best similarity</th><th>Shortest distance</th><th>Number of matches</th><th>Actions</th></tr>
     
         @matches.map { (row) =>
             <tr>
+                <td></td>
                 <td style="font-size: 115%; font-weight: bold"><a href="http://@row._1._3">@row._1._2</a></td>
                 <td>@row._1._4</td>
-                <td>@{"%.0f%%".format( row._2.map( r => r._9 ).max * 100 )}</td>
-                <td>@{"%.0f".format( row._2.map( r => r._11 ).min )} miles</td>
+                <td>@{"%.0f%%".format( row._2.map( r => r.similarity ).max * 100 )}</td>
+                <td>@{"%.0f".format( row._2.map( r => r.distance ).min )} miles</td>
                 <td>@row._2.size</td>
                 <td><a id="i_@row._1._1">Details</a>/<a href="">Block</a></td>
             </tr>
             
             @row._2.map { (details) =>
                 <tr class="c_@row._1._1">
-                    <td style="font-style:italic">@details._1, @details._6, @details._7</td>
+                    <td></td>
+                    <td style="font-style:italic">@details.userName, @details.companyDepartment, @details.jobTitle</td>
                     <td/>
-                    <td style="font-style:italic">@{"%.0f%%".format(details._9 * 100)}</td>
-                    <td style="font-style:italic">@{"%.0f".format(details._11)} miles</td>
+                    <td style="font-style:italic">@{"%.0f%%".format(details.similarity * 100)}</td>
+                    <td style="font-style:italic">@{"%.0f".format(details.distance)} miles</td>
                     <td/>
-                    <td style="font-style:italic"><a href="@action(controllers.Authenticated.matchAnalysis)?id=@details._11">Details</a></td>
+                    <td style="font-style:italic"><a href="@action(controllers.Authenticated.matchAnalysis)?id=@details.matchId">Details</a></td>
                 </tr>
             }
             
